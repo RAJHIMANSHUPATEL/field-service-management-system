@@ -68,6 +68,7 @@ const workOrderInclude = {
       },
     },
   },
+  invoice: { select: { id: true, number: true, status: true, total: true, currency: true } },
   partRequests: {
     orderBy: { createdAt: "asc" as const },
     select: {

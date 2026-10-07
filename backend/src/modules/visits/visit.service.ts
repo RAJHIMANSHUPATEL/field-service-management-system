@@ -3,6 +3,7 @@ import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { getWorkOrder } from "../workOrders/workOrder.service.js";
 import { canMoveVisit, canReplan, stepTimestamp, visitTransitions, type VisitStep } from "./visit.transitions.js";
+import { createDraftInvoice } from "../invoices/invoice.service.js";
 import { releaseOpenReservations } from "../inventory/visitPart.service.js";
 import { assertTechnicianFree } from "./visit.scheduling.js";
 import type { CalendarQuery, RescheduleVisitInput } from "./visit.schema.js";
@@ -68,6 +69,8 @@ export async function moveVisit(id: string, actor: AuthUser, step: VisitStep) {
         throw new AppError("INVALID_TRANSITION", 409, "This visit cannot move to that step");
       }
       await releaseOpenReservations(tx, visit.id, actor.id);
+      // The system prepares the invoice once the job is done; ops reviews and issues it.
+      await createDraftInvoice(tx, visit.workOrder.id);
     }
   });
 

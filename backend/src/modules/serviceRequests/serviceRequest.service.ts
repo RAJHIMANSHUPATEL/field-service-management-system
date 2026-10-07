@@ -29,6 +29,7 @@ const requestInclude = {
     select: {
       id: true,
       status: true,
+      invoice: { select: { id: true, number: true, status: true, total: true, currency: true } },
       visits: {
         orderBy: { createdAt: "asc" as const },
         select: {
