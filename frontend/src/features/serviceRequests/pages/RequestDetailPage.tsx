@@ -107,8 +107,8 @@ export function RequestDetailPage() {
                     { label: "Job status", value: workOrderStatusLabel(record.workOrder.status) },
                     ...record.workOrder.visits
                       .filter((visit) => visit.status !== "CANCELLED")
-                      .map((visit) => ({
-                        label: "Visit",
+                      .map((visit, index, all) => ({
+                        label: all.length > 1 ? `Visit ${index + 1}` : "Visit",
                         value: `${new Date(visit.scheduledStart).toLocaleString(undefined, {
                           dateStyle: "medium",
                           timeStyle: "short",

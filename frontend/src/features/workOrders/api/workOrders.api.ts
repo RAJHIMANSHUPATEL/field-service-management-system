@@ -20,6 +20,7 @@ export type WorkOrder = {
   request: { id: string; status: string; preferredStart: string; preferredEnd: string };
   technician: { id: string; user: { id: string; name: string } } | null;
   visits: Visit[];
+  partRequests: PartRequest[];
   notes: { id: string; body: string; createdAt: string; author: { id: string; name: string } }[];
 };
 
@@ -44,6 +45,8 @@ export type Visit = {
   arrivedAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
+  endedAt: string | null;
+  outcomeReason: string | null;
   diagnosis: string | null;
   workPerformed: string | null;
   signerName: string | null;
@@ -246,4 +249,32 @@ export async function declineWorkOrder(id: string, reason: string) {
 export async function moveVisit(visitId: string, step: VisitStep) {
   const result = await api<{ data: WorkOrder }>(`/api/v1/visits/${visitId}/${step}`, { method: "POST" });
   return result.data;
+}
+
+export type PartRequest = {
+  id: string;
+  quantity: number;
+  status: "OPEN" | "FULFILLED" | "CANCELLED";
+  note: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  part: { id: string; sku: string; name: string };
+};
+
+export type UnsuccessfulInput = {
+  outcome: "AWAITING_PARTS" | "FOLLOW_UP_REQUIRED";
+  reason: string;
+  partRequests: { partId: string; quantity: number }[];
+};
+
+export async function endVisitUnsuccessful(visitId: string, input: UnsuccessfulInput) {
+  const result = await api<{ data: WorkOrder }>(`/api/v1/visits/${visitId}/unsuccessful`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return result.data;
+}
+
+export async function resolvePartRequest(id: string, action: "fulfil" | "cancel") {
+  return api<{ data: unknown }>(`/api/v1/part-requests/${id}/${action}`, { method: "POST", body: JSON.stringify({}) });
 }

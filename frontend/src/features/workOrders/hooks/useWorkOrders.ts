@@ -7,6 +7,9 @@ import {
   listWorkOrders,
   moveVisit,
   addWorkOrderNote,
+  endVisitUnsuccessful,
+  resolvePartRequest,
+  type UnsuccessfulInput,
   addVisitPart,
   moveVisitPart,
   completeVisit,
@@ -201,5 +204,25 @@ export function useMoveVisitPart(workOrderId: string) {
       refresh();
       void queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
+  });
+}
+
+export function useEndVisitUnsuccessful(workOrderId: string) {
+  const refresh = useRefreshWorkOrder(workOrderId);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ visitId, ...input }: { visitId: string } & UnsuccessfulInput) => endVisitUnsuccessful(visitId, input),
+    onSuccess: () => {
+      refresh();
+      void queryClient.invalidateQueries({ queryKey: ["inventory"] });
+    },
+  });
+}
+
+export function useResolvePartRequest(workOrderId: string) {
+  const refresh = useRefreshWorkOrder(workOrderId);
+  return useMutation({
+    mutationFn: ({ id, action }: { id: string; action: "fulfil" | "cancel" }) => resolvePartRequest(id, action),
+    onSuccess: refresh,
   });
 }

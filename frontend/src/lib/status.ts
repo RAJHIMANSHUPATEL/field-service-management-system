@@ -1,7 +1,7 @@
-export const workOrderStatuses = ["OPEN", "ASSIGNED", "ACCEPTED", "IN_PROGRESS", "COMPLETED"] as const;
+export const workOrderStatuses = ["OPEN", "ASSIGNED", "ACCEPTED", "IN_PROGRESS", "AWAITING_PARTS", "FOLLOW_UP_REQUIRED", "COMPLETED"] as const;
 export type WorkOrderStatus = (typeof workOrderStatuses)[number];
 
-export const visitStatuses = ["SCHEDULED", "EN_ROUTE", "ARRIVED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const;
+export const visitStatuses = ["SCHEDULED", "EN_ROUTE", "ARRIVED", "IN_PROGRESS", "COMPLETED", "UNSUCCESSFUL", "CANCELLED"] as const;
 export type VisitStatus = (typeof visitStatuses)[number];
 
 const workOrderStatusLabels: Record<WorkOrderStatus, string> = {
@@ -9,6 +9,8 @@ const workOrderStatusLabels: Record<WorkOrderStatus, string> = {
   ASSIGNED: "Assigned",
   ACCEPTED: "Accepted",
   IN_PROGRESS: "In progress",
+  AWAITING_PARTS: "Awaiting parts",
+  FOLLOW_UP_REQUIRED: "Follow-up required",
   COMPLETED: "Completed",
 };
 
@@ -18,6 +20,7 @@ const visitStatusLabels: Record<VisitStatus, string> = {
   ARRIVED: "Arrived",
   IN_PROGRESS: "In progress",
   COMPLETED: "Completed",
+  UNSUCCESSFUL: "Unsuccessful",
   CANCELLED: "Cancelled",
 };
 

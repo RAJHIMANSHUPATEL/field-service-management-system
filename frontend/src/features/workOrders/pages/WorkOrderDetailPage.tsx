@@ -21,6 +21,7 @@ import { useTechnicians } from "@/features/technicians/hooks/useTechnicians";
 import { visitStatusLabel, workOrderStatusLabel } from "@/lib/status";
 import { toastError } from "@/lib/toastError";
 import type { Visit, WorkOrderStatus } from "../api/workOrders.api";
+import { PartRequests } from "../components/FollowUp";
 import { AddNoteForm, ExecutionPanel, VisitProgress } from "../components/VisitExecution";
 import { CandidateHint, ReassignDialog, ReplanDialog, VisitHistory } from "../components/VisitPlanning";
 import { nextVisitStep, visitSteps } from "../schemas/workOrder.schema";
@@ -81,8 +82,9 @@ export function WorkOrderDetailPage() {
   const hasScheduledVisit = record.visits.some((visit) => visit.status === "SCHEDULED");
   const isAssignee =
     currentUser.data?.role === "TECHNICIAN" && record.technician?.user.id === currentUser.data.id;
-  const showAssign = canAssign && record.status !== "ACCEPTED" && !hasScheduledVisit;
-  const showSchedule = canAssign && record.status === "ASSIGNED" && !hasScheduledVisit;
+  const showAssign = canAssign && (record.status === "OPEN" || record.status === "ASSIGNED") && !hasScheduledVisit;
+  const showSchedule =
+    canAssign && (record.status === "ASSIGNED" || record.status === "FOLLOW_UP_REQUIRED") && !hasScheduledVisit;
   const showAccept = isAssignee && record.status === "ASSIGNED" && hasScheduledVisit;
   const showDecline = isAssignee && record.status === "ASSIGNED";
   const activeVisit = record.visits.find((visit) => nextVisitStep(visit.status) !== null);
@@ -161,6 +163,7 @@ export function WorkOrderDetailPage() {
             </ul>
           </div>
         ) : null}
+        <PartRequests workOrderId={record.id} requests={record.partRequests} canResolve={canAssign} />
       </CardContent>
       {showActions ? (
         <CardFooter className="flex-wrap gap-2">
