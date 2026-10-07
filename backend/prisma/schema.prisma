@@ -915,11 +915,13 @@ model Feedback {
   satisfied      Boolean
   comment        String?
   createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id])
   workOrder      WorkOrder    @relation(fields: [workOrderId], references: [id])
   author         User         @relation(fields: [authorId], references: [id])
 
   @@index([organizationId, createdAt])
+  @@index([authorId])
 }
 
 enum NotificationAudience {
@@ -977,6 +979,7 @@ model Notification {
   sentAt         DateTime?
   readAt         DateTime?
   createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
   organization   Organization        @relation(fields: [organizationId], references: [id])
   recipient      User                @relation(fields: [recipientId], references: [id])
 
