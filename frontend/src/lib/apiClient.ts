@@ -45,6 +45,13 @@ async function refreshAccessToken(): Promise<boolean> {
 
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const { skipRefresh = false, headers, body, ...rest } = options;
+  const isAuthCall = path.endsWith("/auth/login") || path.endsWith("/auth/refresh");
+
+  // After a page load the access token is gone; restore it from the refresh cookie first
+  // instead of sending a request that is certain to fail with 401.
+  if (!accessToken && !skipRefresh && !isAuthCall) {
+    await refreshAccessToken();
+  }
 
   const response = await fetch(path, {
     ...rest,
@@ -60,8 +67,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   if (
     response.status === 401 &&
     !skipRefresh &&
-    !path.endsWith("/auth/login") &&
-    !path.endsWith("/auth/refresh")
+    !isAuthCall
   ) {
     const refreshed = await refreshAccessToken();
     if (refreshed) {

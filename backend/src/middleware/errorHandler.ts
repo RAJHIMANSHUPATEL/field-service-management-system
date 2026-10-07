@@ -26,27 +26,6 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
   }
 
   console.error(err);
-  // #region agent log
-  {
-    const prismaError = err as { code?: string; message?: string };
-    fetch("http://127.0.0.1:7863/ingest/c073d103-8592-493c-b7ab-4f798c5dd065", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "93e68e" },
-      body: JSON.stringify({
-        sessionId: "93e68e",
-        runId: "pre-fix",
-        hypothesisId: "A-D",
-        location: "errorHandler.ts:unhandled",
-        message: "Unhandled API error",
-        data: {
-          code: prismaError.code ?? null,
-          isDatabaseAuthFailure: prismaError.code === "P1000",
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-  }
-  // #endregion
   res.status(500).json({
     error: {
       code: "INTERNAL_ERROR",

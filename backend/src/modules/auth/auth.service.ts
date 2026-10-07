@@ -86,21 +86,7 @@ export async function login(input: LoginInput): Promise<AuthSession> {
     where: { email },
     include: { organization: true },
   });
-  // #region agent log
-  fetch("http://127.0.0.1:7863/ingest/c073d103-8592-493c-b7ab-4f798c5dd065", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "93e68e" },
-    body: JSON.stringify({
-      sessionId: "93e68e",
-      runId: "post-fix",
-      hypothesisId: "F",
-      location: "auth.service.ts:login",
-      message: "Login query completed",
-      data: { userCount: users.length },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
+  
   const user = users.length === 1 ? users[0] : undefined;
 
   if (!user) {
