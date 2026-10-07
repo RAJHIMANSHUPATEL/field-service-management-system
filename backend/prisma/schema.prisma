@@ -55,53 +55,55 @@ enum VisitStatus {
 }
 
 model Organization {
-  id           String        @id @default(cuid())
-  name         String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  users        User[]
-  customers    Customer[]
-  assets       Asset[]
-  serviceTypes    ServiceType[]
-  technicians     Technician[]
-  serviceRequests ServiceRequest[]
-  workOrders      WorkOrder[]
-  serviceVisits   ServiceVisit[]
-  workOrderNotes  WorkOrderNote[]
-  auditEvents     AuditEvent[]
-  invitations     Invitation[]
-  skills          Skill[]
-  serviceAreas    ServiceArea[]
-  parts           Part[]
-  warehouses      Warehouse[]
-  visitPhotos     VisitPhoto[]
-  stockLevels     StockLevel[]
-  stockMovements  StockMovement[]
-  visitParts      VisitPart[]
-  partRequests    PartRequest[]
-  taxRatePercent  Decimal         @default(18) @db.Decimal(5, 2)
-  paymentTermsDays Int            @default(15)
-  invoiceSequence Int             @default(0)
-  contracts       ServiceContract[]
-  invoices        Invoice[]
-  invoiceLines    InvoiceLine[]
-  payments        Payment[]
-  feedback        Feedback[]
+  id                String             @id @default(cuid())
+  name              String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  users             User[]
+  customers         Customer[]
+  assets            Asset[]
+  serviceTypes      ServiceType[]
+  technicians       Technician[]
+  serviceRequests   ServiceRequest[]
+  workOrders        WorkOrder[]
+  serviceVisits     ServiceVisit[]
+  workOrderNotes    WorkOrderNote[]
+  auditEvents       AuditEvent[]
+  invitations       Invitation[]
+  skills            Skill[]
+  serviceAreas      ServiceArea[]
+  parts             Part[]
+  warehouses        Warehouse[]
+  visitPhotos       VisitPhoto[]
+  stockLevels       StockLevel[]
+  stockMovements    StockMovement[]
+  visitParts        VisitPart[]
+  partRequests      PartRequest[]
+  taxRatePercent    Decimal            @default(18) @db.Decimal(5, 2)
+  paymentTermsDays  Int                @default(15)
+  invoiceSequence   Int                @default(0)
+  contracts         ServiceContract[]
+  invoices          Invoice[]
+  invoiceLines      InvoiceLine[]
+  payments          Payment[]
+  feedback          Feedback[]
   notificationRules NotificationRule[]
-  notifications   Notification[]
+  notifications     Notification[]
+  contractVisits    ContractVisit[]
+  maintenancePlans  MaintenancePlan[]
 }
 
 model User {
-  id              String           @id @default(cuid())
-  organizationId  String
-  email           String
-  passwordHash    String
-  name            String
-  role            Role
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  organization    Organization     @relation(fields: [organizationId], references: [id])
-  refreshTokens   RefreshToken[]
+  id                  String                     @id @default(cuid())
+  organizationId      String
+  email               String
+  passwordHash        String
+  name                String
+  role                Role
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  organization        Organization               @relation(fields: [organizationId], references: [id])
+  refreshTokens       RefreshToken[]
   customerContact     CustomerContact?
   technician          Technician?
   serviceRequestNotes ServiceRequestNote[]
@@ -139,34 +141,35 @@ model RefreshToken {
 }
 
 model Customer {
-  id             String            @id @default(cuid())
-  organizationId String
-  name           String
-  phone          String?
-  email          String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  organization   Organization      @relation(fields: [organizationId], references: [id])
-  contacts        CustomerContact[]
-  addresses       Address[]
-  assets          Asset[]
-  serviceRequests ServiceRequest[]
-  workOrders      WorkOrder[]
-  contracts       ServiceContract[]
-  invoices        Invoice[]
+  id               String            @id @default(cuid())
+  organizationId   String
+  name             String
+  phone            String?
+  email            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  organization     Organization      @relation(fields: [organizationId], references: [id])
+  contacts         CustomerContact[]
+  addresses        Address[]
+  assets           Asset[]
+  serviceRequests  ServiceRequest[]
+  workOrders       WorkOrder[]
+  contracts        ServiceContract[]
+  invoices         Invoice[]
+  maintenancePlans MaintenancePlan[]
 
   @@index([organizationId])
 }
 
 model CustomerContact {
-  id         String   @id @default(cuid())
-  customerId String
-  name       String
-  email      String
-  phone      String?
-  userId     String?  @unique
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String           @id @default(cuid())
+  customerId      String
+  name            String
+  email           String
+  phone           String?
+  userId          String?          @unique
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   customer        Customer         @relation(fields: [customerId], references: [id])
   user            User?            @relation(fields: [userId], references: [id])
   serviceRequests ServiceRequest[]
@@ -175,17 +178,17 @@ model CustomerContact {
 }
 
 model Address {
-  id         String   @id @default(cuid())
-  customerId String
-  label      String
-  line1      String
-  line2      String?
-  city       String
-  state      String
-  postalCode String
-  isPrimary  Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String           @id @default(cuid())
+  customerId      String
+  label           String
+  line1           String
+  line2           String?
+  city            String
+  state           String
+  postalCode      String
+  isPrimary       Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   customer        Customer         @relation(fields: [customerId], references: [id])
   assets          Asset[]
   serviceRequests ServiceRequest[]
@@ -195,7 +198,7 @@ model Address {
 }
 
 model Asset {
-  id                String         @id @default(cuid())
+  id                String            @id @default(cuid())
   organizationId    String
   customerId        String
   addressId         String
@@ -204,15 +207,16 @@ model Asset {
   serialNumber      String
   installedAt       DateTime?
   warrantyExpiresAt DateTime?
-  status            AssetStatus    @default(ACTIVE)
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  organization      Organization     @relation(fields: [organizationId], references: [id])
-  customer          Customer         @relation(fields: [customerId], references: [id])
-  address           Address          @relation(fields: [addressId], references: [id])
+  status            AssetStatus       @default(ACTIVE)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  organization      Organization      @relation(fields: [organizationId], references: [id])
+  customer          Customer          @relation(fields: [customerId], references: [id])
+  address           Address           @relation(fields: [addressId], references: [id])
   serviceRequests   ServiceRequest[]
   workOrders        WorkOrder[]
   contractAssets    ContractAsset[]
+  maintenancePlans  MaintenancePlan[]
 
   @@unique([organizationId, serialNumber])
   @@index([organizationId])
@@ -221,37 +225,38 @@ model Asset {
 }
 
 model ServiceType {
-  id             String       @id @default(cuid())
-  organizationId String
-  name           String
-  description    String?
-  isActive       Boolean      @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  requiredSkillId String?
-  organization    Organization     @relation(fields: [organizationId], references: [id])
-  requiredSkill   Skill?           @relation(fields: [requiredSkillId], references: [id])
-  serviceRequests ServiceRequest[]
-  workOrders      WorkOrder[]
-  serviceCharge     Decimal      @default(0) @db.Decimal(12, 2)
-  labourRatePerHour Decimal      @default(0) @db.Decimal(12, 2)
+  id                String            @id @default(cuid())
+  organizationId    String
+  name              String
+  description       String?
+  isActive          Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  requiredSkillId   String?
+  organization      Organization      @relation(fields: [organizationId], references: [id])
+  requiredSkill     Skill?            @relation(fields: [requiredSkillId], references: [id])
+  serviceRequests   ServiceRequest[]
+  workOrders        WorkOrder[]
+  serviceCharge     Decimal           @default(0) @db.Decimal(12, 2)
+  labourRatePerHour Decimal           @default(0) @db.Decimal(12, 2)
   sacCode           String?
+  maintenancePlans  MaintenancePlan[]
 
-  @@index([requiredSkillId])
   @@unique([organizationId, name])
+  @@index([requiredSkillId])
   @@index([organizationId])
 }
 
 model Technician {
-  id             String      @id @default(cuid())
+  id             String                  @id @default(cuid())
   organizationId String
-  userId         String      @unique
+  userId         String                  @unique
   phone          String?
-  isActive       Boolean     @default(true)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  user           User         @relation(fields: [userId], references: [id])
+  isActive       Boolean                 @default(true)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  organization   Organization            @relation(fields: [organizationId], references: [id])
+  user           User                    @relation(fields: [userId], references: [id])
   workOrders     WorkOrder[]
   serviceVisits  ServiceVisit[]
   skills         TechnicianSkill[]
@@ -263,29 +268,29 @@ model Technician {
 }
 
 model ServiceRequest {
-  id              String               @id @default(cuid())
-  organizationId  String
-  customerId      String
-  contactId       String?
-  assetId         String
-  addressId       String
-  serviceTypeId   String
-  description     String
-  preferredStart  DateTime             @db.Date
-  preferredEnd    DateTime             @db.Date
-  priority        RequestPriority      @default(NORMAL)
-  status          ServiceRequestStatus @default(SUBMITTED)
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
-  organization    Organization         @relation(fields: [organizationId], references: [id])
-  customer        Customer             @relation(fields: [customerId], references: [id])
-  contact         CustomerContact?     @relation(fields: [contactId], references: [id])
-  asset           Asset                @relation(fields: [assetId], references: [id])
-  address         Address              @relation(fields: [addressId], references: [id])
-  serviceType     ServiceType          @relation(fields: [serviceTypeId], references: [id])
-  notes           ServiceRequestNote[]
-  attachments     ServiceRequestAttachment[]
-  workOrder       WorkOrder?
+  id             String                     @id @default(cuid())
+  organizationId String
+  customerId     String
+  contactId      String?
+  assetId        String
+  addressId      String
+  serviceTypeId  String
+  description    String
+  preferredStart DateTime                   @db.Date
+  preferredEnd   DateTime                   @db.Date
+  priority       RequestPriority            @default(NORMAL)
+  status         ServiceRequestStatus       @default(SUBMITTED)
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  organization   Organization               @relation(fields: [organizationId], references: [id])
+  customer       Customer                   @relation(fields: [customerId], references: [id])
+  contact        CustomerContact?           @relation(fields: [contactId], references: [id])
+  asset          Asset                      @relation(fields: [assetId], references: [id])
+  address        Address                    @relation(fields: [addressId], references: [id])
+  serviceType    ServiceType                @relation(fields: [serviceTypeId], references: [id])
+  notes          ServiceRequestNote[]
+  attachments    ServiceRequestAttachment[]
+  workOrder      WorkOrder?
 
   @@index([organizationId])
   @@index([customerId])
@@ -311,68 +316,72 @@ model ServiceRequestNote {
 }
 
 model WorkOrder {
-  id             String          @id @default(cuid())
-  organizationId String
-  requestId      String          @unique
-  customerId     String
-  assetId        String
-  addressId      String
-  serviceTypeId  String
-  technicianId   String?
-  priority       RequestPriority
-  description    String
-  status         WorkOrderStatus @default(OPEN)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  organization   Organization    @relation(fields: [organizationId], references: [id])
-  request        ServiceRequest  @relation(fields: [requestId], references: [id])
-  customer       Customer        @relation(fields: [customerId], references: [id])
-  asset          Asset           @relation(fields: [assetId], references: [id])
-  address        Address         @relation(fields: [addressId], references: [id])
-  serviceType    ServiceType     @relation(fields: [serviceTypeId], references: [id])
-  technician     Technician?     @relation(fields: [technicianId], references: [id])
-  visits         ServiceVisit[]
-  partRequests   PartRequest[]
-  notes          WorkOrderNote[]
-  invoice        Invoice?
-  feedback       Feedback?
+  id                String           @id @default(cuid())
+  organizationId    String
+  requestId         String           @unique
+  customerId        String
+  assetId           String
+  addressId         String
+  serviceTypeId     String
+  technicianId      String?
+  priority          RequestPriority
+  description       String
+  status            WorkOrderStatus  @default(OPEN)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  organization      Organization     @relation(fields: [organizationId], references: [id])
+  request           ServiceRequest   @relation(fields: [requestId], references: [id])
+  customer          Customer         @relation(fields: [customerId], references: [id])
+  asset             Asset            @relation(fields: [assetId], references: [id])
+  address           Address          @relation(fields: [addressId], references: [id])
+  serviceType       ServiceType      @relation(fields: [serviceTypeId], references: [id])
+  technician        Technician?      @relation(fields: [technicianId], references: [id])
+  visits            ServiceVisit[]
+  partRequests      PartRequest[]
+  notes             WorkOrderNote[]
+  invoice           Invoice?
+  feedback          Feedback?
+  maintenancePlanId String?
+  maintenancePlan   MaintenancePlan? @relation(fields: [maintenancePlanId], references: [id])
+  contractVisit     ContractVisit?
 
   @@index([organizationId])
   @@index([customerId])
   @@index([assetId])
   @@index([addressId])
+  @@index([maintenancePlanId])
   @@index([serviceTypeId])
   @@index([technicianId])
   @@index([status])
 }
 
 model ServiceVisit {
-  id             String      @id @default(cuid())
-  organizationId String
-  workOrderId    String
-  technicianId   String
-  scheduledStart DateTime
-  durationMinutes Int        @default(120)
-  status         VisitStatus @default(SCHEDULED)
-  enRouteAt      DateTime?
-  arrivedAt      DateTime?
-  startedAt      DateTime?
-  completedAt    DateTime?
-  endedAt        DateTime?
-  outcomeReason  String?
-  diagnosis      String?
-  workPerformed  String?
-  signerName     String?
-  signatureKey   String?
-  signedAt       DateTime?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  workOrder      WorkOrder    @relation(fields: [workOrderId], references: [id])
-  technician     Technician   @relation(fields: [technicianId], references: [id])
-  changes        VisitChange[]
-  photos         VisitPhoto[]
-  parts          VisitPart[]
+  id              String        @id @default(cuid())
+  organizationId  String
+  workOrderId     String
+  technicianId    String
+  scheduledStart  DateTime
+  durationMinutes Int           @default(120)
+  status          VisitStatus   @default(SCHEDULED)
+  enRouteAt       DateTime?
+  arrivedAt       DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  endedAt         DateTime?
+  outcomeReason   String?
+  diagnosis       String?
+  workPerformed   String?
+  signerName      String?
+  signatureKey    String?
+  signedAt        DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  organization    Organization  @relation(fields: [organizationId], references: [id])
+  workOrder       WorkOrder     @relation(fields: [workOrderId], references: [id])
+  technician      Technician    @relation(fields: [technicianId], references: [id])
+  changes         VisitChange[]
+  photos          VisitPhoto[]
+  parts           VisitPart[]
 
   @@index([scheduledStart])
   @@index([organizationId])
@@ -519,23 +528,23 @@ model TechnicianServiceArea {
 }
 
 model Part {
-  id             String       @id @default(cuid())
+  id             String          @id @default(cuid())
   organizationId String
   sku            String
   name           String
   description    String?
-  unitPrice      Decimal      @db.Decimal(12, 2)
-  currency       String       @default("INR")
-  isSerialized   Boolean      @default(false)
-  isActive       Boolean      @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  unitPrice      Decimal         @db.Decimal(12, 2)
+  currency       String          @default("INR")
+  isSerialized   Boolean         @default(false)
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  organization   Organization    @relation(fields: [organizationId], references: [id])
   stockLevels    StockLevel[]
   movements      StockMovement[]
   visitParts     VisitPart[]
   requests       PartRequest[]
-  reorderLevel   Int          @default(0)
+  reorderLevel   Int             @default(0)
 
   @@unique([organizationId, sku])
   @@index([organizationId])
@@ -547,16 +556,16 @@ enum WarehouseKind {
 }
 
 model Warehouse {
-  id             String        @id @default(cuid())
+  id             String          @id @default(cuid())
   organizationId String
   name           String
-  kind           WarehouseKind @default(WAREHOUSE)
-  technicianId   String?       @unique
-  isActive       Boolean       @default(true)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  organization   Organization  @relation(fields: [organizationId], references: [id])
-  technician     Technician?   @relation(fields: [technicianId], references: [id])
+  kind           WarehouseKind   @default(WAREHOUSE)
+  technicianId   String?         @unique
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  technician     Technician?     @relation(fields: [technicianId], references: [id])
   stockLevels    StockLevel[]
   movements      StockMovement[]
   visitParts     VisitPart[]
@@ -678,23 +687,23 @@ enum StockMovementKind {
 
 // Append-only ledger. onHandDelta and reservedDelta are what the row did to the StockLevel.
 model StockMovement {
-  id                 String            @id @default(cuid())
-  organizationId     String
-  warehouseId        String
-  partId             String
-  kind               StockMovementKind
-  onHandDelta        Int
-  reservedDelta      Int               @default(0)
-  reason             String
-  actorId            String
-  visitId            String?
-  visitPartId        String?
-  transferGroup      String?
-  createdAt          DateTime          @default(now())
-  organization       Organization      @relation(fields: [organizationId], references: [id])
-  warehouse          Warehouse         @relation(fields: [warehouseId], references: [id])
-  part               Part              @relation(fields: [partId], references: [id])
-  actor              User              @relation(fields: [actorId], references: [id])
+  id             String            @id @default(cuid())
+  organizationId String
+  warehouseId    String
+  partId         String
+  kind           StockMovementKind
+  onHandDelta    Int
+  reservedDelta  Int               @default(0)
+  reason         String
+  actorId        String
+  visitId        String?
+  visitPartId    String?
+  transferGroup  String?
+  createdAt      DateTime          @default(now())
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  warehouse      Warehouse         @relation(fields: [warehouseId], references: [id])
+  part           Part              @relation(fields: [partId], references: [id])
+  actor          User              @relation(fields: [actorId], references: [id])
 
   @@index([organizationId, createdAt])
   @@index([warehouseId, partId])
@@ -767,22 +776,27 @@ enum ContractStatus {
 // An AMC or service contract. Coverage percentages apply to the matching invoice lines of a job
 // on a covered asset completed while the contract is active.
 model ServiceContract {
-  id                          String         @id @default(cuid())
+  id                          String            @id @default(cuid())
   organizationId              String
   customerId                  String
   name                        String
   startsOn                    DateTime
   endsOn                      DateTime
-  status                      ContractStatus @default(ACTIVE)
-  serviceChargeCoveredPercent Int            @default(100)
-  labourCoveredPercent        Int            @default(100)
-  partsCoveredPercent         Int            @default(0)
-  createdAt                   DateTime       @default(now())
-  updatedAt                   DateTime       @updatedAt
-  organization                Organization   @relation(fields: [organizationId], references: [id])
-  customer                    Customer       @relation(fields: [customerId], references: [id])
+  status                      ContractStatus    @default(ACTIVE)
+  serviceChargeCoveredPercent Int               @default(100)
+  labourCoveredPercent        Int               @default(100)
+  partsCoveredPercent         Int               @default(0)
+  createdAt                   DateTime          @default(now())
+  updatedAt                   DateTime          @updatedAt
+  organization                Organization      @relation(fields: [organizationId], references: [id])
+  customer                    Customer          @relation(fields: [customerId], references: [id])
   assets                      ContractAsset[]
   invoices                    Invoice[]
+  // Visits included in the contract (null = unlimited) and how many completed jobs used one.
+  includedVisits              Int?
+  usedVisits                  Int               @default(0)
+  visits                      ContractVisit[]
+  maintenancePlans            MaintenancePlan[]
 
   @@index([organizationId])
   @@index([customerId])
@@ -814,38 +828,38 @@ enum CoverageSource {
 }
 
 model Invoice {
-  id              String         @id @default(cuid())
-  organizationId  String
-  workOrderId     String         @unique
-  customerId      String
-  number          String?
-  status          InvoiceStatus  @default(DRAFT)
-  currency        String         @default("INR")
-  subtotal        Decimal        @db.Decimal(12, 2)
-  coveredTotal    Decimal        @db.Decimal(12, 2)
-  discount        Decimal        @default(0) @db.Decimal(12, 2)
-  taxableAmount   Decimal        @db.Decimal(12, 2)
-  taxRatePercent  Decimal        @db.Decimal(5, 2)
-  cgst            Decimal        @db.Decimal(12, 2)
-  sgst            Decimal        @db.Decimal(12, 2)
-  taxTotal        Decimal        @db.Decimal(12, 2)
-  total           Decimal        @db.Decimal(12, 2)
-  amountPaid      Decimal        @default(0) @db.Decimal(12, 2)
-  coverageSource  CoverageSource @default(NONE)
-  contractId      String?
-  notes           String?
-  issuedAt        DateTime?
-  dueAt           DateTime?
-  paidAt          DateTime?
-  voidedAt        DateTime?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  organization    Organization   @relation(fields: [organizationId], references: [id])
-  workOrder       WorkOrder      @relation(fields: [workOrderId], references: [id])
-  customer        Customer       @relation(fields: [customerId], references: [id])
-  contract        ServiceContract? @relation(fields: [contractId], references: [id])
-  lines           InvoiceLine[]
-  payments        Payment[]
+  id             String           @id @default(cuid())
+  organizationId String
+  workOrderId    String           @unique
+  customerId     String
+  number         String?
+  status         InvoiceStatus    @default(DRAFT)
+  currency       String           @default("INR")
+  subtotal       Decimal          @db.Decimal(12, 2)
+  coveredTotal   Decimal          @db.Decimal(12, 2)
+  discount       Decimal          @default(0) @db.Decimal(12, 2)
+  taxableAmount  Decimal          @db.Decimal(12, 2)
+  taxRatePercent Decimal          @db.Decimal(5, 2)
+  cgst           Decimal          @db.Decimal(12, 2)
+  sgst           Decimal          @db.Decimal(12, 2)
+  taxTotal       Decimal          @db.Decimal(12, 2)
+  total          Decimal          @db.Decimal(12, 2)
+  amountPaid     Decimal          @default(0) @db.Decimal(12, 2)
+  coverageSource CoverageSource   @default(NONE)
+  contractId     String?
+  notes          String?
+  issuedAt       DateTime?
+  dueAt          DateTime?
+  paidAt         DateTime?
+  voidedAt       DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  organization   Organization     @relation(fields: [organizationId], references: [id])
+  workOrder      WorkOrder        @relation(fields: [workOrderId], references: [id])
+  customer       Customer         @relation(fields: [customerId], references: [id])
+  contract       ServiceContract? @relation(fields: [contractId], references: [id])
+  lines          InvoiceLine[]
+  payments       Payment[]
 
   @@unique([organizationId, number])
   @@index([organizationId, status])
@@ -944,24 +958,24 @@ enum NotificationStatus {
 
 // Table-driven rules: which channels an event uses for its audience, and the wording.
 model NotificationRule {
-  id             String               @id @default(cuid())
+  id             String                @id @default(cuid())
   organizationId String
   event          String
   audience       NotificationAudience
   channels       NotificationChannel[]
   subject        String
   body           String
-  isEnabled      Boolean              @default(true)
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-  organization   Organization         @relation(fields: [organizationId], references: [id])
+  isEnabled      Boolean               @default(true)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  organization   Organization          @relation(fields: [organizationId], references: [id])
 
   @@unique([organizationId, event])
 }
 
 // One delivery of one event to one recipient on one channel; the worker sends it with retry.
 model Notification {
-  id             String              @id @default(cuid())
+  id             String               @id @default(cuid())
   organizationId String
   event          String
   audience       NotificationAudience
@@ -973,18 +987,65 @@ model Notification {
   entityType     String?
   entityId       String?
   dedupeKey      String?
-  status         NotificationStatus  @default(PENDING)
-  attempts       Int                 @default(0)
+  status         NotificationStatus   @default(PENDING)
+  attempts       Int                  @default(0)
   lastError      String?
   sentAt         DateTime?
   readAt         DateTime?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-  organization   Organization        @relation(fields: [organizationId], references: [id])
-  recipient      User                @relation(fields: [recipientId], references: [id])
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  organization   Organization         @relation(fields: [organizationId], references: [id])
+  recipient      User                 @relation(fields: [recipientId], references: [id])
 
   @@unique([organizationId, dedupeKey, recipientId, channel])
   @@index([organizationId, event])
   @@index([recipientId, channel, readAt])
   @@index([status])
+}
+
+// One completed job that used one of a contract's included visits.
+model ContractVisit {
+  id             String          @id @default(cuid())
+  organizationId String
+  contractId     String
+  workOrderId    String          @unique
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  contract       ServiceContract @relation(fields: [contractId], references: [id])
+  workOrder      WorkOrder       @relation(fields: [workOrderId], references: [id])
+
+  @@index([organizationId])
+  @@index([contractId])
+}
+
+// Preventive maintenance: when due, the system opens a request and work order for the asset;
+// completing that job moves nextDueOn forward by the interval.
+model MaintenancePlan {
+  id              String           @id @default(cuid())
+  organizationId  String
+  customerId      String
+  assetId         String
+  serviceTypeId   String
+  contractId      String?
+  name            String
+  intervalDays    Int
+  leadDays        Int              @default(0)
+  nextDueOn       DateTime
+  isActive        Boolean          @default(true)
+  lastGeneratedAt DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  customer        Customer         @relation(fields: [customerId], references: [id])
+  asset           Asset            @relation(fields: [assetId], references: [id])
+  serviceType     ServiceType      @relation(fields: [serviceTypeId], references: [id])
+  contract        ServiceContract? @relation(fields: [contractId], references: [id])
+  workOrders      WorkOrder[]
+
+  @@index([organizationId, isActive, nextDueOn])
+  @@index([customerId])
+  @@index([assetId])
+  @@index([serviceTypeId])
+  @@index([contractId])
 }
