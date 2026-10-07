@@ -4,6 +4,7 @@ import { AppError } from "../../lib/errors.js";
 import { pageMeta } from "../../lib/pagination.js";
 import { prisma } from "../../lib/prisma.js";
 import { assertTechnicianFree, DEFAULT_VISIT_MINUTES, findConflict } from "../visits/visit.scheduling.js";
+import { canSchedule } from "./workOrder.transitions.js";
 import type { ListWorkOrdersQuery, ReassignWorkOrderInput, ScheduleWorkOrderInput } from "./workOrder.schema.js";
 
 function isAssignable(status: string) {
@@ -28,6 +29,8 @@ const workOrderInclude = {
       arrivedAt: true,
       startedAt: true,
       completedAt: true,
+      endedAt: true,
+      outcomeReason: true,
       diagnosis: true,
       workPerformed: true,
       signerName: true,
@@ -63,6 +66,18 @@ const workOrderInclude = {
           actor: { select: { id: true, name: true } },
         },
       },
+    },
+  },
+  partRequests: {
+    orderBy: { createdAt: "asc" as const },
+    select: {
+      id: true,
+      quantity: true,
+      status: true,
+      note: true,
+      createdAt: true,
+      resolvedAt: true,
+      part: { select: { id: true, sku: true, name: true } },
     },
   },
   notes: {
@@ -189,7 +204,7 @@ export async function assignWorkOrder(id: string, actor: AuthUser, input: { tech
 
 export async function scheduleWorkOrder(id: string, actor: AuthUser, input: ScheduleWorkOrderInput) {
   const workOrder = await requireWorkOrder(id, actor);
-  if (workOrder.status !== "ASSIGNED" || !workOrder.technicianId) {
+  if (!canSchedule(workOrder.status) || !workOrder.technicianId) {
     throw new AppError("INVALID_TRANSITION", 409, "This work order cannot be scheduled");
   }
   if (await scheduledVisit(workOrder.id)) {
@@ -221,6 +236,16 @@ export async function scheduleWorkOrder(id: string, actor: AuthUser, input: Sche
         toTechnicianId: technicianId,
       },
     });
+    // Visit two goes back to the technician to accept, like visit one.
+    if (workOrder.status === "FOLLOW_UP_REQUIRED") {
+      const moved = await tx.workOrder.updateMany({
+        where: { id: workOrder.id, organizationId: actor.organizationId, status: "FOLLOW_UP_REQUIRED" },
+        data: { status: "ASSIGNED" },
+      });
+      if (moved.count !== 1) {
+        throw new AppError("INVALID_TRANSITION", 409, "This work order cannot be scheduled");
+      }
+    }
   });
 
   return getWorkOrder(id, actor);
@@ -362,7 +387,7 @@ export async function technicianCandidates(id: string, actor: AuthUser, at?: str
       user: { select: { name: true } },
       skills: { select: { skillId: true } },
       serviceAreas: { select: { serviceArea: { select: { postalCodes: true, isActive: true } } } },
-      _count: { select: { workOrders: { where: { status: { in: ["ASSIGNED", "ACCEPTED", "IN_PROGRESS"] } } } } },
+      _count: { select: { workOrders: { where: { status: { in: ["ASSIGNED", "ACCEPTED", "IN_PROGRESS", "AWAITING_PARTS", "FOLLOW_UP_REQUIRED"] } } } } },
     },
   });
   const start = at ? new Date(at) : null;

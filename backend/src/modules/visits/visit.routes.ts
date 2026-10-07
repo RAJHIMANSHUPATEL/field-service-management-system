@@ -17,6 +17,7 @@ visitRouter.post("/:id/cancel", requireAuth, planners, visitController.cancel);
 visitRouter.post("/:id/en-route", requireAuth, assignees, visitController.enRoute);
 visitRouter.post("/:id/arrive", requireAuth, assignees, visitController.arrive);
 visitRouter.post("/:id/start", requireAuth, assignees, visitController.start);
+visitRouter.post("/:id/unsuccessful", requireAuth, assignees, visitController.unsuccessful);
 visitRouter.post("/:id/complete", requireAuth, assignees, visitController.complete);
 
 visitRouter.patch("/:id/report", requireAuth, assignees, visitController.report);

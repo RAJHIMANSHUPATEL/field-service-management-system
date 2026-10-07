@@ -6,6 +6,7 @@ export async function resetDatabase() {
   await prisma.passwordResetToken.deleteMany();
   await prisma.visitChange.deleteMany();
   await prisma.visitPhoto.deleteMany();
+  await prisma.partRequest.deleteMany();
   await prisma.stockMovement.deleteMany();
   await prisma.visitPart.deleteMany();
   await prisma.stockLevel.deleteMany();
