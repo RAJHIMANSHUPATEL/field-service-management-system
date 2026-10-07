@@ -13,4 +13,4 @@ Read this file and `docs/stages/README.md` before starting any work. Never redo 
 | Phase | Feature merged | Develop commit | Next |
 |---|---|---|---|
 | 5 (slice) | feat/start-accepted-job (stage 5) | 759d9df | Phase 0 gaps |
-| 0 | feat/phase0-foundations (stage 6) | see git log | Phase 1: AuditEvent on every mutation, permission checks |
+| 0 | feat/phase0-foundations (stage 6) | fbf8fb3 | Phase 1 |
