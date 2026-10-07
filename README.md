@@ -369,16 +369,16 @@ Stages 1, 2, 3, and 4 are complete. The records of decisions and finished work a
 The phases below are the long-term sequence. Stage 1 covers a slice of phases 0, 1, and 2.
 Stage 2 covers the request and unassigned work order slice of phase 3. Stage 3 covers
 assigning that work order, a slice of phase 4. Stage 4 schedules one visit and records the
-technician's accept or decline, still a slice of phase 4. None of these meet the phases' full done criteria.
+technician's accept or decline, still a slice of phase 4. Stages 6–10 complete phases 0–4; see the table and [`docs/PROGRESS.md`](./docs/PROGRESS.md).
 
 | Phase | State |
 |---|---|
-| 0 — Foundations | Partial (stage 1) |
-| 1 — Identity and access | Partial (stage 1) |
-| 2 — Master data | Partial (stage 1) |
-| 3 — Request to work order | Partial (stage 2) |
-| 4 — Assignment and scheduling | Partial (stage 4) |
-| 5 — Technician execution | Not started |
+| 0 — Foundations | Complete except CI workflow on GitHub (stage 6; push needs a token with `workflow` scope) |
+| 1 — Identity and access | Complete (stage 7) |
+| 2 — Master data | Complete (stage 8) |
+| 3 — Request to work order | Complete (stage 9) |
+| 4 — Assignment and scheduling | Complete (stage 10) |
+| 5 — Technician execution | Partial (stage 5: start the accepted job) |
 | 6 — Parts and inventory | Not started |
 | 7 — Incomplete jobs and follow-up | Not started |
 | 8 — Report, invoice, payment | Not started |

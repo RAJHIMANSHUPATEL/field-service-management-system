@@ -17,6 +17,7 @@ import { UsersPage } from "@/features/users/pages/UsersPage";
 import { MasterDataPage } from "@/features/masterData/pages/MasterDataPage";
 import { RegisterPage } from "@/features/masterData/pages/RegisterPage";
 import { AssetsPage } from "@/features/assets/pages/AssetsPage";
+import { SchedulePage } from "@/features/schedule/pages/SchedulePage";
 import { AppShell } from "./AppShell";
 import { NotReadyPage } from "./NotReadyPage";
 import { RequireAuth } from "./RequireAuth";
@@ -47,7 +48,6 @@ export const router = createBrowserRouter([
               { path: "customers/:customerId", element: <CustomerDetailPage /> },
               { path: "service-types", element: <ServiceTypesPage /> },
               { path: "technicians", element: <TechniciansPage /> },
-              { path: "schedule", element: <NotReadyPage /> },
               { path: "assets", element: <AssetsPage /> },
               { path: "inventory", element: <NotReadyPage /> },
               { path: "invoices", element: <NotReadyPage /> },
@@ -76,6 +76,7 @@ export const router = createBrowserRouter([
             children: [
               { path: "work-orders", element: <WorkOrdersPage /> },
               { path: "work-orders/:workOrderId", element: <WorkOrderDetailPage /> },
+              { path: "schedule", element: <SchedulePage /> },
             ],
           },
           {

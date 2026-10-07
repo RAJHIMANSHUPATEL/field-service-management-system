@@ -11,8 +11,9 @@ Every query is scoped to the caller's organization. A record in another organiza
 | Skills, service areas | Read, write | Read, write | — | — |
 | Parts catalogue, warehouses and vans | Read, write | Read, write | Read | — |
 | Technicians | Read, write | Read, write | Read own profile | — |
-| Work orders | Read, assign, schedule | Read, assign, schedule | Read own, accept, decline | — |
-| Visits | — | — | Move own visit (en route, arrive, start) | — |
+| Work orders | Read, assign, schedule, reassign, candidates | Read, assign, schedule, reassign, candidates | Read own, accept, decline | — |
+| Visits | Reschedule, cancel, calendar | Reschedule, cancel, calendar | Move own visit (en route, arrive, start), own calendar | — |
+| Technician time off | Read, add, delete | Read, add, delete | Read own | — |
 | Users and invitations | Read, invite, revoke | — | — | — |
 | Audit events | Read | — | — | — |
 

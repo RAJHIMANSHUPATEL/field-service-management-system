@@ -3,6 +3,14 @@ import { dialogSubmit, screensDir, signIn } from "./helpers";
 
 const phone = { width: 375, height: 812 };
 
+// A unique future slot per run so repeated runs never double-book the seeded technician.
+function slot(extraHours = 0) {
+  const hours = (Math.floor(Date.now() / 60_000) % 50_000) * 3 + extraHours;
+  const date = new Date(Date.UTC(2027, 0, 1, 6) + hours * 3_600_000);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  return { date, local };
+}
+
 test("request, triage, assign, schedule, accept, visit", async ({ browser }) => {
   const description = `Lifecycle ${Date.now()}`;
 
@@ -47,12 +55,32 @@ test("request, triage, assign, schedule, accept, visit", async ({ browser }) => 
 
   // Ops assigns and schedules.
   await ops.page.getByRole("button", { name: "Assign" }).click();
-  await ops.page.getByRole("dialog").getByLabel("Technician").selectOption({ label: "Tara Technician" });
+  await expect(ops.page.getByRole("list", { name: "Suggested technicians" })).toContainText("Tara Technician");
+  await ops.page.getByRole("dialog").getByLabel("Technician", { exact: true }).selectOption({ label: "Tara Technician" });
   await dialogSubmit(ops.page, "Assign");
   await ops.page.getByRole("button", { name: "Schedule" }).click();
-  await ops.page.getByLabel("Date and time").fill("2026-11-03T10:00");
+  const first = slot();
+  const moved = slot(1);
+  await ops.page.getByLabel("Date and time").fill(first.local);
   await dialogSubmit(ops.page, "Schedule");
   await expect(ops.page.getByText("Scheduled", { exact: true })).toBeVisible();
+
+  // Ops reschedules with a reason; the history shows both steps.
+  await ops.page.getByRole("button", { name: "Reschedule" }).click();
+  await ops.page.getByRole("dialog").getByLabel("New date and time").fill(moved.local);
+  await ops.page.getByRole("dialog").getByLabel("Reason").fill("Customer asked for later");
+  await dialogSubmit(ops.page, "Reschedule");
+  const history = ops.page.getByRole("list", { name: "Visit history" });
+  await expect(history.getByText(/^Scheduled for/)).toBeVisible();
+  await expect(history.getByText(/^Moved from/)).toBeVisible();
+  await expect(history.getByText(/Customer asked for later/)).toBeVisible();
+  await ops.page.screenshot({ path: `${screensDir}/ops-visit-history.png`, fullPage: true });
+
+  // The visit shows on the scheduling calendar for that week.
+  await ops.page.goto("/schedule");
+  await ops.page.getByLabel("Go to week").fill(moved.local.slice(0, 10));
+  await expect(ops.page.getByRole("link", { name: /Tara Technician/ }).first()).toBeVisible();
+  await ops.page.goto(workOrderUrl);
 
   // Technician accepts and drives the visit on a phone.
   const tech = await signIn(browser, "technician@fieldservice.local", phone);
@@ -72,10 +100,11 @@ test("request, triage, assign, schedule, accept, visit", async ({ browser }) => 
   // The customer sees the same state on their request.
   await customer.page.reload();
   await expect(customer.page.getByText("In progress").first()).toBeVisible();
-  await expect(customer.page.getByText(/Nov 3, 2026.*In progress/)).toBeVisible();
+  await expect(customer.page.getByText(/· In progress$/)).toBeVisible();
 
   for (const session of [customer, ops, tech]) {
     expect(session.problems).toEqual([]);
     await session.close();
   }
 });
+

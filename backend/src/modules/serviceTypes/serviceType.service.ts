@@ -28,7 +28,14 @@ export async function getServiceType(id: string, actor: AuthUser) {
   return { data: serviceType };
 }
 
+async function assertSkill(actor: AuthUser, skillId: string | null | undefined) {
+  if (skillId && !(await prisma.skill.findFirst({ where: { id: skillId, organizationId: actor.organizationId } }))) {
+    throw new AppError("SKILL_NOT_FOUND", 404, "Skill not found");
+  }
+}
+
 export async function createServiceType(input: CreateServiceTypeInput, actor: AuthUser) {
+  await assertSkill(actor, input.requiredSkillId);
   const existing = await prisma.serviceType.findFirst({
     where: { organizationId: actor.organizationId, name: input.name },
   });
@@ -41,6 +48,7 @@ export async function createServiceType(input: CreateServiceTypeInput, actor: Au
       name: input.name,
       description: input.description,
       isActive: input.isActive ?? true,
+      requiredSkillId: input.requiredSkillId ?? null,
     },
   });
   return { data: serviceType };
@@ -48,6 +56,7 @@ export async function createServiceType(input: CreateServiceTypeInput, actor: Au
 
 export async function updateServiceType(id: string, input: UpdateServiceTypeInput, actor: AuthUser) {
   await getServiceType(id, actor);
+  await assertSkill(actor, input.requiredSkillId);
   if (input.name) {
     const existing = await prisma.serviceType.findFirst({
       where: {

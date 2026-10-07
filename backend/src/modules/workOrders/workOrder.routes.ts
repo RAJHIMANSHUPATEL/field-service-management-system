@@ -10,6 +10,8 @@ const assignees = requireRole("TECHNICIAN");
 
 workOrderRouter.get("/", requireAuth, readers, workOrderController.list);
 workOrderRouter.get("/:id", requireAuth, readers, workOrderController.get);
+workOrderRouter.get("/:id/candidates", requireAuth, writers, workOrderController.candidates);
+workOrderRouter.post("/:id/reassign", requireAuth, writers, workOrderController.reassign);
 workOrderRouter.post("/:id/assign", requireAuth, writers, workOrderController.assign);
 workOrderRouter.post("/:id/schedule", requireAuth, writers, workOrderController.schedule);
 workOrderRouter.post("/:id/accept", requireAuth, assignees, workOrderController.accept);

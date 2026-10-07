@@ -3,7 +3,7 @@ import type { AuthUser } from "../../types/authUser.js";
 import { AppError } from "../../lib/errors.js";
 import { pageMeta, type PageQuery } from "../../lib/pagination.js";
 import { prisma } from "../../lib/prisma.js";
-import type { CreateTechnicianInput, UpdateTechnicianInput } from "./technician.schema.js";
+import type { CreateTechnicianInput, CreateTimeOffInput, UpdateTechnicianInput } from "./technician.schema.js";
 
 const technicianInclude = {
   user: {
@@ -116,4 +116,47 @@ export async function updateTechnician(id: string, input: UpdateTechnicianInput,
     include: technicianInclude,
   });
   return { data: technician };
+}
+
+export async function listTimeOff(id: string, actor: AuthUser) {
+  await getTechnician(id, actor);
+  const rows = await prisma.technicianTimeOff.findMany({
+    where: { technicianId: id, organizationId: actor.organizationId, endsAt: { gt: new Date() } },
+    orderBy: { startsAt: "asc" },
+  });
+  return { data: rows };
+}
+
+export async function addTimeOff(id: string, input: CreateTimeOffInput, actor: AuthUser) {
+  await getTechnician(id, actor);
+  const startsAt = new Date(input.startsAt);
+  const endsAt = new Date(input.endsAt);
+  const booked = await prisma.serviceVisit.findFirst({
+    where: {
+      technicianId: id,
+      organizationId: actor.organizationId,
+      status: "SCHEDULED",
+      scheduledStart: { lt: endsAt, gte: new Date(startsAt.getTime() - 24 * 60 * 60_000) },
+    },
+  });
+  if (booked && booked.scheduledStart.getTime() + booked.durationMinutes * 60_000 > startsAt.getTime()) {
+    throw new AppError("SCHEDULE_CONFLICT", 409, "The technician has a visit in that time; reschedule it first", {
+      kind: "VISIT",
+      id: booked.id,
+    });
+  }
+  const row = await prisma.technicianTimeOff.create({
+    data: { organizationId: actor.organizationId, technicianId: id, startsAt, endsAt, reason: input.reason },
+  });
+  return { data: row };
+}
+
+export async function removeTimeOff(id: string, timeOffId: string, actor: AuthUser) {
+  await getTechnician(id, actor);
+  const removed = await prisma.technicianTimeOff.deleteMany({
+    where: { id: timeOffId, technicianId: id, organizationId: actor.organizationId },
+  });
+  if (removed.count !== 1) {
+    throw new AppError("TIME_OFF_NOT_FOUND", 404, "Time off not found");
+  }
 }

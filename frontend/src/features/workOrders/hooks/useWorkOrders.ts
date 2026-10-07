@@ -6,6 +6,12 @@ import {
   getWorkOrder,
   listWorkOrders,
   moveVisit,
+  addTimeOff,
+  cancelVisit,
+  getCalendar,
+  listCandidates,
+  reassignWorkOrder,
+  rescheduleVisit,
   scheduleWorkOrder,
   workOrderKeys,
 } from "../api/workOrders.api";
@@ -70,5 +76,51 @@ export function useMoveVisit(workOrderId: string) {
   return useMutation({
     mutationFn: ({ visitId, step }: { visitId: string; step: VisitStep }) => moveVisit(visitId, step),
     onSuccess: refresh,
+  });
+}
+
+export function useCandidates(id: string, enabled: boolean) {
+  return useQuery({ queryKey: workOrderKeys.candidates(id), queryFn: () => listCandidates(id), enabled });
+}
+
+export function useReassignWorkOrder(id: string) {
+  const refresh = useRefreshWorkOrder(id);
+  return useMutation({
+    mutationFn: ({ technicianId, reason }: { technicianId: string; reason: string }) =>
+      reassignWorkOrder(id, technicianId, reason),
+    onSuccess: refresh,
+  });
+}
+
+export function useRescheduleVisit(workOrderId: string) {
+  const refresh = useRefreshWorkOrder(workOrderId);
+  return useMutation({
+    mutationFn: ({ visitId, scheduledStart, reason }: { visitId: string; scheduledStart: string; reason: string }) =>
+      rescheduleVisit(visitId, scheduledStart, reason),
+    onSuccess: refresh,
+  });
+}
+
+export function useCancelVisit(workOrderId: string) {
+  const refresh = useRefreshWorkOrder(workOrderId);
+  return useMutation({
+    mutationFn: ({ visitId, reason }: { visitId: string; reason: string }) => cancelVisit(visitId, reason),
+    onSuccess: refresh,
+  });
+}
+
+export function useCalendar(from: string, to: string, technicianId: string) {
+  return useQuery({
+    queryKey: workOrderKeys.calendar(from, to, technicianId),
+    queryFn: () => getCalendar(from, to, technicianId),
+  });
+}
+
+export function useAddTimeOff() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ technicianId, ...input }: { technicianId: string; startsAt: string; endsAt: string; reason?: string }) =>
+      addTimeOff(technicianId, input),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["calendar"] }),
   });
 }

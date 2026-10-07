@@ -20,7 +20,8 @@ import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
 import { useTechnicians } from "@/features/technicians/hooks/useTechnicians";
 import { visitStatusLabel, workOrderStatusLabel } from "@/lib/status";
 import { toastError } from "@/lib/toastError";
-import type { WorkOrderStatus } from "../api/workOrders.api";
+import type { Visit, WorkOrderStatus } from "../api/workOrders.api";
+import { CandidateHint, ReassignDialog, ReplanDialog, VisitHistory } from "../components/VisitPlanning";
 import { nextVisitStep, visitSteps } from "../schemas/workOrder.schema";
 import {
   useAcceptWorkOrder,
@@ -63,6 +64,10 @@ export function WorkOrderDetailPage() {
   const [declineOpen, setDeclineOpen] = useState(false);
   const accept = useAcceptWorkOrder(workOrderId);
   const moveVisit = useMoveVisit(workOrderId);
+  const technicians = useTechnicians();
+  const [replan, setReplan] = useState<{ visit: Visit; mode: "reschedule" | "cancel" } | null>(null);
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const technicianNames = Object.fromEntries((technicians.data ?? []).map((row) => [row.id, row.user.name]));
 
   if (workOrder.isPending) {
     return <Skeleton className="h-40 w-full" />;
@@ -83,6 +88,8 @@ export function WorkOrderDetailPage() {
   const visitStep =
     isAssignee && record.status === "ACCEPTED" && activeVisit ? nextVisitStep(activeVisit.status) : null;
 
+  const showReassign =
+    canAssign && Boolean(record.technician) && (record.status === "ACCEPTED" || (record.status === "ASSIGNED" && hasScheduledVisit));
   const showActions = canAssign || showAssign || showSchedule || showAccept || showDecline || visitStep !== null;
 
   return (
@@ -124,9 +131,24 @@ export function WorkOrderDetailPage() {
             <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Visits</p>
             <ul className="flex flex-col gap-2">
               {record.visits.map((visit) => (
-                <li key={visit.id} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
-                  <span className="text-sm font-medium text-foreground">{visitTime(visit.scheduledStart)}</span>
-                  <Badge variant={visit.status === "CANCELLED" ? "outline" : "default"}>{visitStatusLabel(visit.status)}</Badge>
+                <li key={visit.id} className="rounded-lg border px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-medium text-foreground">{visitTime(visit.scheduledStart)}</span>
+                    <Badge variant={visit.status === "CANCELLED" ? "outline" : "default"}>
+                      {visitStatusLabel(visit.status)}
+                    </Badge>
+                  </div>
+                  {canAssign && visit.status === "SCHEDULED" ? (
+                    <div className="mt-2 flex gap-2">
+                      <Button type="button" size="sm" variant="outline" onClick={() => setReplan({ visit, mode: "reschedule" })}>
+                        Reschedule
+                      </Button>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => setReplan({ visit, mode: "cancel" })}>
+                        Cancel visit
+                      </Button>
+                    </div>
+                  ) : null}
+                  {canAssign ? <VisitHistory visit={visit} names={technicianNames} /> : null}
                 </li>
               ))}
             </ul>
@@ -183,12 +205,27 @@ export function WorkOrderDetailPage() {
               Schedule
             </Button>
           ) : null}
+          {showReassign ? (
+            <Button type="button" variant="outline" onClick={() => setReassignOpen(true)}>
+              Reassign
+            </Button>
+          ) : null}
           {showAssign ? (
             <Button type="button" variant={showSchedule ? "outline" : "default"} onClick={() => setAssignOpen(true)}>
               Assign
             </Button>
           ) : null}
         </CardFooter>
+      ) : null}
+      {replan ? (
+        <ReplanDialog workOrderId={record.id} visit={replan.visit} mode={replan.mode} onClose={() => setReplan(null)} />
+      ) : null}
+      {reassignOpen && record.technician ? (
+        <ReassignDialog
+          workOrderId={record.id}
+          currentTechnicianId={record.technician.id}
+          onClose={() => setReassignOpen(false)}
+        />
       ) : null}
       {showAssign ? <AssignDialog workOrderId={record.id} open={assignOpen} onOpenChange={setAssignOpen} /> : null}
       {showSchedule ? (
@@ -258,8 +295,9 @@ function AssignDialog({
         >
           <DialogHeader>
             <DialogTitle>Assign technician</DialogTitle>
-            <DialogDescription>Choose an active technician for this job.</DialogDescription>
+            <DialogDescription>Choose an active technician for this job. Suggestions are scored out of 100.</DialogDescription>
           </DialogHeader>
+          <CandidateHint workOrderId={workOrderId} />
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="assign-technician">Technician</FieldLabel>

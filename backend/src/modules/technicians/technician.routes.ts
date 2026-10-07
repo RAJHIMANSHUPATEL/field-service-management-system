@@ -11,3 +11,6 @@ technicianRouter.get("/", requireAuth, readRoles, technicianController.list);
 technicianRouter.post("/", requireAuth, writeRoles, technicianController.create);
 technicianRouter.get("/:id", requireAuth, readRoles, technicianController.get);
 technicianRouter.patch("/:id", requireAuth, writeRoles, technicianController.update);
+technicianRouter.get("/:id/time-off", requireAuth, readRoles, technicianController.listTimeOff);
+technicianRouter.post("/:id/time-off", requireAuth, writeRoles, technicianController.addTimeOff);
+technicianRouter.delete("/:id/time-off/:timeOffId", requireAuth, writeRoles, technicianController.removeTimeOff);
