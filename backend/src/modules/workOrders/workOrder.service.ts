@@ -12,7 +12,7 @@ function isAssignable(status: string) {
   return status === "OPEN" || status === "ASSIGNED";
 }
 
-const workOrderInclude = {
+export const workOrderInclude = {
   customer: { select: { id: true, name: true } },
   asset: { select: { id: true, equipmentType: true, model: true, serialNumber: true } },
   address: { select: { id: true, label: true, line1: true, city: true, state: true, postalCode: true } },

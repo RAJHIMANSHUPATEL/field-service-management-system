@@ -1,8 +1,9 @@
+import { pageQuerySchema } from "../../lib/pagination.js";
 import { z } from "zod";
 
 const amount = z.string().regex(/^\d{1,10}(\.\d{1,2})?$/, "Use an amount like 1250.00");
 
-export const listInvoicesQuerySchema = z.object({
+export const listInvoicesQuerySchema = pageQuerySchema.extend({
   status: z.enum(["DRAFT", "ISSUED", "OVERDUE", "PAID", "VOID"]).optional(),
 });
 

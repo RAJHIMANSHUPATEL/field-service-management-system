@@ -353,6 +353,7 @@ model WorkOrder {
   @@index([serviceTypeId])
   @@index([technicianId])
   @@index([status])
+  @@index([organizationId, status, createdAt])
 }
 
 model ServiceVisit {
@@ -388,6 +389,8 @@ model ServiceVisit {
   @@index([workOrderId])
   @@index([technicianId])
   @@index([status])
+  @@index([technicianId, scheduledStart])
+  @@index([organizationId, status, completedAt])
 }
 
 model WorkOrderNote {
@@ -1048,4 +1051,22 @@ model MaintenancePlan {
   @@index([assetId])
   @@index([serviceTypeId])
   @@index([contractId])
+}
+
+// Replay store for POSTs sent with an Idempotency-Key header (mobile retries on flaky networks).
+model IdempotencyKey {
+  id           String   @id @default(cuid())
+  scope        String
+  key          String
+  method       String
+  path         String
+  requestHash  String
+  statusCode   Int?
+  responseBody Json?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([scope, key])
+  @@index([expiresAt])
 }
