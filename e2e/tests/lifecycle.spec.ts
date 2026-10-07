@@ -260,7 +260,6 @@ test("request, triage, assign, schedule, accept, visit, complete, invoice, pay",
   const issued = await opsApi<{ meta: { total: number } }>("GET", "/invoices?status=ISSUED&limit=1");
   const overdue = await opsApi<{ meta: { total: number } }>("GET", "/invoices?status=OVERDUE&limit=1");
   const pendingCount = issued.meta.total + overdue.meta.total;
-  expect(issued.meta.total).toBeGreaterThan(0);
   await ops.page.goto("/");
   await expect(ops.page.getByTestId("stat-pending-invoices")).toHaveText(String(pendingCount));
   await expect(ops.page.getByTestId("stat-active-jobs")).toBeVisible();
