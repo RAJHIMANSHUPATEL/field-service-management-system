@@ -27,3 +27,4 @@ Read this file and `docs/stages/README.md` before starting any work. Never redo 
 | 9 | feat/phase9-feedback-notifications (stage 15) | 56b719a | Phase 10: contract visits and preventive maintenance plans |
 | 10 | feat/phase10-maintenance (stage 16) | e7bb153 | Phase 11: operations dashboard and technician performance |
 | 11 | feat/phase11-analytics (stage 17) | 8f44487 | Phase 12: hardening, API docs, rate limits, idempotency, backup drill |
+| 12 | feat/phase12-hardening (stage 18; deployment documented locally only, not deployed) | 1bd807e | All phases merged. User-only: push feat/phase0-ci with a workflow-scoped token. Strict checks: /workspace/check-strict.sh |
