@@ -123,7 +123,16 @@ async function main() {
         organizationId: organization.id,
         name: "Repair",
         description: "Diagnose and repair installed equipment",
+        serviceCharge: "500.00",
+        labourRatePerHour: "1000.00",
+        sacCode: "998719",
       },
+    });
+  } else if (existingServiceType.serviceCharge.eq(0) && existingServiceType.labourRatePerHour.eq(0)) {
+    // Databases seeded before pricing existed get the same demo prices.
+    await prisma.serviceType.update({
+      where: { id: existingServiceType.id },
+      data: { serviceCharge: "500.00", labourRatePerHour: "1000.00", sacCode: "998719" },
     });
   }
 
