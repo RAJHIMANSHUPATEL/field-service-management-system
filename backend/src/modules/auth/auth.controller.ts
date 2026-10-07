@@ -6,6 +6,7 @@ import {
   confirmPasswordResetSchema,
   loginSchema,
   refreshSchema,
+  registerOrganizationSchema,
   requestPasswordResetSchema,
 } from "./auth.schema.js";
 import * as authService from "./auth.service.js";
@@ -128,4 +129,12 @@ export async function acceptInvitation(req: Request, res: Response) {
       user: session.user,
     },
   });
+}
+
+export async function registerOrganization(req: Request, res: Response) {
+  const body = registerOrganizationSchema.parse(req.body);
+  const session = await authService.registerOrganization(body);
+  setRefreshCookie(res, session.refreshToken);
+  setAuditActor(res, session.user.organization.id, session.user.id);
+  res.status(201).json({ data: { accessToken: session.accessToken, user: session.user } });
 }

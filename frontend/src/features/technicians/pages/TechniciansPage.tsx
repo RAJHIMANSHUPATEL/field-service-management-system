@@ -20,13 +20,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { blankToUndefined } from "@/lib/blankToUndefined";
 import { toastError } from "@/lib/toastError";
-import { useCreateTechnician, useTechnicians } from "../hooks/useTechnicians";
+import type { ServiceArea, Skill } from "@/features/masterData/api/masterData.api";
+import { useCatalog } from "@/features/masterData/hooks/useMasterData";
+import type { Technician } from "../api/technicians.api";
+import { useCreateTechnician, useTechnicians, useUpdateTechnician } from "../hooks/useTechnicians";
 import { createTechnicianSchema, type CreateTechnicianInput } from "../schemas/technician.schema";
 
 export function TechniciansPage() {
   const technicians = useTechnicians();
   const createTechnician = useCreateTechnician();
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Technician | null>(null);
   const form = useForm<CreateTechnicianInput>({
     resolver: zodResolver(createTechnicianSchema),
     defaultValues: { name: "", email: "", password: "", phone: "" },
@@ -67,6 +71,7 @@ export function TechniciansPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
+                  <TableHead>Skills and areas</TableHead>
                   <TableHead>Active</TableHead>
                 </TableRow>
               </TableHeader>
@@ -76,6 +81,14 @@ export function TechniciansPage() {
                     <TableCell>{technician.user.name}</TableCell>
                     <TableCell>{technician.user.email}</TableCell>
                     <TableCell>{technician.phone ?? "—"}</TableCell>
+                    <TableCell>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(technician)}>
+                        {[
+                          ...(technician.skills ?? []).map((item) => item.skill.name),
+                          ...(technician.serviceAreas ?? []).map((item) => item.serviceArea.name),
+                        ].join(", ") || "Set skills and areas"}
+                      </Button>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={technician.isActive ? "secondary" : "outline"}>
                         {technician.isActive ? "Active" : "Inactive"}
@@ -156,6 +169,74 @@ export function TechniciansPage() {
           </form>
         </DialogContent>
       </Dialog>
+      {editing ? <SkillsDialog technician={editing} onClose={() => setEditing(null)} /> : null}
     </>
+  );
+}
+
+function SkillsDialog({ technician, onClose }: { technician: Technician; onClose: () => void }) {
+  const skills = useCatalog<Skill>("skills");
+  const areas = useCatalog<ServiceArea>("service-areas");
+  const update = useUpdateTechnician();
+  const [skillIds, setSkillIds] = useState((technician.skills ?? []).map((item) => item.skill.id));
+  const [areaIds, setAreaIds] = useState((technician.serviceAreas ?? []).map((item) => item.serviceArea.id));
+
+  function toggle(list: string[], id: string) {
+    return list.includes(id) ? list.filter((value) => value !== id) : [...list, id];
+  }
+
+  return (
+    <Dialog open onOpenChange={(next) => (next ? undefined : onClose())}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{technician.user.name}</DialogTitle>
+          <DialogDescription>Skills and service areas used when assigning jobs.</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-4">
+          {[
+            { title: "Skills", rows: skills.data ?? [], selected: skillIds, set: setSkillIds },
+            { title: "Service areas", rows: areas.data ?? [], selected: areaIds, set: setAreaIds },
+          ].map((group) => (
+            <fieldset key={group.title} className="flex flex-col gap-2">
+              <legend className="mb-1 text-sm font-medium">{group.title}</legend>
+              {group.rows.length === 0 ? <p className="text-sm text-muted-foreground">Add some under Master data.</p> : null}
+              {group.rows.map((row) => (
+                <label key={row.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={group.selected.includes(row.id)}
+                    onChange={() => group.set(toggle(group.selected, row.id))}
+                  />
+                  {row.name}
+                </label>
+              ))}
+            </fieldset>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            disabled={update.isPending}
+            onClick={() =>
+              update.mutate(
+                { id: technician.id, skillIds, serviceAreaIds: areaIds },
+                {
+                  onSuccess: () => {
+                    toast.success("Technician updated");
+                    onClose();
+                  },
+                  onError: (error) => toastError(error, "Could not update the technician"),
+                },
+              )
+            }
+          >
+            {update.isPending ? "Saving..." : "Save"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

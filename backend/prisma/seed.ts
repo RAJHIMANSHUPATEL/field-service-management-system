@@ -171,6 +171,56 @@ async function main() {
     });
   }
 
+  const technicianRecord = await prisma.technician.findUnique({ where: { userId: technicianUser.id } });
+  for (const name of ["Air conditioning", "Refrigerant handling", "Electrical"]) {
+    await prisma.skill.upsert({
+      where: { organizationId_name: { organizationId: organization.id, name } },
+      update: {},
+      create: { organizationId: organization.id, name },
+    });
+  }
+  const area = await prisma.serviceArea.upsert({
+    where: { organizationId_name: { organizationId: organization.id, name: "Austin central" } },
+    update: {},
+    create: { organizationId: organization.id, name: "Austin central", postalCodes: ["78701", "78702", "78703"] },
+  });
+  for (const part of [
+    { sku: "CAP-35", name: "Run capacitor 35uF", unitPrice: "1250.00" },
+    { sku: "GAS-R32", name: "R32 refrigerant (1 kg)", unitPrice: "2400.00" },
+    { sku: "FLT-STD", name: "Air filter", unitPrice: "450.00" },
+  ]) {
+    await prisma.part.upsert({
+      where: { organizationId_sku: { organizationId: organization.id, sku: part.sku } },
+      update: {},
+      create: { organizationId: organization.id, currency: "INR", ...part },
+    });
+  }
+  await prisma.warehouse.upsert({
+    where: { organizationId_name: { organizationId: organization.id, name: "Main store" } },
+    update: {},
+    create: { organizationId: organization.id, name: "Main store", kind: "WAREHOUSE" },
+  });
+  if (technicianRecord) {
+    await prisma.warehouse.upsert({
+      where: { organizationId_name: { organizationId: organization.id, name: "Tara's van" } },
+      update: {},
+      create: { organizationId: organization.id, name: "Tara's van", kind: "VAN", technicianId: technicianRecord.id },
+    });
+    const skill = await prisma.skill.findFirst({ where: { organizationId: organization.id, name: "Air conditioning" } });
+    if (skill) {
+      await prisma.technicianSkill.upsert({
+        where: { technicianId_skillId: { technicianId: technicianRecord.id, skillId: skill.id } },
+        update: {},
+        create: { technicianId: technicianRecord.id, skillId: skill.id },
+      });
+    }
+    await prisma.technicianServiceArea.upsert({
+      where: { technicianId_serviceAreaId: { technicianId: technicianRecord.id, serviceAreaId: area.id } },
+      update: {},
+      create: { technicianId: technicianRecord.id, serviceAreaId: area.id },
+    });
+  }
+
   console.log(`Seeded ${organization.name}`);
   console.log(`Password for every seeded user: ${password}`);
   for (const user of users) {

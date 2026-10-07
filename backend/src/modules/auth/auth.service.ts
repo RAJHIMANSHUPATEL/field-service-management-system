@@ -6,7 +6,12 @@ import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import type { AuthUser } from "../../types/authUser.js";
 import { appUrl, sendMail } from "../../lib/mailer.js";
-import type { AcceptInvitationInput, ConfirmPasswordResetInput, LoginInput } from "./auth.schema.js";
+import type {
+  AcceptInvitationInput,
+  ConfirmPasswordResetInput,
+  LoginInput,
+  RegisterOrganizationInput,
+} from "./auth.schema.js";
 
 const ACCESS_TOKEN_TTL = "15m";
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -285,6 +290,29 @@ export async function acceptInvitation(input: AcceptInvitationInput): Promise<Au
         role: invitation.role,
         passwordHash,
       },
+      include: { organization: true },
+    });
+  });
+  const sessionUser = toSessionUser(user);
+  return {
+    accessToken: signAccessToken(sessionUser),
+    refreshToken: await issueRefreshToken(user.id, randomUUID()),
+    user: sessionUser,
+  };
+}
+
+// Starts a new tenant: one organization and its first admin. Emails are unique across
+// organizations because sign-in looks a user up by email alone.
+export async function registerOrganization(input: RegisterOrganizationInput): Promise<AuthSession> {
+  const email = input.email.toLowerCase();
+  if (await prisma.user.findFirst({ where: { email } })) {
+    throw new AppError("EMAIL_IN_USE", 409, "A user with this email already exists");
+  }
+  const passwordHash = await argon2.hash(input.password);
+  const user = await prisma.$transaction(async (tx) => {
+    const organization = await tx.organization.create({ data: { name: input.organizationName } });
+    return tx.user.create({
+      data: { organizationId: organization.id, email, name: input.name, role: "ADMIN", passwordHash },
       include: { organization: true },
     });
   });

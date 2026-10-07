@@ -31,3 +31,12 @@ export const acceptInvitationSchema = z.object({
 export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>;
 export type ConfirmPasswordResetInput = z.infer<typeof confirmPasswordResetSchema>;
 export type AcceptInvitationInput = z.infer<typeof acceptInvitationSchema>;
+
+export const registerOrganizationSchema = z.object({
+  organizationName: z.string().trim().min(1),
+  name: z.string().trim().min(1),
+  email: z.email(),
+  password: passwordSchema,
+});
+
+export type RegisterOrganizationInput = z.infer<typeof registerOrganizationSchema>;

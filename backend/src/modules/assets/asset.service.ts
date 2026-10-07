@@ -34,7 +34,7 @@ export async function listAssets(actor: AuthUser, query: ListAssetsQuery) {
     prisma.asset.count({ where }),
     prisma.asset.findMany({
       where,
-      include: { address: true },
+      include: { address: true, customer: { select: { id: true, name: true } } },
       orderBy: { createdAt: "desc" },
       skip: (query.page - 1) * query.limit,
       take: query.limit,

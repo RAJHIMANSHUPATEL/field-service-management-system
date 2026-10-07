@@ -11,7 +11,20 @@ export type Technician = {
     email: string;
     role: string;
   };
+  skills?: { skill: { id: string; name: string } }[];
+  serviceAreas?: { serviceArea: { id: string; name: string } }[];
 };
+
+export async function updateTechnician(
+  id: string,
+  input: { skillIds?: string[]; serviceAreaIds?: string[]; isActive?: boolean },
+) {
+  const result = await api<{ data: Technician }>(`/api/v1/technicians/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  return result.data;
+}
 
 export const technicianKeys = {
   all: ["technicians"] as const,
