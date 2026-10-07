@@ -11,11 +11,12 @@ import { useWorkOrders } from "../hooks/useWorkOrders";
 const groups: { title: string; statuses: WorkOrder["status"][] }[] = [
   { title: "In progress", statuses: ["IN_PROGRESS"] },
   { title: "Upcoming", statuses: ["ACCEPTED", "ASSIGNED"] },
+  { title: "Waiting", statuses: ["AWAITING_PARTS", "FOLLOW_UP_REQUIRED"] },
   { title: "Completed", statuses: ["COMPLETED"] },
 ];
 
 function nextVisit(workOrder: WorkOrder) {
-  return workOrder.visits.find((visit) => visit.status !== "CANCELLED" && visit.status !== "COMPLETED") ?? null;
+  return workOrder.visits.find((visit) => visit.status !== "CANCELLED" && visit.status !== "COMPLETED" && visit.status !== "UNSUCCESSFUL") ?? null;
 }
 
 function when(value: string) {

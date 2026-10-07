@@ -70,3 +70,20 @@ export const signatureSchema = z.object({
 
 export type VisitReportInput = z.infer<typeof visitReportSchema>;
 export type SignatureInput = z.infer<typeof signatureSchema>;
+
+export const unsuccessfulVisitSchema = z.object({
+  outcome: z.enum(["AWAITING_PARTS", "FOLLOW_UP_REQUIRED"]),
+  reason: z.string().trim().min(1).max(1000),
+  partRequests: z
+    .array(
+      z.object({
+        partId: z.string().min(1),
+        quantity: z.number().int().min(1).max(10_000),
+        note: z.string().trim().max(500).optional(),
+      }),
+    )
+    .max(20)
+    .default([]),
+});
+
+export type UnsuccessfulVisitInput = z.infer<typeof unsuccessfulVisitSchema>;

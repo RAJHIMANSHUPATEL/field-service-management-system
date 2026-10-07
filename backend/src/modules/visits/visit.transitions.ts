@@ -34,3 +34,6 @@ export const plannableStatuses: VisitStatus[] = ["SCHEDULED"];
 export function canReplan(current: VisitStatus) {
   return plannableStatuses.includes(current);
 }
+
+// A visit on site can end without finishing; the work order then waits for parts or a follow-up.
+export const unsuccessfulFrom: VisitStatus[] = ["ARRIVED", "IN_PROGRESS"];

@@ -50,3 +50,33 @@ export async function lastMailLink(to: string) {
   }
   throw new Error(`No mail for ${to}`);
 }
+
+// A unique future slot per run so repeated runs never double-book the seeded technician.
+// Each spec passes its own base year so specs never collide with each other either.
+export function slot(extraHours = 0, baseYear = 2027) {
+  const hours = (Math.floor(Date.now() / 60_000) % 50_000) * 3 + extraHours;
+  const date = new Date(Date.UTC(baseYear, 0, 1, 6) + hours * 3_600_000);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  return { date, local };
+}
+
+// Calls the API directly as a seeded user, for arranging state a spec is not about.
+export async function apiAs(email: string) {
+  const login = await fetch("http://localhost:4000/api/v1/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const token = ((await login.json()) as { data: { accessToken: string } }).data.accessToken;
+  return async function call<T = { data: Record<string, unknown> }>(method: string, path: string, body?: unknown) {
+    const response = await fetch(`http://localhost:4000/api/v1${path}`, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!response.ok) {
+      throw new Error(`${method} ${path} failed: ${response.status} ${await response.text()}`);
+    }
+    return (await response.json()) as T;
+  };
+}

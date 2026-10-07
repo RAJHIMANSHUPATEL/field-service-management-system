@@ -10,8 +10,10 @@ import {
   signatureSchema,
   uploadPhotoSchema,
   visitParamsSchema,
+  unsuccessfulVisitSchema,
   visitReportSchema,
 } from "./visit.schema.js";
+import { endUnsuccessful } from "./visit.outcome.js";
 import * as visitService from "./visit.service.js";
 import type { VisitStep } from "./visit.transitions.js";
 
@@ -87,4 +89,10 @@ export async function signature(req: Request, res: Response) {
 export async function signatureUrl(req: Request, res: Response) {
   const params = visitParamsSchema.parse(req.params);
   res.status(200).json(await execution.signatureUrl(params.id, actor(req)));
+}
+
+export async function unsuccessful(req: Request, res: Response) {
+  const params = visitParamsSchema.parse(req.params);
+  const body = unsuccessfulVisitSchema.parse(req.body);
+  res.status(200).json(await endUnsuccessful(params.id, actor(req), body));
 }

@@ -39,6 +39,8 @@ enum WorkOrderStatus {
   ASSIGNED
   ACCEPTED
   IN_PROGRESS
+  AWAITING_PARTS
+  FOLLOW_UP_REQUIRED
   COMPLETED
 }
 
@@ -48,6 +50,7 @@ enum VisitStatus {
   ARRIVED
   IN_PROGRESS
   COMPLETED
+  UNSUCCESSFUL
   CANCELLED
 }
 
@@ -75,6 +78,7 @@ model Organization {
   stockLevels     StockLevel[]
   stockMovements  StockMovement[]
   visitParts      VisitPart[]
+  partRequests    PartRequest[]
 }
 
 model User {
@@ -97,6 +101,7 @@ model User {
   requestAttachments  ServiceRequestAttachment[]
   visitPhotos         VisitPhoto[]
   stockMovements      StockMovement[]
+  partRequests        PartRequest[]
   passwordResetTokens PasswordResetToken[]
   invitationsSent     Invitation[]
 
@@ -308,6 +313,7 @@ model WorkOrder {
   serviceType    ServiceType     @relation(fields: [serviceTypeId], references: [id])
   technician     Technician?     @relation(fields: [technicianId], references: [id])
   visits         ServiceVisit[]
+  partRequests   PartRequest[]
   notes          WorkOrderNote[]
 
   @@index([organizationId])
@@ -331,6 +337,8 @@ model ServiceVisit {
   arrivedAt      DateTime?
   startedAt      DateTime?
   completedAt    DateTime?
+  endedAt        DateTime?
+  outcomeReason  String?
   diagnosis      String?
   workPerformed  String?
   signerName     String?
@@ -505,6 +513,7 @@ model Part {
   stockLevels    StockLevel[]
   movements      StockMovement[]
   visitParts     VisitPart[]
+  requests       PartRequest[]
 
   @@unique([organizationId, sku])
   @@index([organizationId])
@@ -697,4 +706,33 @@ model VisitPart {
 
   @@index([organizationId])
   @@index([visitId])
+}
+
+enum PartRequestStatus {
+  OPEN
+  FULFILLED
+  CANCELLED
+}
+
+// A part the technician needs for a follow-up visit that was not in stock.
+model PartRequest {
+  id             String            @id @default(cuid())
+  organizationId String
+  workOrderId    String
+  visitId        String?
+  partId         String
+  quantity       Int
+  status         PartRequestStatus @default(OPEN)
+  note           String?
+  requestedById  String
+  resolvedAt     DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  workOrder      WorkOrder         @relation(fields: [workOrderId], references: [id])
+  part           Part              @relation(fields: [partId], references: [id])
+  requestedBy    User              @relation(fields: [requestedById], references: [id])
+
+  @@index([organizationId, status])
+  @@index([workOrderId])
 }

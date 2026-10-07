@@ -39,6 +39,8 @@ const requestInclude = {
           arrivedAt: true,
           startedAt: true,
           completedAt: true,
+          endedAt: true,
+          outcomeReason: true,
           diagnosis: true,
           workPerformed: true,
           signerName: true,

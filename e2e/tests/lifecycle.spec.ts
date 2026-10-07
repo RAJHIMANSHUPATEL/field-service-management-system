@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { dialogSubmit, screensDir, signIn } from "./helpers";
+import { slot, dialogSubmit, screensDir, signIn } from "./helpers";
 
 const phone = { width: 375, height: 812 };
 // 1x1 PNG used as the visit photo.
@@ -8,13 +8,6 @@ const png = Buffer.from(
   "base64",
 );
 
-// A unique future slot per run so repeated runs never double-book the seeded technician.
-function slot(extraHours = 0) {
-  const hours = (Math.floor(Date.now() / 60_000) % 50_000) * 3 + extraHours;
-  const date = new Date(Date.UTC(2027, 0, 1, 6) + hours * 3_600_000);
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
-  return { date, local };
-}
 
 test("request, triage, assign, schedule, accept, visit", async ({ browser }) => {
   const description = `Lifecycle ${Date.now()}`;

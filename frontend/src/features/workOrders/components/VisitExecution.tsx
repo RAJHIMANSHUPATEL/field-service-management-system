@@ -5,6 +5,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { textareaClassName } from "@/components/content";
 import { toastError } from "@/lib/toastError";
+import { UnsuccessfulDialog } from "./FollowUp";
 import { VisitParts } from "./VisitParts";
 import { photoTypes, visitPhotoUrl, type Visit } from "../api/workOrders.api";
 import {
@@ -22,7 +23,17 @@ function stamp(value: string | null) {
 // The steps the customer and office see for one visit, in order.
 export type VisitProgressData = Pick<
   Visit,
-  "id" | "enRouteAt" | "arrivedAt" | "startedAt" | "completedAt" | "signedAt" | "diagnosis" | "workPerformed" | "signerName"
+  | "id"
+  | "enRouteAt"
+  | "arrivedAt"
+  | "startedAt"
+  | "completedAt"
+  | "endedAt"
+  | "outcomeReason"
+  | "signedAt"
+  | "diagnosis"
+  | "workPerformed"
+  | "signerName"
 > & { photos: { id: string; fileName: string; caption: string | null }[] };
 
 export function VisitProgress({ visit }: { visit: VisitProgressData }) {
@@ -32,6 +43,7 @@ export function VisitProgress({ visit }: { visit: VisitProgressData }) {
     { label: "Work started", at: visit.startedAt },
     { label: "Signed", at: visit.signedAt },
     { label: "Completed", at: visit.completedAt },
+    { label: "Ended without finishing", at: visit.endedAt },
   ].filter((step) => step.at);
   return (
     <div className="mt-2 flex flex-col gap-2 text-sm">
@@ -44,6 +56,12 @@ export function VisitProgress({ visit }: { visit: VisitProgressData }) {
             </li>
           ))}
         </ol>
+      ) : null}
+      {visit.outcomeReason ? (
+        <p>
+          <span className="font-medium">Why it could not finish: </span>
+          {visit.outcomeReason}
+        </p>
       ) : null}
       {visit.diagnosis ? (
         <p>
@@ -92,6 +110,7 @@ export function ExecutionPanel({ workOrderId, visit }: { workOrderId: string; vi
   const [caption, setCaption] = useState("");
   const inProgress = visit.status === "IN_PROGRESS";
   const ready = Boolean(visit.workPerformed && visit.signerName);
+  const [endOpen, setEndOpen] = useState(false);
 
   return (
     <section className="flex flex-col gap-4 rounded-lg border p-3" aria-label="On-site work">
@@ -197,6 +216,10 @@ export function ExecutionPanel({ workOrderId, visit }: { workOrderId: string; vi
           ) : null}
         </div>
       ) : null}
+      <Button type="button" variant="ghost" className="h-11 text-destructive" onClick={() => setEndOpen(true)}>
+        Can't finish today
+      </Button>
+      {endOpen ? <UnsuccessfulDialog workOrderId={workOrderId} visitId={visit.id} onClose={() => setEndOpen(false)} /> : null}
     </section>
   );
 }
