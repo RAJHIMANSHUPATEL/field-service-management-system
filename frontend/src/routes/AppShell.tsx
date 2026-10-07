@@ -134,6 +134,7 @@ function navForRole(role: AuthUser["role"]): NavGroup[] {
         items: [
           { to: "/equipment", label: "Equipment", icon: Package },
           { to: "/requests", label: "Requests", icon: ClipboardList },
+          { to: "/invoices", label: "Invoices", icon: Receipt },
         ],
       },
     ];

@@ -6,6 +6,8 @@ export type ServiceType = {
   name: string;
   description: string | null;
   isActive: boolean;
+  serviceCharge: string;
+  labourRatePerHour: string;
 };
 
 export const serviceTypeKeys = {
@@ -17,7 +19,7 @@ export async function listServiceTypes() {
   return result.data;
 }
 
-export async function createServiceType(input: { name: string; description?: string }) {
+export async function createServiceType(input: { name: string; description?: string; serviceCharge?: string; labourRatePerHour?: string }) {
   const result = await api<{ data: ServiceType }>("/api/v1/service-types", {
     method: "POST",
     body: JSON.stringify(input),

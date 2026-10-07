@@ -113,6 +113,21 @@ async function main() {
       },
     });
   }
+  // A second unit whose warranty has ended, so its jobs are billed in full.
+  if (!(await prisma.asset.findFirst({ where: { organizationId: organization.id, serialNumber: "WH-2001" } }))) {
+    await prisma.asset.create({
+      data: {
+        organizationId: organization.id,
+        customerId: customer.id,
+        addressId: address.id,
+        equipmentType: "Water heater",
+        model: "HeatPro 50",
+        serialNumber: "WH-2001",
+        installedAt: new Date("2021-03-01T00:00:00.000Z"),
+        warrantyExpiresAt: new Date("2023-03-01T00:00:00.000Z"),
+      },
+    });
+  }
 
   const existingServiceType = await prisma.serviceType.findFirst({
     where: { organizationId: organization.id, name: "Repair" },

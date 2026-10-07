@@ -29,7 +29,7 @@ export function ServiceTypesPage() {
   const [open, setOpen] = useState(false);
   const form = useForm<CreateServiceTypeInput>({
     resolver: zodResolver(createServiceTypeSchema),
-    defaultValues: { name: "", description: "" },
+    defaultValues: { name: "", description: "", serviceCharge: "", labourRatePerHour: "" },
   });
 
   function closeDialog() {
@@ -66,6 +66,8 @@ export function ServiceTypesPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Service charge</TableHead>
+                  <TableHead className="text-right">Labour / h</TableHead>
                   <TableHead>Active</TableHead>
                 </TableRow>
               </TableHeader>
@@ -74,6 +76,8 @@ export function ServiceTypesPage() {
                   <TableRow key={serviceType.id}>
                     <TableCell>{serviceType.name}</TableCell>
                     <TableCell>{serviceType.description ?? "—"}</TableCell>
+                    <TableCell className="text-right">{Number(serviceType.serviceCharge).toFixed(2)}</TableCell>
+                    <TableCell className="text-right">{Number(serviceType.labourRatePerHour).toFixed(2)}</TableCell>
                     <TableCell>
                       <Badge variant={serviceType.isActive ? "secondary" : "outline"}>
                         {serviceType.isActive ? "Active" : "Inactive"}
@@ -101,7 +105,12 @@ export function ServiceTypesPage() {
             className="flex flex-col gap-4"
             onSubmit={form.handleSubmit((values) => {
               createServiceType.mutate(
-                { name: values.name, description: blankToUndefined(values.description) },
+                {
+                  name: values.name,
+                  description: blankToUndefined(values.description),
+                  serviceCharge: blankToUndefined(values.serviceCharge),
+                  labourRatePerHour: blankToUndefined(values.labourRatePerHour),
+                },
                 {
                   onSuccess: () => {
                     toast.success("Service type added");
@@ -126,6 +135,16 @@ export function ServiceTypesPage() {
               <Field>
                 <FieldLabel htmlFor="service-description">Description</FieldLabel>
                 <Input id="service-description" {...form.register("description")} />
+              </Field>
+              <Field data-invalid={form.formState.errors.serviceCharge ? true : undefined}>
+                <FieldLabel htmlFor="service-charge">Service charge</FieldLabel>
+                <Input id="service-charge" inputMode="decimal" {...form.register("serviceCharge")} />
+                <FieldError errors={[form.formState.errors.serviceCharge]} />
+              </Field>
+              <Field data-invalid={form.formState.errors.labourRatePerHour ? true : undefined}>
+                <FieldLabel htmlFor="service-labour">Labour rate per hour</FieldLabel>
+                <Input id="service-labour" inputMode="decimal" {...form.register("labourRatePerHour")} />
+                <FieldError errors={[form.formState.errors.labourRatePerHour]} />
               </Field>
             </FieldGroup>
             <DialogFooter>

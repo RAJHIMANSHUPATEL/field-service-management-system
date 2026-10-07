@@ -93,3 +93,21 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
 
   return payload as T;
 }
+
+// Downloads a binary response (PDF reports) with the same auth handling as api().
+export async function apiBlob(path: string): Promise<Blob> {
+  if (!accessToken) {
+    await refreshAccessToken();
+  }
+  const send = () =>
+    fetch(path, { credentials: "include", headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} });
+  let response = await send();
+  if (response.status === 401 && (await refreshAccessToken())) {
+    response = await send();
+  }
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: { code?: string; message?: string } } | null;
+    throw new ApiError(payload?.error?.code ?? "REQUEST_FAILED", response.status, payload?.error?.message ?? "Request failed");
+  }
+  return response.blob();
+}
