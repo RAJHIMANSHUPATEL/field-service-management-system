@@ -204,7 +204,7 @@ function ContractDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog open onOpenChange={(next) => (next ? undefined : onClose())}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <form
           className="flex flex-col gap-4"
           onSubmit={(event) => {
@@ -289,7 +289,7 @@ function ContractDialog({ onClose }: { onClose: () => void }) {
                 </Field>
               ))}
             </div>
-            <fieldset className="space-y-1">
+            <fieldset className="max-h-48 space-y-1 overflow-y-auto">
               <legend className="text-sm font-medium">Equipment</legend>
               {customerId && customerAssets.length === 0 ? <p className="text-sm text-muted-foreground">This customer has no equipment.</p> : null}
               {customerAssets.map((row) => (
@@ -339,7 +339,7 @@ function PlanDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog open onOpenChange={(next) => (next ? undefined : onClose())}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <form
           className="flex flex-col gap-4"
           onSubmit={(event) => {

@@ -23,7 +23,7 @@ import { RegisterPage } from "@/features/masterData/pages/RegisterPage";
 import { AssetsPage } from "@/features/assets/pages/AssetsPage";
 import { SchedulePage } from "@/features/schedule/pages/SchedulePage";
 import { AppShell } from "./AppShell";
-import { NotReadyPage } from "./NotReadyPage";
+import { AnalyticsPage } from "@/features/analytics/pages/AnalyticsPage";
 import { ContractsPage } from "@/features/contracts/pages/ContractsPage";
 import { NotificationsPage } from "@/features/notifications/pages/NotificationsPage";
 import { FeedbackPage } from "@/features/notifications/pages/FeedbackPage";
@@ -58,7 +58,7 @@ export const router = createBrowserRouter([
               { path: "assets", element: <AssetsPage /> },
               { path: "inventory", element: <InventoryPage /> },
               { path: "contracts", element: <ContractsPage /> },
-              { path: "analytics", element: <NotReadyPage /> },
+              { path: "analytics", element: <AnalyticsPage /> },
               { path: "notifications", element: <NotificationsPage /> },
               { path: "feedback", element: <FeedbackPage /> },
               { path: "master", element: <MasterDataPage /> },

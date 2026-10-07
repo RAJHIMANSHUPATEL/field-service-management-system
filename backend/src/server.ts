@@ -30,6 +30,7 @@ import { runSweeps } from "./modules/notifications/notification.events.js";
 import { startNotificationWorker } from "./lib/queue.js";
 import { maintenanceRouter } from "./modules/maintenance/maintenance.routes.js";
 import { generateDue } from "./modules/maintenance/maintenance.service.js";
+import { analyticsRouter } from "./modules/analytics/analytics.routes.js";
 import { warehouseRouter } from "./modules/warehouses/warehouse.routes.js";
 import "./types/authUser.js";
 
@@ -70,6 +71,7 @@ export function createApp() {
   app.use("/api/v1/invoices", invoiceRouter);
   app.use("/api/v1/maintenance-plans", maintenanceRouter);
   app.use("/api/v1/feedback", feedbackRouter);
+  app.use("/api/v1/analytics", analyticsRouter);
   app.use("/api/v1/notifications", notificationRouter);
   app.use("/api/v1/audit-events", auditEventRouter);
   app.get("/api/v1/admin/ping", requireAuth, requireRole("ADMIN"), (_req, res) => {

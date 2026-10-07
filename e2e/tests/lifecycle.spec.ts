@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { slot, dialogSubmit, screensDir, signIn } from "./helpers";
+import { apiAs, slot, dialogSubmit, screensDir, signIn } from "./helpers";
 
 const phone = { width: 375, height: 812 };
 // 1x1 PNG used as the visit photo.
@@ -253,6 +253,26 @@ test("request, triage, assign, schedule, accept, visit, complete, invoice, pay",
   await expect(tech.page.getByRole("menu")).toContainText("New job assigned");
   await tech.page.screenshot({ path: `${screensDir}/technician-notifications-375.png`, fullPage: true });
   await tech.page.keyboard.press("Escape");
+
+  // Analytics spot check: the dashboard's pending invoices and completed jobs match the raw lists.
+  const opsApi = await apiAs("ops@fieldservice.local");
+  const invoices = await opsApi<{ data: { status: string; total: string; amountPaid: string }[] }>("GET", "/invoices");
+  const pending = invoices.data.filter((row) => row.status === "ISSUED" || row.status === "OVERDUE");
+  await ops.page.goto("/");
+  await expect(ops.page.getByTestId("stat-pending-invoices")).toHaveText(String(pending.length));
+  await expect(ops.page.getByTestId("stat-active-jobs")).toBeVisible();
+  await ops.page.screenshot({ path: `${screensDir}/ops-dashboard.png`, fullPage: true });
+  await ops.page.goto("/analytics");
+  await ops.page.getByRole("button", { name: "7 days" }).click();
+  const taraRow = ops.page.getByRole("table", { name: "Technician performance" }).getByRole("row").filter({ hasText: "Tara Technician" });
+  const performance = await opsApi<{ data: { technician: { name: string }; jobsCompleted: number }[] }>(
+    "GET",
+    `/analytics/technicians?from=${new Date(Date.now() - 7 * 86_400_000).toISOString()}&to=${new Date(Date.now() + 60_000).toISOString()}`,
+  );
+  const taraCompleted = performance.data.find((row) => row.technician.name === "Tara Technician")!.jobsCompleted;
+  expect(taraCompleted).toBeGreaterThan(0);
+  await expect(taraRow.getByRole("cell").nth(1)).toHaveText(String(taraCompleted));
+  await ops.page.screenshot({ path: `${screensDir}/ops-technician-performance.png`, fullPage: true });
 
   for (const session of [customer, ops, tech]) {
     expect(session.problems).toEqual([]);
