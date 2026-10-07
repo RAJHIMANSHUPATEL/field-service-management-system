@@ -13,7 +13,7 @@ and which test covers it.
 | Brute force | `authLimiter` per IP+email, `apiLimiter` per IP, 429 with Retry-After | hardening tests |
 | Replays | Idempotency keys scoped per user, request hash checked | hardening tests |
 | Files | Uploads through presigned S3 URLs with content-type and size limits; keys are server-chosen | attachment tests |
-| Headers | helmet defaults, CORS limited to `CORS_ORIGIN`, `trust proxy` only when `TRUST_PROXY` set | server.ts |
+| Headers | helmet defaults (`helmet()`), CORS limited to `CORS_ORIGIN`, `trust proxy` only when `TRUST_PROXY` set | server.ts |
 | Audit | State changes write audit events from middleware (ADR 0001) | audit tests |
 | Secrets | Read from env only; `.env` git-ignored; nothing logged; `.env.example` has placeholders | repo review |
 | Errors | 5xx bodies are generic; stack traces only in server logs | error handler tests |
@@ -23,7 +23,7 @@ and which test covers it.
 - No MFA and no account lockout beyond rate limiting.
 - Notifications are sent through file/log providers only; no real SMS or email provider is configured.
 - No production deployment exists, so TLS, WAF and secret rotation are deployment concerns, see [deployment.md](./deployment.md).
-- `npm audit` findings are reviewed at each phase; none high at review time.
+- `npm audit --omit=dev` reports 4 high findings (`deepmerge-ts`, `mysql2`) that come in through Prisma 7's tooling packages; the only fix offered is a forced breaking downgrade. The API uses the Postgres adapter, so the MySQL driver is never loaded. Revisit on the next Prisma release.
 
 ## Backup and restore drill
 `scripts/restore-drill.sh` dumps the live database, restores into a scratch database and compares
