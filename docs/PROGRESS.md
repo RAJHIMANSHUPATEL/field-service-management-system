@@ -15,3 +15,4 @@ Read this file and `docs/stages/README.md` before starting any work. Never redo 
 | 5 (slice) | feat/start-accepted-job (stage 5) | 759d9df | Phase 0 gaps |
 | 0 | feat/phase0-foundations (stage 6) | fbf8fb3 | Phase 1 |
 | 1 | feat/phase1-audit-and-access (stage 7) | 917e9fd | Phase 2 master data: skills, service areas, parts catalogue, warehouses, warranty |
+| 2 | feat/phase2-master-data (stage 8) | 9cecf63 | Phase 3: request attachments, set priority/service type at triage |
