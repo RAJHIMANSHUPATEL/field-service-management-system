@@ -23,6 +23,7 @@ export type WorkOrder = {
   partRequests: PartRequest[];
   invoice: InvoiceRef | null;
   feedback: { rating: number; satisfied: boolean; comment: string | null } | null;
+  maintenancePlan: { id: string; name: string; nextDueOn: string } | null;
   notes: { id: string; body: string; createdAt: string; author: { id: string; name: string } }[];
 };
 

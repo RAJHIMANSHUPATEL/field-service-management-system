@@ -24,6 +24,7 @@ import { AssetsPage } from "@/features/assets/pages/AssetsPage";
 import { SchedulePage } from "@/features/schedule/pages/SchedulePage";
 import { AppShell } from "./AppShell";
 import { NotReadyPage } from "./NotReadyPage";
+import { ContractsPage } from "@/features/contracts/pages/ContractsPage";
 import { NotificationsPage } from "@/features/notifications/pages/NotificationsPage";
 import { FeedbackPage } from "@/features/notifications/pages/FeedbackPage";
 import { RequireAuth } from "./RequireAuth";
@@ -56,7 +57,7 @@ export const router = createBrowserRouter([
               { path: "technicians", element: <TechniciansPage /> },
               { path: "assets", element: <AssetsPage /> },
               { path: "inventory", element: <InventoryPage /> },
-              { path: "contracts", element: <NotReadyPage /> },
+              { path: "contracts", element: <ContractsPage /> },
               { path: "analytics", element: <NotReadyPage /> },
               { path: "notifications", element: <NotificationsPage /> },
               { path: "feedback", element: <FeedbackPage /> },
