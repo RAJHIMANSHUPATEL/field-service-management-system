@@ -7,17 +7,12 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
+import { workOrderStatusLabel } from "@/lib/status";
 import type { WorkOrderStatus } from "../api/workOrders.api";
 import { useWorkOrders } from "../hooks/useWorkOrders";
 
 function statusLabel(status: WorkOrderStatus) {
-  if (status === "ASSIGNED") {
-    return "Assigned";
-  }
-  if (status === "ACCEPTED") {
-    return "Accepted";
-  }
-  return "Open";
+  return workOrderStatusLabel(status);
 }
 
 export function WorkOrdersPage() {
@@ -58,7 +53,7 @@ export function WorkOrdersPage() {
                     {workOrder.customer.name}
                   </Link>
                 }
-                meta={<Badge variant={workOrder.status === "ACCEPTED" ? "default" : "secondary"}>{statusLabel(workOrder.status)}</Badge>}
+                meta={<Badge variant={workOrder.status === "ACCEPTED" || workOrder.status === "IN_PROGRESS" ? "default" : "secondary"}>{statusLabel(workOrder.status)}</Badge>}
               >
                 <span>
                   {workOrder.asset.equipmentType} · {workOrder.asset.serialNumber}
@@ -93,7 +88,7 @@ export function WorkOrdersPage() {
                       <TableCell>{workOrder.serviceType.name}</TableCell>
                       <TableCell>{priorityLabel(workOrder.priority)}</TableCell>
                       <TableCell>
-                        <Badge variant={workOrder.status === "ACCEPTED" ? "default" : "secondary"}>{statusLabel(workOrder.status)}</Badge>
+                        <Badge variant={workOrder.status === "ACCEPTED" || workOrder.status === "IN_PROGRESS" ? "default" : "secondary"}>{statusLabel(workOrder.status)}</Badge>
                       </TableCell>
                     </TableRow>
                   ))}

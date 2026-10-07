@@ -11,6 +11,7 @@ import { serviceRequestRouter } from "./modules/serviceRequests/serviceRequest.r
 import { serviceTypeRouter } from "./modules/serviceTypes/serviceType.routes.js";
 import { technicianRouter } from "./modules/technicians/technician.routes.js";
 import { workOrderRouter } from "./modules/workOrders/workOrder.routes.js";
+import { visitRouter } from "./modules/visits/visit.routes.js";
 import "./types/authUser.js";
 
 export function createApp() {
@@ -36,6 +37,7 @@ export function createApp() {
   app.use("/api/v1/service-requests", serviceRequestRouter);
   app.use("/api/v1/technicians", technicianRouter);
   app.use("/api/v1/work-orders", workOrderRouter);
+  app.use("/api/v1/visits", visitRouter);
   app.get("/api/v1/admin/ping", requireAuth, requireRole("ADMIN"), (_req, res) => {
     res.status(200).json({ data: { ok: true } });
   });

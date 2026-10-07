@@ -2,8 +2,10 @@ import { api } from "@/lib/apiClient";
 import type { PageMeta } from "@/features/customers/api/customers.api";
 import type { RequestPriority } from "@/features/serviceRequests/api/serviceRequests.api";
 
-export type WorkOrderStatus = "OPEN" | "ASSIGNED" | "ACCEPTED";
-export type VisitStatus = "SCHEDULED" | "CANCELLED";
+import type { VisitStatus, WorkOrderStatus } from "@/lib/status";
+import type { VisitStep } from "../schemas/workOrder.schema";
+
+export type { VisitStatus, WorkOrderStatus };
 
 export type WorkOrder = {
   id: string;
@@ -62,5 +64,10 @@ export async function declineWorkOrder(id: string, reason: string) {
     method: "POST",
     body: JSON.stringify({ reason }),
   });
+  return result.data;
+}
+
+export async function moveVisit(visitId: string, step: VisitStep) {
+  const result = await api<{ data: WorkOrder }>(`/api/v1/visits/${visitId}/${step}`, { method: "POST" });
   return result.data;
 }

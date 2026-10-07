@@ -1,0 +1,7 @@
+-- AlterEnum
+ALTER TYPE "VisitStatus" ADD VALUE 'EN_ROUTE';
+ALTER TYPE "VisitStatus" ADD VALUE 'ARRIVED';
+ALTER TYPE "VisitStatus" ADD VALUE 'IN_PROGRESS';
+
+-- AlterEnum
+ALTER TYPE "WorkOrderStatus" ADD VALUE 'IN_PROGRESS';

@@ -38,10 +38,14 @@ enum WorkOrderStatus {
   OPEN
   ASSIGNED
   ACCEPTED
+  IN_PROGRESS
 }
 
 enum VisitStatus {
   SCHEDULED
+  EN_ROUTE
+  ARRIVED
+  IN_PROGRESS
   CANCELLED
 }
 
