@@ -9,7 +9,26 @@ const technicianInclude = {
   user: {
     select: { id: true, name: true, email: true, role: true },
   },
+  skills: { select: { skill: { select: { id: true, name: true } } } },
+  serviceAreas: { select: { serviceArea: { select: { id: true, name: true } } } },
 };
+
+async function assertInOrganization(actor: AuthUser, skillIds?: string[], serviceAreaIds?: string[]) {
+  if (skillIds?.length) {
+    const found = await prisma.skill.count({ where: { id: { in: skillIds }, organizationId: actor.organizationId } });
+    if (found !== new Set(skillIds).size) {
+      throw new AppError("SKILL_NOT_FOUND", 404, "Skill not found");
+    }
+  }
+  if (serviceAreaIds?.length) {
+    const found = await prisma.serviceArea.count({
+      where: { id: { in: serviceAreaIds }, organizationId: actor.organizationId },
+    });
+    if (found !== new Set(serviceAreaIds).size) {
+      throw new AppError("SERVICE_AREA_NOT_FOUND", 404, "Service area not found");
+    }
+  }
+}
 
 function assertOwnProfile(actor: AuthUser, userId: string) {
   if (actor.role === "TECHNICIAN" && actor.id !== userId) {
@@ -81,11 +100,18 @@ export async function createTechnician(input: CreateTechnicianInput, actor: Auth
 
 export async function updateTechnician(id: string, input: UpdateTechnicianInput, actor: AuthUser) {
   await getTechnician(id, actor);
+  await assertInOrganization(actor, input.skillIds, input.serviceAreaIds);
+  const skillIds = input.skillIds ? [...new Set(input.skillIds)] : undefined;
+  const serviceAreaIds = input.serviceAreaIds ? [...new Set(input.serviceAreaIds)] : undefined;
   const technician = await prisma.technician.update({
     where: { id },
     data: {
       ...(input.phone !== undefined ? { phone: input.phone } : {}),
       ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+      ...(skillIds ? { skills: { deleteMany: {}, create: skillIds.map((skillId) => ({ skillId })) } } : {}),
+      ...(serviceAreaIds
+        ? { serviceAreas: { deleteMany: {}, create: serviceAreaIds.map((serviceAreaId) => ({ serviceAreaId })) } }
+        : {}),
     },
     include: technicianInclude,
   });

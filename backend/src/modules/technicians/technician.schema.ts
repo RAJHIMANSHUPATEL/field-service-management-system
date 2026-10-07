@@ -13,6 +13,8 @@ export const createTechnicianSchema = z.object({
 export const updateTechnicianSchema = z.object({
   phone: z.string().trim().min(1).nullable().optional(),
   isActive: z.boolean().optional(),
+  skillIds: z.array(z.string().min(1)).optional(),
+  serviceAreaIds: z.array(z.string().min(1)).optional(),
 });
 
 export type CreateTechnicianInput = z.infer<typeof createTechnicianSchema>;

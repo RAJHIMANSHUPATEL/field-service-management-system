@@ -57,6 +57,10 @@ const matrix: Row[] = [
   ["/api/v1/service-requests", 200, 200, 403, 200],
   ["/api/v1/technicians", 200, 200, 200, 403],
   ["/api/v1/work-orders", 200, 200, 200, 403],
+  ["/api/v1/skills", 200, 200, 403, 403],
+  ["/api/v1/service-areas", 200, 200, 403, 403],
+  ["/api/v1/parts", 200, 200, 200, 403],
+  ["/api/v1/warehouses", 200, 200, 200, 403],
   ["/api/v1/users", 200, 403, 403, 403],
   ["/api/v1/audit-events", 200, 403, 403, 403],
 ];

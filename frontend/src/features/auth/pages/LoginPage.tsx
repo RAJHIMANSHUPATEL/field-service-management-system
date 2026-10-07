@@ -64,6 +64,9 @@ export function LoginPage() {
               <Link className="text-center text-sm text-muted-foreground underline-offset-4 hover:underline" to="/forgot-password">
                 Forgot password?
               </Link>
+              <Link className="text-center text-sm text-muted-foreground underline-offset-4 hover:underline" to="/register">
+                New company? Set it up
+              </Link>
             </div>
           </CardFooter>
         </form>

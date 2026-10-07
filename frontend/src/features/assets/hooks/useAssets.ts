@@ -1,6 +1,6 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { customerKeys } from "@/features/customers/api/customers.api";
-import { createAsset, updateAsset } from "../api/assets.api";
+import { assetKeys, createAsset, listAllAssets, updateAsset } from "../api/assets.api";
 
 export function useSaveAsset(customerId: string) {
   const queryClient = useQueryClient();
@@ -18,4 +18,8 @@ export function useSaveAsset(customerId: string) {
       void queryClient.invalidateQueries({ queryKey: customerKeys.detail(customerId) });
     },
   });
+}
+
+export function useAllAssets() {
+  return useQuery({ queryKey: assetKeys.all, queryFn: listAllAssets });
 }

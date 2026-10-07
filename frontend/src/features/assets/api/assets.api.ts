@@ -11,6 +11,7 @@ export type Asset = {
   installedAt: string | null;
   warrantyExpiresAt: string | null;
   status: "ACTIVE" | "OUT_OF_SERVICE" | "DECOMMISSIONED";
+  customer?: { id: string; name: string };
   address?: {
     id: string;
     label: string;
@@ -20,8 +21,14 @@ export type Asset = {
 };
 
 export const assetKeys = {
+  all: ["assets"] as const,
   customer: (customerId: string) => ["assets", customerId] as const,
 };
+
+export async function listAllAssets() {
+  const result = await api<{ data: Asset[]; meta: PageMeta }>("/api/v1/assets?limit=100");
+  return result.data;
+}
 
 export async function listAssets(customerId: string) {
   const result = await api<{ data: Asset[]; meta: PageMeta }>(

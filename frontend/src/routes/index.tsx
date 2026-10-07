@@ -14,6 +14,9 @@ import { WorkOrdersPage } from "@/features/workOrders/pages/WorkOrdersPage";
 import { AuditLogPage } from "@/features/auditEvents/pages/AuditLogPage";
 import { AcceptInvitePage, ForgotPasswordPage, ResetPasswordPage } from "@/features/users/pages/PublicAuthPages";
 import { UsersPage } from "@/features/users/pages/UsersPage";
+import { MasterDataPage } from "@/features/masterData/pages/MasterDataPage";
+import { RegisterPage } from "@/features/masterData/pages/RegisterPage";
+import { AssetsPage } from "@/features/assets/pages/AssetsPage";
 import { AppShell } from "./AppShell";
 import { NotReadyPage } from "./NotReadyPage";
 import { RequireAuth } from "./RequireAuth";
@@ -25,6 +28,7 @@ export const router = createBrowserRouter([
     path: "/login",
     element: <LoginPage />,
   },
+  { path: "/register", element: <RegisterPage /> },
   { path: "/forgot-password", element: <ForgotPasswordPage /> },
   { path: "/reset-password", element: <ResetPasswordPage /> },
   { path: "/accept-invite", element: <AcceptInvitePage /> },
@@ -44,13 +48,13 @@ export const router = createBrowserRouter([
               { path: "service-types", element: <ServiceTypesPage /> },
               { path: "technicians", element: <TechniciansPage /> },
               { path: "schedule", element: <NotReadyPage /> },
-              { path: "assets", element: <NotReadyPage /> },
+              { path: "assets", element: <AssetsPage /> },
               { path: "inventory", element: <NotReadyPage /> },
               { path: "invoices", element: <NotReadyPage /> },
               { path: "contracts", element: <NotReadyPage /> },
               { path: "analytics", element: <NotReadyPage /> },
               { path: "notifications", element: <NotReadyPage /> },
-              { path: "master", element: <NotReadyPage /> },
+              { path: "master", element: <MasterDataPage /> },
             ],
           },
           {
