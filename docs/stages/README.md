@@ -12,5 +12,6 @@ Each stage is one slice of the product that can be signed in to and used. The de
 | 6 — Foundations: one-command stack, CI, lifecycle test | Complete | [stage6.md](./stage6.md) |
 | 7 — Identity and access: audit, invitations, password reset | Complete | [stage7.md](./stage7.md) |
 | 8 — Master data: company setup, skills, areas, parts, warehouses | Complete | [stage8.md](./stage8.md) |
+| 9 — Request to work order: attachments and full triage | Complete | [stage9.md](./stage9.md) |
 
-The next stage starts when we pick it. Add `stage9.md` here when that work begins.
+The next stage starts when we pick it. Add `stage10.md` here when that work begins.

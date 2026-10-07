@@ -1,5 +1,6 @@
 import { api } from "@/lib/apiClient";
 import type { PageMeta } from "@/features/customers/api/customers.api";
+import type { VisitStatus, WorkOrderStatus } from "@/lib/status";
 
 export type RequestStatus = "SUBMITTED" | "NEEDS_INFO" | "REJECTED" | "ACCEPTED";
 export type RequestPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
@@ -23,8 +24,33 @@ export type ServiceRequest = {
   address: { id: string; label: string; line1: string; city: string; state: string; postalCode: string };
   serviceType: { id: string; name: string };
   notes: ServiceRequestNote[];
-  workOrder: { id: string; status: "OPEN" } | null;
+  workOrder: {
+    id: string;
+    status: WorkOrderStatus;
+    visits: { id: string; scheduledStart: string; status: VisitStatus }[];
+  } | null;
+  attachments: RequestAttachment[];
 };
+
+export type RequestAttachment = { id: string; fileName: string; contentType: string; size: number; createdAt: string };
+
+export const attachmentTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+
+export async function uploadAttachment(requestId: string, file: File) {
+  const result = await api<{ data: RequestAttachment }>(`/api/v1/service-requests/${requestId}/attachments`, {
+    method: "POST",
+    body: file,
+    headers: { "Content-Type": file.type, "X-File-Name": encodeURIComponent(file.name) },
+  });
+  return result.data;
+}
+
+export async function attachmentUrl(requestId: string, attachmentId: string) {
+  const result = await api<{ data: { url: string } }>(
+    `/api/v1/service-requests/${requestId}/attachments/${attachmentId}`,
+  );
+  return result.data.url;
+}
 
 export type ServiceRequestListQuery = {
   status?: RequestStatus;
@@ -77,7 +103,10 @@ export async function createServiceRequest(input: {
   return result.data;
 }
 
-export async function acceptServiceRequest(id: string, input: { priority?: RequestPriority; note?: string }) {
+export async function acceptServiceRequest(
+  id: string,
+  input: { priority?: RequestPriority; serviceTypeId?: string; note?: string },
+) {
   const result = await api<{ data: ServiceRequest }>(`/api/v1/service-requests/${id}/accept`, {
     method: "POST",
     body: JSON.stringify(input),

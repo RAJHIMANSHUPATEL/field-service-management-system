@@ -3,6 +3,8 @@ import type { AuthUser } from "../../types/authUser.js";
 import { AppError } from "../../lib/errors.js";
 import { pageMeta } from "../../lib/pagination.js";
 import { prisma } from "../../lib/prisma.js";
+import { downloadUrl, putObject } from "../../lib/storage.js";
+import { randomUUID } from "node:crypto";
 import { createOpenWorkOrder } from "../workOrders/workOrder.service.js";
 import {
   toDate,
@@ -23,7 +25,17 @@ const requestInclude = {
     orderBy: { createdAt: "asc" as const },
     include: { author: { select: { id: true, name: true, role: true } } },
   },
-  workOrder: { select: { id: true, status: true } },
+  workOrder: {
+    select: {
+      id: true,
+      status: true,
+      visits: { orderBy: { createdAt: "asc" as const }, select: { id: true, scheduledStart: true, status: true } },
+    },
+  },
+  attachments: {
+    orderBy: { createdAt: "asc" as const },
+    select: { id: true, fileName: true, contentType: true, size: true, createdAt: true },
+  },
 };
 
 const openStatuses: ServiceRequestStatus[] = ["SUBMITTED", "NEEDS_INFO"];
@@ -142,6 +154,18 @@ export async function acceptServiceRequest(id: string, input: AcceptServiceReque
   assertOpen(current.status);
 
   const priority = input.priority ?? current.priority;
+  if (input.serviceTypeId && input.serviceTypeId !== current.serviceTypeId) {
+    const serviceType = await prisma.serviceType.findFirst({
+      where: { id: input.serviceTypeId, organizationId: actor.organizationId },
+    });
+    if (!serviceType) {
+      throw new AppError("SERVICE_TYPE_NOT_FOUND", 404, "Service type not found");
+    }
+    if (!serviceType.isActive) {
+      throw new AppError("SERVICE_TYPE_INACTIVE", 400, "This service type is inactive");
+    }
+  }
+  const serviceTypeId = input.serviceTypeId ?? current.serviceTypeId;
   const updated = await prisma.$transaction(async (tx) => {
     await tx.serviceRequestNote.create({
       data: {
@@ -152,7 +176,7 @@ export async function acceptServiceRequest(id: string, input: AcceptServiceReque
     });
     await tx.serviceRequest.update({
       where: { id },
-      data: { status: "ACCEPTED", priority },
+      data: { status: "ACCEPTED", priority, serviceTypeId },
     });
     await createOpenWorkOrder(tx, {
       organizationId: current.organizationId,
@@ -160,7 +184,7 @@ export async function acceptServiceRequest(id: string, input: AcceptServiceReque
       customerId: current.customerId,
       assetId: current.assetId,
       addressId: current.addressId,
-      serviceTypeId: current.serviceTypeId,
+      serviceTypeId,
       priority,
       description: current.description,
     });
@@ -221,4 +245,44 @@ export async function replyToRequest(id: string, message: string, actor: AuthUse
     });
   });
   return { data: updated };
+}
+
+export async function addAttachment(
+  id: string,
+  file: { body: Buffer; contentType: string; fileName: string },
+  actor: AuthUser,
+) {
+  const serviceRequest = await requireRequest(id, actor);
+  if (serviceRequest.status === "REJECTED") {
+    throw new AppError("INVALID_TRANSITION", 409, "A rejected request cannot take attachments");
+  }
+  if (file.body.length === 0) {
+    throw new AppError("VALIDATION_ERROR", 400, "The file is empty");
+  }
+  const storageKey = `${actor.organizationId}/requests/${id}/${randomUUID()}`;
+  await putObject(storageKey, file.body, file.contentType);
+  const attachment = await prisma.serviceRequestAttachment.create({
+    data: {
+      organizationId: actor.organizationId,
+      requestId: id,
+      uploadedById: actor.id,
+      fileName: file.fileName,
+      contentType: file.contentType,
+      size: file.body.length,
+      storageKey,
+    },
+    select: { id: true, fileName: true, contentType: true, size: true, createdAt: true },
+  });
+  return { data: attachment };
+}
+
+export async function attachmentUrl(id: string, attachmentId: string, actor: AuthUser) {
+  await requireRequest(id, actor);
+  const attachment = await prisma.serviceRequestAttachment.findFirst({
+    where: { id: attachmentId, requestId: id, organizationId: actor.organizationId },
+  });
+  if (!attachment) {
+    throw new AppError("ATTACHMENT_NOT_FOUND", 404, "Attachment not found");
+  }
+  return { data: { url: await downloadUrl(attachment.storageKey, attachment.fileName) } };
 }

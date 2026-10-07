@@ -20,11 +20,26 @@ test("request, triage, assign, schedule, accept, visit", async ({ browser }) => 
   );
   await dialogSubmit(customer.page, "Submit request");
   const requestId = ((await (await created).json()) as { data: { id: string } }).data.id;
+  await customer.page.goto(`/requests/${requestId}`);
+  await customer.page.getByLabel("Add photos or files").setInputFiles({
+    name: "unit.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c63000100000500010d0a2db40000000049454e44ae426082",
+      "hex",
+    ),
+  });
+  await expect(customer.page.getByRole("button", { name: "unit.png" })).toBeVisible();
 
   // Ops triages it into a work order.
   const ops = await signIn(browser, "ops@fieldservice.local");
   await ops.page.goto(`/requests/${requestId}`);
+  const popup = ops.page.waitForEvent("popup");
+  await ops.page.getByRole("button", { name: "unit.png" }).click();
+  expect((await (await popup).waitForLoadState().then(() => popup)).url()).toContain("unit.png");
   await ops.page.getByRole("button", { name: "Accept", exact: true }).click();
+  await ops.page.getByRole("dialog").getByLabel("Priority").selectOption("HIGH");
+  await ops.page.getByRole("dialog").getByLabel("Service type").selectOption({ index: 0 });
   await dialogSubmit(ops.page, "Accept");
   await ops.page.getByText("View work order").click();
   await expect(ops.page).toHaveURL(/\/work-orders\//);
@@ -53,6 +68,11 @@ test("request, triage, assign, schedule, accept, visit", async ({ browser }) => 
     await expect(tech.page.getByText(status, { exact: true }).first()).toBeVisible();
   }
   await tech.page.screenshot({ path: `${screensDir}/technician-visit-in-progress.png`, fullPage: true });
+
+  // The customer sees the same state on their request.
+  await customer.page.reload();
+  await expect(customer.page.getByText("In progress").first()).toBeVisible();
+  await expect(customer.page.getByText(/Nov 3, 2026.*In progress/)).toBeVisible();
 
   for (const session of [customer, ops, tech]) {
     expect(session.problems).toEqual([]);

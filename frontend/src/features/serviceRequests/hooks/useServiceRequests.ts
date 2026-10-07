@@ -8,6 +8,7 @@ import {
   replyToServiceRequest,
   requestServiceInfo,
   serviceRequestKeys,
+  uploadAttachment,
   type ServiceRequestListQuery,
 } from "../api/serviceRequests.api";
 
@@ -47,7 +48,7 @@ export function useCreateServiceRequest() {
 export function useAcceptServiceRequest(id: string) {
   const invalidate = useInvalidateRequests();
   return useMutation({
-    mutationFn: (input: { priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT"; note?: string }) =>
+    mutationFn: (input: { priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT"; serviceTypeId?: string; note?: string }) =>
       acceptServiceRequest(id, input),
     onSuccess: () => invalidate(id),
   });
@@ -73,6 +74,18 @@ export function useReplyToServiceRequest(id: string) {
   const invalidate = useInvalidateRequests();
   return useMutation({
     mutationFn: (message: string) => replyToServiceRequest(id, message),
+    onSuccess: () => invalidate(id),
+  });
+}
+
+export function useUploadAttachments(id: string) {
+  const invalidate = useInvalidateRequests();
+  return useMutation({
+    mutationFn: async (files: File[]) => {
+      for (const file of files) {
+        await uploadAttachment(id, file);
+      }
+    },
     onSuccess: () => invalidate(id),
   });
 }

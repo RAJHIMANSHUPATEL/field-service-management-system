@@ -25,6 +25,16 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return;
   }
 
+  const httpError = err as { type?: string; status?: number };
+  if (httpError.type === "entity.too.large") {
+    res.status(413).json({ error: { code: "FILE_TOO_LARGE", message: "The request body is too large" } });
+    return;
+  }
+  if (httpError.type === "entity.parse.failed") {
+    res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Invalid request body" } });
+    return;
+  }
+
   console.error(err);
   res.status(500).json({
     error: {

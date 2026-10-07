@@ -21,6 +21,7 @@ export const createServiceRequestSchema = z.object({
 
 export const acceptServiceRequestSchema = z.object({
   priority: priority.optional(),
+  serviceTypeId: z.string().min(1).optional(),
   note: z.string().trim().min(1).optional(),
 });
 
@@ -39,3 +40,21 @@ export type AcceptServiceRequestInput = z.infer<typeof acceptServiceRequestSchem
 export function toDate(value: string) {
   return new Date(`${value}T00:00:00.000Z`);
 }
+
+export const attachmentTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"] as const;
+export const maxAttachmentBytes = 10 * 1024 * 1024;
+
+export const uploadAttachmentSchema = z.object({
+  contentType: z.enum(attachmentTypes),
+  fileName: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .transform((value) => value.replace(/[^\w. -]/g, "_")),
+});
+
+export const attachmentParamsSchema = z.object({
+  id: z.string().min(1),
+  attachmentId: z.string().min(1),
+});

@@ -13,6 +13,7 @@ export default defineConfig({
       JWT_ACCESS_SECRET: "test-access-secret-value",
       JWT_REFRESH_SECRET: "test-refresh-secret-value",
       CORS_ORIGIN: "http://localhost:5173",
+      S3_BUCKET: "field-service-test",
     },
   },
 });
