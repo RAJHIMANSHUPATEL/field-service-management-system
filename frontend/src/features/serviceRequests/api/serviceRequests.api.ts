@@ -1,3 +1,4 @@
+import type { VisitProgressData } from "@/features/workOrders/components/VisitExecution";
 import { api } from "@/lib/apiClient";
 import type { PageMeta } from "@/features/customers/api/customers.api";
 import type { VisitStatus, WorkOrderStatus } from "@/lib/status";
@@ -27,7 +28,7 @@ export type ServiceRequest = {
   workOrder: {
     id: string;
     status: WorkOrderStatus;
-    visits: { id: string; scheduledStart: string; status: VisitStatus }[];
+    visits: ({ id: string; scheduledStart: string; status: VisitStatus } & VisitProgressData)[];
   } | null;
   attachments: RequestAttachment[];
 };

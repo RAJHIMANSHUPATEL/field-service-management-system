@@ -6,6 +6,11 @@ import {
   getWorkOrder,
   listWorkOrders,
   moveVisit,
+  addWorkOrderNote,
+  completeVisit,
+  saveVisitReport,
+  signVisit,
+  uploadVisitPhoto,
   addTimeOff,
   cancelVisit,
   getCalendar,
@@ -123,4 +128,41 @@ export function useAddTimeOff() {
       addTimeOff(technicianId, input),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["calendar"] }),
   });
+}
+
+export function useSaveVisitReport(workOrderId: string) {
+  const refresh = useRefreshWorkOrder(workOrderId);
+  return useMutation({
+    mutationFn: ({ visitId, ...input }: { visitId: string; diagnosis?: string; workPerformed?: string }) =>
+      saveVisitReport(visitId, input),
+    onSuccess: refresh,
+  });
+}
+
+export function useUploadVisitPhoto(workOrderId: string) {
+  const refresh = useRefreshWorkOrder(workOrderId);
+  return useMutation({
+    mutationFn: ({ visitId, file, caption }: { visitId: string; file: File; caption?: string }) =>
+      uploadVisitPhoto(visitId, file, caption),
+    onSuccess: refresh,
+  });
+}
+
+export function useSignVisit(workOrderId: string) {
+  const refresh = useRefreshWorkOrder(workOrderId);
+  return useMutation({
+    mutationFn: ({ visitId, signerName, image }: { visitId: string; signerName: string; image: string }) =>
+      signVisit(visitId, signerName, image),
+    onSuccess: refresh,
+  });
+}
+
+export function useCompleteVisit(workOrderId: string) {
+  const refresh = useRefreshWorkOrder(workOrderId);
+  return useMutation({ mutationFn: (visitId: string) => completeVisit(visitId), onSuccess: refresh });
+}
+
+export function useAddWorkOrderNote(workOrderId: string) {
+  const refresh = useRefreshWorkOrder(workOrderId);
+  return useMutation({ mutationFn: (body: string) => addWorkOrderNote(workOrderId, body), onSuccess: refresh });
 }

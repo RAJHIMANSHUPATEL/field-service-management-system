@@ -10,6 +10,7 @@ import { ServiceTypesPage } from "@/features/serviceTypes/pages/ServiceTypesPage
 import { TechnicianProfilePage } from "@/features/technicians/pages/TechnicianProfilePage";
 import { TechniciansPage } from "@/features/technicians/pages/TechniciansPage";
 import { WorkOrderDetailPage } from "@/features/workOrders/pages/WorkOrderDetailPage";
+import { MyJobsPage } from "@/features/workOrders/pages/MyJobsPage";
 import { WorkOrdersPage } from "@/features/workOrders/pages/WorkOrdersPage";
 import { AuditLogPage } from "@/features/auditEvents/pages/AuditLogPage";
 import { AcceptInvitePage, ForgotPasswordPage, ResetPasswordPage } from "@/features/users/pages/PublicAuthPages";
@@ -78,6 +79,10 @@ export const router = createBrowserRouter([
               { path: "work-orders/:workOrderId", element: <WorkOrderDetailPage /> },
               { path: "schedule", element: <SchedulePage /> },
             ],
+          },
+          {
+            element: <RequireRole roles={["TECHNICIAN"]} />,
+            children: [{ path: "my-jobs", element: <MyJobsPage /> }],
           },
           {
             element: <RequireRole roles={["CUSTOMER"]} />,

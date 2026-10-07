@@ -21,6 +21,7 @@ import { useTechnicians } from "@/features/technicians/hooks/useTechnicians";
 import { visitStatusLabel, workOrderStatusLabel } from "@/lib/status";
 import { toastError } from "@/lib/toastError";
 import type { Visit, WorkOrderStatus } from "../api/workOrders.api";
+import { AddNoteForm, ExecutionPanel, VisitProgress } from "../components/VisitExecution";
 import { CandidateHint, ReassignDialog, ReplanDialog, VisitHistory } from "../components/VisitPlanning";
 import { nextVisitStep, visitSteps } from "../schemas/workOrder.schema";
 import {
@@ -148,6 +149,12 @@ export function WorkOrderDetailPage() {
                       </Button>
                     </div>
                   ) : null}
+                  <VisitProgress visit={visit} />
+                  {isAssignee && (visit.status === "ARRIVED" || visit.status === "IN_PROGRESS") ? (
+                    <div className="mt-3">
+                      <ExecutionPanel workOrderId={record.id} visit={visit} />
+                    </div>
+                  ) : null}
                   {canAssign ? <VisitHistory visit={visit} names={technicianNames} /> : null}
                 </li>
               ))}
@@ -233,11 +240,11 @@ export function WorkOrderDetailPage() {
       ) : null}
       {showDecline ? <DeclineDialog workOrderId={record.id} open={declineOpen} onOpenChange={setDeclineOpen} /> : null}
     </Card>
-    {record.notes.length > 0 ? (
+    {record.notes.length > 0 || canAssign || isAssignee ? (
       <Card>
         <CardHeader>
           <CardTitle>Notes</CardTitle>
-          <CardDescription>Reasons recorded when a technician declines the job.</CardDescription>
+          <CardDescription>Office and technician notes on this job, including decline reasons.</CardDescription>
         </CardHeader>
         <CardContent>
           <NoteThread
@@ -248,6 +255,11 @@ export function WorkOrderDetailPage() {
               createdAt: note.createdAt,
             }))}
           />
+          {canAssign || (isAssignee && record.status !== "COMPLETED") ? (
+            <div className="mt-4">
+              <AddNoteForm workOrderId={record.id} />
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     ) : null}
