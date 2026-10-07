@@ -1,0 +1,30 @@
+---
+description: TypeScript style for the API
+globs: "**/*.ts"
+alwaysApply: false
+---
+
+# TypeScript
+
+- `strict` is on. Do not use `any`, `as any`, or `@ts-ignore`. Use `unknown` and narrow it.
+- Named exports only. File names are camelCase plus role: `workOrder.service.ts`.
+- Functions that cross a module boundary declare their argument and return types. Inside a function, let inference work.
+- `async`/`await` only. Do not mix `.then()`.
+- Throw typed errors (`AppError` with a stable `code`). Do not return `{ ok: false }` from services.
+- Log with context (`workOrderId`, `actorId`) and rethrow or map to `AppError`. Empty `catch` blocks are not allowed.
+
+```typescript
+export async function assign(
+  id: string,
+  input: AssignWorkOrderInput,
+  actor: AuthUser,
+): Promise<WorkOrder> {
+  const current = await prisma.workOrder.findUnique({ where: { id } });
+  if (!current) throw new AppError("WORK_ORDER_NOT_FOUND", 404);
+  assertTransition(current.status, "ASSIGNED");
+  return prisma.workOrder.update({
+    where: { id },
+    data: { technicianId: input.technicianId, status: "ASSIGNED" },
+  });
+}
+```

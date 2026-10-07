@@ -1,0 +1,16 @@
+---
+description: Prisma schema and data access conventions
+globs: backend/**/*.prisma
+alwaysApply: false
+---
+
+# Prisma
+
+- String ids use `@id @default(cuid())`. Declare both sides of every relation with `@relation`.
+- Every model has `createdAt @default(now())` and `updatedAt @updatedAt`.
+- Add `@@index` on foreign keys and on fields used in filters: `organizationId`, `status`, scheduled date, assigned technician.
+- Add `@unique` or `@@unique` for real identities: serial number, invoice number, and SKU, each scoped by `organizationId`.
+- Money is `Decimal @db.Decimal(12, 2)` plus a currency code. Timestamps are stored in UTC.
+- Scope every read and write by `organizationId`.
+- One migration per change, named for intent (`add_visit_outcome`). Do not edit a migration after it is pushed; add a new one.
+- Services return the response shape. Do not pass raw Prisma results through the controller when the shape includes relations the client must not see.

@@ -1,0 +1,32 @@
+---
+description: Module folder structure and dependency direction for the API
+alwaysApply: true
+---
+
+# Module structure
+
+Each domain is one folder under `src/modules`. A module owns its HTTP surface, validation, business rules, and database access.
+
+```text
+src/modules/workOrders/
+  workOrder.routes.ts
+  workOrder.controller.ts
+  workOrder.service.ts
+  workOrder.schema.ts
+  index.ts
+```
+
+- Routes wire HTTP to the controller. Controllers read `req` and write `res`. Services hold business rules, status transitions, and Prisma queries.
+- A service calls another module through that module's service, never through its Prisma models.
+- Services do not import `Request` or `Response`.
+- Shared infrastructure (`prisma`, storage, queue, mailer) lives in `src/lib`. Auth, errors, and logging live in `src/middleware`.
+- New domain behavior is a new file inside the owning module. Do not add a second helpers dumping ground.
+
+```typescript
+// workOrder.controller.ts
+export async function assign(req: Request, res: Response) {
+  const body = assignWorkOrderSchema.parse(req.body);
+  const workOrder = await workOrderService.assign(req.params.id, body, req.user);
+  res.status(200).json({ data: workOrder });
+}
+```

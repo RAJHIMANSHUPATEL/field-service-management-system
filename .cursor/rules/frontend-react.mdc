@@ -1,0 +1,28 @@
+---
+description: React component and form conventions
+globs: frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# React
+
+- Function components only. Named exports only.
+- Server state lives in TanStack Query. `useState` is for UI state (open dialog, selected tab).
+- Forms use React Hook Form plus a Zod schema in the feature's `schemas` folder. The schema is the source of the form type.
+- One primary action per technician screen. Build those screens for a 375px width first.
+- Props that are data stay serializable. Do not pass API functions through props; call the feature hook inside the component.
+- Co-locate a component's loading, empty, and error states in that component.
+
+```tsx
+export function AssignTechnicianForm({ workOrderId }: { workOrderId: string }) {
+  const form = useForm<AssignWorkOrderInput>({
+    resolver: zodResolver(assignWorkOrderSchema),
+  });
+  const assign = useAssignWorkOrder(workOrderId);
+  return (
+    <form onSubmit={form.handleSubmit((values) => assign.mutate(values))}>
+      {/* fields */}
+    </form>
+  );
+}
+```

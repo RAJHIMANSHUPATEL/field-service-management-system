@@ -1,0 +1,325 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  OPS
+  TECHNICIAN
+  CUSTOMER
+}
+
+enum AssetStatus {
+  ACTIVE
+  OUT_OF_SERVICE
+  DECOMMISSIONED
+}
+
+enum RequestPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ServiceRequestStatus {
+  SUBMITTED
+  NEEDS_INFO
+  REJECTED
+  ACCEPTED
+}
+
+enum WorkOrderStatus {
+  OPEN
+  ASSIGNED
+  ACCEPTED
+}
+
+enum VisitStatus {
+  SCHEDULED
+  CANCELLED
+}
+
+model Organization {
+  id           String        @id @default(cuid())
+  name         String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  users        User[]
+  customers    Customer[]
+  assets       Asset[]
+  serviceTypes    ServiceType[]
+  technicians     Technician[]
+  serviceRequests ServiceRequest[]
+  workOrders      WorkOrder[]
+  serviceVisits   ServiceVisit[]
+  workOrderNotes  WorkOrderNote[]
+}
+
+model User {
+  id              String           @id @default(cuid())
+  organizationId  String
+  email           String
+  passwordHash    String
+  name            String
+  role            Role
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  refreshTokens   RefreshToken[]
+  customerContact     CustomerContact?
+  technician          Technician?
+  serviceRequestNotes ServiceRequestNote[]
+  workOrderNotes      WorkOrderNote[]
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@index([email])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  familyId  String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+model Customer {
+  id             String            @id @default(cuid())
+  organizationId String
+  name           String
+  phone          String?
+  email          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  contacts        CustomerContact[]
+  addresses       Address[]
+  assets          Asset[]
+  serviceRequests ServiceRequest[]
+  workOrders      WorkOrder[]
+
+  @@index([organizationId])
+}
+
+model CustomerContact {
+  id         String   @id @default(cuid())
+  customerId String
+  name       String
+  email      String
+  phone      String?
+  userId     String?  @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  customer        Customer         @relation(fields: [customerId], references: [id])
+  user            User?            @relation(fields: [userId], references: [id])
+  serviceRequests ServiceRequest[]
+
+  @@index([customerId])
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  customerId String
+  label      String
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  postalCode String
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  customer        Customer         @relation(fields: [customerId], references: [id])
+  assets          Asset[]
+  serviceRequests ServiceRequest[]
+  workOrders      WorkOrder[]
+
+  @@index([customerId])
+}
+
+model Asset {
+  id                String         @id @default(cuid())
+  organizationId    String
+  customerId        String
+  addressId         String
+  equipmentType     String
+  model             String
+  serialNumber      String
+  installedAt       DateTime?
+  warrantyExpiresAt DateTime?
+  status            AssetStatus    @default(ACTIVE)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  organization      Organization     @relation(fields: [organizationId], references: [id])
+  customer          Customer         @relation(fields: [customerId], references: [id])
+  address           Address          @relation(fields: [addressId], references: [id])
+  serviceRequests   ServiceRequest[]
+  workOrders        WorkOrder[]
+
+  @@unique([organizationId, serialNumber])
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([addressId])
+}
+
+model ServiceType {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  serviceRequests ServiceRequest[]
+  workOrders      WorkOrder[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model Technician {
+  id             String      @id @default(cuid())
+  organizationId String
+  userId         String      @unique
+  phone          String?
+  isActive       Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+  workOrders     WorkOrder[]
+  serviceVisits  ServiceVisit[]
+
+  @@index([organizationId])
+}
+
+model ServiceRequest {
+  id              String               @id @default(cuid())
+  organizationId  String
+  customerId      String
+  contactId       String?
+  assetId         String
+  addressId       String
+  serviceTypeId   String
+  description     String
+  preferredStart  DateTime             @db.Date
+  preferredEnd    DateTime             @db.Date
+  priority        RequestPriority      @default(NORMAL)
+  status          ServiceRequestStatus @default(SUBMITTED)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  organization    Organization         @relation(fields: [organizationId], references: [id])
+  customer        Customer             @relation(fields: [customerId], references: [id])
+  contact         CustomerContact?     @relation(fields: [contactId], references: [id])
+  asset           Asset                @relation(fields: [assetId], references: [id])
+  address         Address              @relation(fields: [addressId], references: [id])
+  serviceType     ServiceType          @relation(fields: [serviceTypeId], references: [id])
+  notes           ServiceRequestNote[]
+  workOrder       WorkOrder?
+
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([contactId])
+  @@index([status])
+  @@index([assetId])
+  @@index([addressId])
+  @@index([serviceTypeId])
+}
+
+model ServiceRequestNote {
+  id        String         @id @default(cuid())
+  requestId String
+  authorId  String
+  body      String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  request   ServiceRequest @relation(fields: [requestId], references: [id])
+  author    User           @relation(fields: [authorId], references: [id])
+
+  @@index([requestId])
+  @@index([authorId])
+}
+
+model WorkOrder {
+  id             String          @id @default(cuid())
+  organizationId String
+  requestId      String          @unique
+  customerId     String
+  assetId        String
+  addressId      String
+  serviceTypeId  String
+  technicianId   String?
+  priority       RequestPriority
+  description    String
+  status         WorkOrderStatus @default(OPEN)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  request        ServiceRequest  @relation(fields: [requestId], references: [id])
+  customer       Customer        @relation(fields: [customerId], references: [id])
+  asset          Asset           @relation(fields: [assetId], references: [id])
+  address        Address         @relation(fields: [addressId], references: [id])
+  serviceType    ServiceType     @relation(fields: [serviceTypeId], references: [id])
+  technician     Technician?     @relation(fields: [technicianId], references: [id])
+  visits         ServiceVisit[]
+  notes          WorkOrderNote[]
+
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([assetId])
+  @@index([addressId])
+  @@index([serviceTypeId])
+  @@index([technicianId])
+  @@index([status])
+}
+
+model ServiceVisit {
+  id             String      @id @default(cuid())
+  organizationId String
+  workOrderId    String
+  technicianId   String
+  scheduledStart DateTime
+  status         VisitStatus @default(SCHEDULED)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  workOrder      WorkOrder    @relation(fields: [workOrderId], references: [id])
+  technician     Technician   @relation(fields: [technicianId], references: [id])
+
+  @@index([organizationId])
+  @@index([workOrderId])
+  @@index([technicianId])
+  @@index([status])
+}
+
+model WorkOrderNote {
+  id             String       @id @default(cuid())
+  organizationId String
+  workOrderId    String
+  authorId       String
+  body           String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  workOrder      WorkOrder    @relation(fields: [workOrderId], references: [id])
+  author         User         @relation(fields: [authorId], references: [id])
+
+  @@index([organizationId])
+  @@index([workOrderId])
+  @@index([authorId])
+}

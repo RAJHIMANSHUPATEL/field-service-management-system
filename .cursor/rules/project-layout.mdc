@@ -1,0 +1,15 @@
+---
+description: Two-application layout for the field service system
+alwaysApply: true
+---
+
+# Workspace layout
+
+This workspace holds planning docs plus two applications. Each application is its own project and will be its own git repository.
+
+- `backend/` — Express API. Domain code lives in `src/modules/<module>/`.
+- `frontend/` — React app. Product code lives in `src/features/<feature>/`.
+
+Do not add a shared package. The API contract (paths, request bodies, status enums, error codes) is the boundary. Change the API first, then the web client.
+
+When editing `backend/`, follow the backend module, TypeScript, API, and Prisma rules. When editing `frontend/`, follow the feature, React, data-fetching, and dashboard rules.

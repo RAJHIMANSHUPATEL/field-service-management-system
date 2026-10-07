@@ -1,0 +1,28 @@
+---
+description: Feature-module folder structure for the web app
+alwaysApply: true
+---
+
+# Feature structure
+
+Each product area is one folder under `src/features`. A feature owns its pages, components, hooks, API calls, and schemas.
+
+```text
+src/features/workOrders/
+  api/workOrders.api.ts
+  components/AssignTechnicianForm.tsx
+  hooks/useAssignWorkOrder.ts
+  pages/WorkOrderDetailPage.tsx
+  schemas/assignWorkOrder.schema.ts
+  index.ts
+src/components/ui/          # shadcn primitives only
+src/components/             # shared across two or more features
+src/lib/                    # api client, auth, formatting
+src/routes/
+```
+
+- A page composes feature components and hooks. It does not call `fetch` or the API client directly.
+- Keep a component inside its feature until a second feature imports it, then move it to `src/components`.
+- `src/components/ui` is generated primitives. Do not put business logic there.
+- Route files only map paths to pages.
+- Component files are PascalCase. Hooks are `useX.ts`. Everything else is camelCase.

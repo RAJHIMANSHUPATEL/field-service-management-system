@@ -1,0 +1,30 @@
+---
+description: Dashboard layout and shadcn composition for signed-in screens
+globs: frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Dashboard UI
+
+Signed-in screens use the app shell. Login stays a full-page form outside that shell.
+
+- The shell is `SidebarProvider`, `Sidebar`, and `SidebarInset`. Do not add a custom header nav or a centered `max-w-5xl` page column.
+- Sidebar items come from the signed-in role and use Lucide icons. Link with `SidebarMenuButton` and `render`. This project uses Base UI, so do not use Radix `asChild`.
+- The top bar has `SidebarTrigger`, a `Breadcrumb` for the current page, and a user `DropdownMenu` with the person's name, role, and Sign out.
+- Page bodies use `Card`, `CardHeader`, `CardTitle`, `CardDescription`, and `CardContent`. Lists are a card plus `Table`.
+- An add action is a button in `CardAction`, opposite the card title. It opens a `Dialog` with a backdrop. Cancel and the submit action sit in `DialogFooter`.
+- Loading uses `Skeleton`. Empty lists use `Empty`. Do not invent a pulsing div or a one-line empty message.
+- Field validation stays on `Field` and `FieldError`. A successful or failed mutation calls `toast()` from `sonner`. Mount one `Toaster` in `src/main.tsx`.
+- Layout uses `flex` and `gap`. Colors stay semantic (`bg-background`, `text-muted-foreground`). FieldOps is the theme: teal primary, pale teal accent, cool gray canvas, and a navy sidebar, all from the tokens in `src/index.css`. Do not add a second palette or hardcoded hex colors in page markup. Add new UI from `src/components/ui` with the shadcn CLI.
+
+```tsx
+<Card>
+  <CardHeader>
+    <CardTitle>Customers</CardTitle>
+    <CardDescription>Accounts this company services.</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <Table>{/* rows */}</Table>
+  </CardContent>
+</Card>
+```

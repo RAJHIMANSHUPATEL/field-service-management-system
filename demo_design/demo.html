@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FieldOps Admin Portal – Reference Design</title>
+<style>
+:root{--bg:#f4f5f7;--cd:#fff;--tx:#1c2333;--mu:#69728a;--bd:#e3e6ee;--ac:#0f766e;--as:#d9f2ee;--sb:#12202b;--st:#a9b9c7;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e141b;--cd:#17212c;--tx:#e6ebf2;--mu:#93a0b4;--bd:#273444;--ac:#4fd1c0;--as:#173a3a;--sb:#0a1017;--st:#8ea0b3}}
+:root[data-theme="dark"]{--bg:#0e141b;--cd:#17212c;--tx:#e6ebf2;--mu:#93a0b4;--bd:#273444;--ac:#4fd1c0;--as:#173a3a;--sb:#0a1017;--st:#8ea0b3}
+*{box-sizing:border-box;margin:0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--bg);color:var(--tx);font:14px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif;display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+nav{background:var(--sb);position:sticky;top:0;height:100vh;overflow:auto;padding:16px 10px}
+nav .lg{color:#fff;font-weight:700;font-size:17px;padding:4px 10px 14px}nav .lg b{color:#5eead4}
+nav h6{color:#5f7385;font-size:12px;font-weight:600;margin:14px 10px 4px}
+nav a{display:flex;justify-content:space-between;color:var(--st);text-decoration:none;padding:7px 10px;border-radius:6px}
+nav a:hover{background:#ffffff14;color:#fff}nav a i{font-style:normal;background:#e11d48;color:#fff;border-radius:9px;padding:0 7px;font-size:11px}
+body:not(:has(.pg:target)) nav a[href="#dashboard"],body:has(#requests:target) nav a[href="#requests"],body:has(#workorders:target) nav a[href="#workorders"],body:has(#wodetail:target) nav a[href="#workorders"],body:has(#schedule:target) nav a[href="#schedule"],body:has(#customers:target) nav a[href="#customers"],body:has(#assets:target) nav a[href="#assets"],body:has(#techs:target) nav a[href="#techs"],body:has(#inventory:target) nav a[href="#inventory"],body:has(#invoices:target) nav a[href="#invoices"],body:has(#contracts:target) nav a[href="#contracts"],body:has(#analytics:target) nav a[href="#analytics"],body:has(#notify:target) nav a[href="#notify"],body:has(#users:target) nav a[href="#users"],body:has(#master:target) nav a[href="#master"],body:has(#audit:target) nav a[href="#audit"]{background:var(--ac);color:#fff}
+.wrap{min-width:0}
+header{display:flex;gap:12px;align-items:center;background:var(--cd);border-bottom:1px solid var(--bd);padding:10px 24px;position:sticky;top:0;z-index:2}
+header input{flex:1;max-width:380px;padding:8px 12px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx)}
+header .sp{flex:1}.av{width:32px;height:32px;border-radius:50%;background:var(--ac);color:#fff;display:grid;place-items:center;font-weight:600}
+main{padding:22px 24px}
+.pg{display:none}.pg:target,main:not(:has(.pg:target)) #dashboard{display:block}
+.hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap}
+h1{font-size:22px}h2{font-size:15px;margin-bottom:10px}.mu{color:var(--mu);font-size:13px}
+.btn{display:inline-block;background:var(--ac);color:#fff;border:0;border-radius:6px;padding:7px 14px;font:inherit;text-decoration:none;cursor:pointer}
+.btn.o{background:none;color:var(--tx);border:1px solid var(--bd)}.btn.s{padding:3px 10px;font-size:12px}
+.c{background:var(--cd);border:1px solid var(--bd);border-radius:8px;padding:16px;margin-bottom:16px;overflow-x:auto}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}.g4 .c{margin:0}
+.g2{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;align-items:start}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.n{font-size:26px;font-weight:700}.n small{font-size:12px;font-weight:500;color:var(--mu)}
+table{width:100%;border-collapse:collapse;min-width:560px}th{text-align:left;color:var(--mu);font-weight:600;font-size:12px;padding:6px 8px;border-bottom:1px solid var(--bd)}
+td{padding:9px 8px;border-bottom:1px solid var(--bd)}tr:last-child td{border:0}td a{color:var(--ac);font-weight:600;text-decoration:none}
+.b{display:inline-block;padding:1px 9px;border-radius:10px;font-size:12px;background:#8890a326;color:var(--mu)}
+.g{background:#16a34a26;color:#16a34a}.y{background:#d9770626;color:#c2680a}.r{background:#dc262626;color:#dc2626}.p{background:#2563eb26;color:#3b82f6}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}.chips span,.tag{border:1px solid var(--bd);border-radius:14px;padding:2px 11px;font-size:12px;background:var(--cd)}
+.chips .on{background:var(--as);border-color:var(--ac);color:var(--ac)}
+.f{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.f select,.f input,.fld{padding:7px 10px;border:1px solid var(--bd);border-radius:6px;background:var(--cd);color:var(--tx);font:inherit}
+.fld{display:block;width:100%;margin:4px 0 10px}label{font-size:12px;color:var(--mu)}
+.bar{height:8px;background:var(--bd);border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ac)}
+.tl{list-style:none;padding:0;border-left:2px solid var(--bd);margin-left:6px}.tl li{padding:0 0 12px 14px;position:relative}.tl li:before{content:"";position:absolute;left:-6px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--ac)}.tl li.x:before{background:var(--bd)}
+.kv{display:grid;grid-template-columns:120px 1fr;gap:6px 10px}.kv dt{color:var(--mu)}.kv dd{margin:0}
+.cal{display:grid;grid-template-columns:110px repeat(6,1fr);gap:4px;min-width:720px}.cal div{padding:6px;border-radius:5px;font-size:12px}.cal .h{color:var(--mu);font-weight:600}.cal .e{background:var(--as);color:var(--ac);border-left:3px solid var(--ac)}.cal .w{background:#d9770622;color:#c2680a;border-left:3px solid #d97706}.cal .z{border:1px dashed var(--bd)}
+.ch{display:flex;align-items:flex-end;gap:12px;height:140px}.ch div{flex:1;background:var(--ac);border-radius:4px 4px 0 0;opacity:.85;text-align:center;color:#fff;font-size:11px;padding-top:2px}
+.tg{display:inline-block;width:32px;height:18px;border-radius:9px;background:var(--ac);position:relative}.tg:after{content:"";position:absolute;right:2px;top:2px;width:14px;height:14px;background:#fff;border-radius:50%}.tg.off{background:var(--bd)}.tg.off:after{right:auto;left:2px}
+.ok{color:var(--ac);font-weight:700}
+@media(max-width:860px){body{grid-template-columns:1fr}nav{position:static;height:auto;display:flex;overflow-x:auto;padding:8px}nav h6,nav .lg{display:none}nav a{white-space:nowrap;gap:6px}.g4,.g2,.g3{grid-template-columns:1fr 1fr}.g2,.g3{grid-template-columns:1fr}main{padding:14px}header{padding:8px 14px}}
+</style></head><body>
+<nav>
+<div class="lg">Field<b>Ops</b> Admin</div>
+<h6>Overview</h6><a href="#dashboard">Dashboard</a>
+<h6>Operations</h6><a href="#requests">Service requests <i>4</i></a><a href="#workorders">Work orders</a><a href="#schedule">Scheduling</a>
+<h6>Directory</h6><a href="#customers">Customers</a><a href="#assets">Assets</a><a href="#techs">Technicians</a>
+<h6>Inventory</h6><a href="#inventory">Parts &amp; stock <i>3</i></a>
+<h6>Finance</h6><a href="#invoices">Invoices</a><a href="#contracts">Contracts &amp; maintenance</a>
+<h6>Insights</h6><a href="#analytics">Analytics</a>
+<h6>System</h6><a href="#notify">Notifications</a><a href="#users">Users &amp; roles</a><a href="#master">Master data</a><a href="#audit">Audit log</a>
+</nav>
+<div class="wrap">
+<header><input placeholder="Search work orders, customers, assets, serial numbers…"><span class="sp"></span><a class="btn" href="#workorders">+ New work order</a><span title="Notifications">🔔</span><span class="av">AD</span></header>
+<main>
+
+<section class="pg" id="dashboard">
+<div class="hd"><div><h1>Dashboard</h1><div class="mu">Operations overview · today</div></div><div class="f" style="margin:0"><select><option>Today</option><option>This week</option></select><select><option>All service areas</option></select></div></div>
+<div class="g4"><div class="c"><div class="mu">Active jobs</div><div class="n">42</div></div><div class="c"><div class="mu">Unassigned queue</div><div class="n">7 <small>2 urgent</small></div></div><div class="c"><div class="mu">Delayed / SLA at risk</div><div class="n" style="color:#dc2626">5</div></div><div class="c"><div class="mu">Pending invoices</div><div class="n">₹1.8L</div></div></div>
+<div class="g2"><div class="c"><h2>Unassigned work orders</h2><table><tr><th>WO</th><th>Customer</th><th>Service</th><th>Priority</th><th>SLA</th><th></th></tr>
+<tr><td><a href="#wodetail">WO-1042</a></td><td>ABC Apartments</td><td>AC repair</td><td><span class="b r">Urgent</span></td><td>1h 20m left</td><td><a class="btn s" href="#schedule">Assign</a></td></tr>
+<tr><td><a href="#wodetail">WO-1043</a></td><td>Sharma Clinic</td><td>Installation</td><td><span class="b y">High</span></td><td>6h left</td><td><a class="btn s" href="#schedule">Assign</a></td></tr>
+<tr><td><a href="#wodetail">WO-1044</a></td><td>K. Rao</td><td>Inspection</td><td><span class="b">Normal</span></td><td>2d left</td><td><a class="btn s" href="#schedule">Assign</a></td></tr></table></div>
+<div class="c"><h2>Technicians now</h2><table style="min-width:0"><tr><td>Ravi K.</td><td><span class="b g">On site</span></td></tr><tr><td>Meena S.</td><td><span class="b p">En route</span></td></tr><tr><td>Arjun P.</td><td><span class="b">Available</span></td></tr><tr><td>Divya N.</td><td><span class="b y">Awaiting parts</span></td></tr></table></div></div>
+<div class="c"><h2>Recent activity</h2><table><tr><td class="mu">10:42</td><td>Ravi K. completed visit on <a href="#wodetail">WO-1038</a></td><td class="mu">Signature captured</td></tr><tr><td class="mu">10:15</td><td>New request <a href="#requests">SR-2211</a> from ABC Apartments</td><td class="mu">Awaiting triage</td></tr><tr><td class="mu">09:50</td><td>Invoice INV-0391 marked <span class="b g">Paid</span></td><td class="mu">UPI</td></tr></table></div>
+</section>
+
+<section class="pg" id="requests">
+<div class="hd"><div><h1>Service requests</h1><div class="mu">Triage queue: accept, reject, request info, convert</div></div></div>
+<div class="chips"><span class="on">New (4)</span><span>Triaged</span><span>Info requested</span><span>Converted</span><span>Rejected</span></div>
+<div class="g2"><div class="c"><table><tr><th>ID</th><th>Customer</th><th>Asset</th><th>Issue</th><th>Preferred</th><th>Status</th></tr>
+<tr><td><a href="#requests">SR-2211</a></td><td>ABC Apartments</td><td>Lift L2</td><td>Door not closing</td><td>Tomorrow AM</td><td><span class="b p">New</span></td></tr>
+<tr><td><a href="#requests">SR-2210</a></td><td>Sharma Clinic</td><td>Split AC 3</td><td>Not cooling</td><td>Fri PM</td><td><span class="b p">New</span></td></tr>
+<tr><td><a href="#requests">SR-2207</a></td><td>K. Rao</td><td>Water purifier</td><td>Leak</td><td>Any</td><td><span class="b y">Info requested</span></td></tr>
+<tr><td><a href="#requests">SR-2203</a></td><td>Nova Mall</td><td>Generator</td><td>Annual service</td><td>Mon</td><td><span class="b g">Converted</span></td></tr></table></div>
+<div class="c"><h2>Triage SR-2211</h2><label>Service type</label><select class="fld"><option>Repair</option></select><label>Priority</label><select class="fld"><option>Urgent</option></select><label>Internal note</label><textarea class="fld" rows="2"></textarea><dl class="kv"><dt>Warranty</dt><dd><span class="b g">Active till Mar 2027</span></dd><dt>Contract</dt><dd>AMC-114</dd><dt>Attachments</dt><dd>2 photos</dd></dl><br><a class="btn" href="#wodetail">Convert to work order</a> <a class="btn o" href="#requests">Request info</a> <a class="btn o" href="#requests">Reject</a></div></div>
+</section>
+
+<section class="pg" id="workorders">
+<div class="hd"><h1>Work orders</h1><a class="btn" href="#workorders">+ New work order</a></div>
+<div class="f"><select><option>All statuses</option><option>Draft</option><option>Assigned</option><option>Accepted</option><option>In progress</option><option>Awaiting parts</option><option>Follow-up required</option><option>Completed</option><option>Cancelled</option></select><select><option>All priorities</option></select><select><option>All technicians</option></select><select><option>All service areas</option></select><input type="date"></div>
+<div class="c"><table><tr><th>WO</th><th>Customer</th><th>Asset</th><th>Service</th><th>Technician</th><th>Scheduled</th><th>Priority</th><th>Status</th></tr>
+<tr><td><a href="#wodetail">WO-1042</a></td><td>ABC Apartments</td><td>Lift L2</td><td>Repair</td><td>—</td><td>—</td><td><span class="b r">Urgent</span></td><td><span class="b">Draft</span></td></tr>
+<tr><td><a href="#wodetail">WO-1041</a></td><td>Sharma Clinic</td><td>Split AC 3</td><td>Repair</td><td>Ravi K.</td><td>Today 2 PM</td><td><span class="b y">High</span></td><td><span class="b p">In progress</span></td></tr>
+<tr><td><a href="#wodetail">WO-1039</a></td><td>Nova Mall</td><td>Generator</td><td>Maintenance</td><td>Meena S.</td><td>Thu 10 AM</td><td><span class="b">Normal</span></td><td><span class="b g">Accepted</span></td></tr>
+<tr><td><a href="#wodetail">WO-1036</a></td><td>K. Rao</td><td>RO Purifier</td><td>Repair</td><td>Divya N.</td><td>Rescheduled</td><td><span class="b">Normal</span></td><td><span class="b y">Awaiting parts</span></td></tr></table></div>
+</section>
+
+<section class="pg" id="wodetail">
+<div class="hd"><div><h1>WO-1041 · Split AC not cooling</h1><span class="b p">In progress</span> <span class="b y">High</span> <span class="b g">Under warranty</span></div><div><a class="btn o" href="#schedule">Reassign</a> <a class="btn o" href="#schedule">Reschedule</a> <a class="btn o" href="#wodetail">Cancel with reason</a></div></div>
+<div class="g2"><div>
+<div class="c"><h2>Details</h2><dl class="kv"><dt>Customer</dt><dd>Sharma Clinic · Dr. Sharma</dd><dt>Location</dt><dd>12 MG Road, Indiranagar, 560038</dd><dt>Asset</dt><dd>Split AC 3 · SN 88-2231 · Warranty till Mar 2027</dd><dt>Technician</dt><dd>Ravi K.</dd><dt>SLA</dt><dd>Respond 2h ✓ · Resolve 24h (9h left)</dd></dl></div>
+<div class="c"><h2>Service visits</h2><table><tr><th>#</th><th>Date</th><th>Technician</th><th>Status</th><th>Reason / note</th></tr><tr><td>1</td><td>Mon 4 PM</td><td>Ravi K.</td><td><span class="b r">Unsuccessful</span></td><td>Customer unavailable</td></tr><tr><td>2</td><td>Today 2 PM</td><td>Ravi K.</td><td><span class="b p">In progress</span></td><td>Arrived 2:04 PM</td></tr></table></div>
+<div class="c"><h2>Diagnosis, parts &amp; report</h2><table><tr><th>Part</th><th>Qty</th><th>Source</th><th>Covered</th></tr><tr><td>Capacitor 35µF</td><td>1</td><td>Van stock · Ravi</td><td>Warranty</td></tr></table><p class="mu" style="margin-top:8px">Photos: 3 before · 2 after · Customer signature: pending · Service report: not generated</p></div>
+</div><div>
+<div class="c"><h2>Status timeline</h2><ul class="tl"><li>Request SR-2198 converted<div class="mu">Ops · 2 days ago</div></li><li>Assigned to Ravi K. · accepted</li><li>Visit 1 unsuccessful (reason logged)</li><li>Visit 2 en route → arrived</li><li class="x">Complete · Invoice · Feedback</li></ul></div>
+<div class="c"><h2>Audit trail</h2><p class="mu">10:12 Ops A. Mehta assigned Ravi K.<br>10:20 Ravi K. accepted<br>14:04 Visit 2 arrived (geofence ok)</p></div>
+</div></div>
+</section>
+
+<section class="pg" id="schedule">
+<div class="hd"><h1>Scheduling &amp; assignment</h1><div class="f" style="margin:0"><a class="btn o s" href="#schedule">‹</a><span>Week of 28 Sep</span><a class="btn o s" href="#schedule">›</a></div></div>
+<div class="c"><div class="cal"><div class="h"></div><div class="h">Mon</div><div class="h">Tue</div><div class="h">Wed</div><div class="h">Thu</div><div class="h">Fri</div><div class="h">Sat</div>
+<div>Ravi K.</div><div class="e">WO-1041 4 PM</div><div class="e">WO-1050 10 AM</div><div class="z">Leave</div><div class="e">WO-1052</div><div></div><div></div>
+<div>Meena S.</div><div></div><div class="e">WO-1039 10 AM</div><div class="w">WO-1043 (tentative)</div><div class="e">WO-1039</div><div class="e">WO-1055</div><div></div>
+<div>Arjun P.</div><div class="e">WO-1030</div><div></div><div></div><div class="e">WO-1047</div><div></div><div class="z">Off</div></div></div>
+<div class="c"><h2>Assign WO-1042 · suggested technicians</h2><table><tr><th>Technician</th><th>Skill match</th><th>Area</th><th>Workload</th><th>Score</th><th></th></tr>
+<tr><td>Arjun P.</td><td class="ok">Lift ✓</td><td class="ok">Indiranagar ✓</td><td><div class="bar" style="width:90px"><i style="width:30%"></i></div></td><td><b>92</b></td><td><a class="btn s" href="#wodetail">Assign</a></td></tr>
+<tr><td>Ravi K.</td><td>Lift ✗</td><td class="ok">✓</td><td><div class="bar" style="width:90px"><i style="width:75%"></i></div></td><td>54</td><td><a class="btn o s" href="#wodetail">Override</a></td></tr></table><p class="mu">Scores are explainable; manual override always available. Conflicts are warned, not silently blocked.</p></div>
+</section>
+
+<section class="pg" id="customers">
+<div class="hd"><h1>Customers</h1><a class="btn" href="#customers">+ Add customer</a></div>
+<div class="g2"><div class="c"><table><tr><th>Name</th><th>Type</th><th>Contacts</th><th>Locations</th><th>Assets</th><th>Contract</th></tr><tr><td><a href="#customers">ABC Apartments</a></td><td>Business</td><td>3</td><td>2</td><td>14</td><td><span class="b g">AMC-114</span></td></tr><tr><td><a href="#customers">Sharma Clinic</a></td><td>Business</td><td>2</td><td>1</td><td>6</td><td><span class="b">None</span></td></tr><tr><td><a href="#customers">K. Rao</a></td><td>Individual</td><td>1</td><td>1</td><td>2</td><td><span class="b">None</span></td></tr></table></div>
+<div class="c"><h2>ABC Apartments</h2><dl class="kv"><dt>Contacts</dt><dd>Suresh (Manager, full access)<br>Latha (Resident rep, request only)</dd><dt>Addresses</dt><dd>Tower A, Tower B</dd><dt>Open jobs</dt><dd>2</dd><dt>Balance</dt><dd>₹12,400</dd></dl></div></div>
+</section>
+
+<section class="pg" id="assets">
+<div class="hd"><h1>Assets</h1><a class="btn" href="#assets">+ Add asset</a></div>
+<div class="f"><select><option>All customers</option></select><select><option>All categories</option></select><select><option>Warranty: any</option></select></div>
+<div class="c"><table><tr><th>Asset</th><th>Serial</th><th>Customer / location</th><th>Warranty</th><th>Last service</th><th>Status</th><th></th></tr><tr><td>Lift L2</td><td>LF-4410</td><td>ABC Apts · Tower A</td><td><span class="b g">Active</span></td><td>12 Aug</td><td><span class="b g">In service</span></td><td><a class="btn o s" href="#assets">Move</a></td></tr><tr><td>Split AC 3</td><td>88-2231</td><td>Sharma Clinic</td><td><span class="b g">Active</span></td><td>Today</td><td><span class="b g">In service</span></td><td><a class="btn o s" href="#assets">Move</a></td></tr><tr><td>Old Genset</td><td>GN-0912</td><td>Nova Mall</td><td><span class="b r">Expired</span></td><td>2 Jun</td><td><span class="b">Decommissioned</span></td><td></td></tr></table><p class="mu" style="margin-top:8px">Asset detail: service history, documents, contract coverage, transfer to new owner.</p></div>
+</section>
+
+<section class="pg" id="techs">
+<div class="hd"><h1>Technicians</h1><a class="btn" href="#techs">+ Add technician</a></div>
+<div class="c"><table><tr><th>Name</th><th>Skills</th><th>Service areas</th><th>Workload today</th><th>Van stock</th><th>Status</th></tr>
+<tr><td><a href="#techs">Ravi K.</a></td><td><span class="tag">HVAC</span> <span class="tag">Electrical</span></td><td>Indiranagar, Koramangala</td><td><div class="bar" style="width:90px"><i style="width:75%"></i></div></td><td>24 items</td><td><span class="b g">On site</span></td></tr>
+<tr><td><a href="#techs">Meena S.</a></td><td><span class="tag">Generators</span></td><td>Whitefield</td><td><div class="bar" style="width:90px"><i style="width:40%"></i></div></td><td>11 items</td><td><span class="b p">En route</span></td></tr>
+<tr><td><a href="#techs">Arjun P.</a></td><td><span class="tag">Lifts</span> <span class="tag">Inspection</span></td><td>Indiranagar</td><td><div class="bar" style="width:90px"><i style="width:20%"></i></div></td><td>8 items</td><td><span class="b">Available</span></td></tr></table></div>
+<div class="c"><h2>Technician profile</h2><p class="mu">Skills and certifications · service areas · working hours &amp; leave · location tracking consent · performance summary (first-visit resolution, avg. service time, rating).</p></div>
+</section>
+
+<section class="pg" id="inventory">
+<div class="hd"><h1>Parts &amp; stock</h1><div><a class="btn o" href="#inventory">Transfer to van</a> <a class="btn" href="#inventory">+ Add part</a></div></div>
+<div class="chips"><span class="on">Stock levels</span><span>Movement ledger</span><span>Purchase requests (2)</span><span>Defective returns</span></div>
+<div class="c"><table><tr><th>Part</th><th>SKU</th><th>Main warehouse</th><th>Vans</th><th>Reserved</th><th>Reorder at</th><th></th></tr><tr><td>Capacitor 35µF</td><td>CAP-35</td><td>40</td><td>18</td><td>3</td><td>20</td><td><span class="b g">OK</span></td></tr><tr><td>Compressor 1.5T</td><td>CMP-15</td><td>2</td><td>0</td><td>1</td><td>4</td><td><span class="b r">Low</span></td></tr><tr><td>Door sensor</td><td>LFT-DS</td><td>0</td><td>1</td><td>0</td><td>2</td><td><span class="b r">Out</span></td></tr></table></div>
+<div class="c"><h2>Movement ledger</h2><table><tr><th>Time</th><th>Part</th><th>Qty</th><th>Reason</th><th>Actor</th></tr><tr><td>Today 2:40</td><td>CAP-35</td><td>−1</td><td>Used on WO-1041</td><td>Ravi K.</td></tr><tr><td>Today 9:05</td><td>CAP-35</td><td>−10</td><td>Transfer to van</td><td>Store admin</td></tr><tr><td>Yesterday</td><td>CMP-15</td><td>+5</td><td>Purchase received</td><td>Store admin</td></tr></table></div>
+</section>
+
+<section class="pg" id="invoices">
+<div class="hd"><h1>Invoices &amp; payments</h1><a class="btn" href="#invoices">+ Create invoice</a></div>
+<div class="chips"><span class="on">All</span><span>Draft</span><span>Issued</span><span>Partially paid</span><span>Paid</span><span>Overdue (3)</span><span>Void</span></div>
+<div class="g2"><div class="c"><table><tr><th>Invoice</th><th>Customer</th><th>WO</th><th>Coverage</th><th>Amount</th><th>Status</th></tr><tr><td><a href="#invoices">INV-0392</a></td><td>K. Rao</td><td>WO-1036</td><td>Billable</td><td>₹2,620</td><td><span class="b y">Issued</span></td></tr><tr><td><a href="#invoices">INV-0391</a></td><td>Nova Mall</td><td>WO-1030</td><td>AMC</td><td>₹0</td><td><span class="b g">Paid</span></td></tr><tr><td><a href="#invoices">INV-0388</a></td><td>ABC Apts</td><td>WO-1020</td><td>Billable</td><td>₹6,490</td><td><span class="b r">Overdue</span></td></tr></table></div>
+<div class="c"><h2>INV-0392</h2><dl class="kv"><dt>Service charge</dt><dd>₹1,200</dd><dt>Labour</dt><dd>₹800</dd><dt>Parts</dt><dd>₹300</dd><dt>Discount</dt><dd>−₹0</dd><dt>CGST 9%</dt><dd>₹210</dd><dt>SGST 9%</dt><dd>₹210</dd><dt><b>Total</b></dt><dd><b>₹2,720</b></dd></dl><br><a class="btn s" href="#invoices">Record payment</a> <a class="btn o s" href="#invoices">Credit note</a> <a class="btn o s" href="#invoices">Void</a></div></div>
+</section>
+
+<section class="pg" id="contracts">
+<div class="hd"><h1>Contracts &amp; preventive maintenance</h1><a class="btn" href="#contracts">+ New contract</a></div>
+<div class="c"><h2>Service contracts</h2><table><tr><th>Contract</th><th>Customer</th><th>Period</th><th>Assets</th><th>Visits used</th><th>Status</th></tr><tr><td>AMC-114</td><td>ABC Apartments</td><td>Apr 26 – Mar 27</td><td>14</td><td><div class="bar" style="width:90px"><i style="width:50%"></i></div> 6/12</td><td><span class="b g">Active</span></td></tr><tr><td>AMC-097</td><td>Nova Mall</td><td>Nov 25 – Oct 26</td><td>3</td><td>10/12</td><td><span class="b y">Renew in 30d</span></td></tr></table></div>
+<div class="c"><h2>Maintenance plans</h2><table><tr><th>Asset</th><th>Frequency</th><th>Last done</th><th>Next due</th><th>Status</th></tr><tr><td>Lift L2</td><td>Monthly</td><td>12 Aug</td><td>12 Oct</td><td><span class="b g">Scheduled</span></td></tr><tr><td>Genset GN-1</td><td>Quarterly</td><td>2 Jun</td><td>2 Sep</td><td><span class="b r">Overdue</span></td></tr></table></div>
+</section>
+
+<section class="pg" id="analytics">
+<div class="hd"><h1>Analytics</h1><div class="f" style="margin:0"><select><option>Last 30 days</option></select><a class="btn o" href="#analytics">Export</a></div></div>
+<div class="g4"><div class="c"><div class="mu">First-visit resolution</div><div class="n">89%</div></div><div class="c"><div class="mu">Avg. service time</div><div class="n">1h 42m</div></div><div class="c"><div class="mu">SLA compliance</div><div class="n">94%</div></div><div class="c"><div class="mu">Avg. rating</div><div class="n">4.6 ★</div></div></div>
+<div class="g2"><div class="c"><h2>Jobs completed per week</h2><div class="ch"><div style="height:55%">38</div><div style="height:70%">47</div><div style="height:62%">42</div><div style="height:90%">61</div></div></div>
+<div class="c"><h2>Technician performance</h2><table style="min-width:0"><tr><th>Name</th><th>Jobs</th><th>FVR</th><th>Rating</th></tr><tr><td>Ravi K.</td><td>31</td><td>91%</td><td>4.8</td></tr><tr><td>Meena S.</td><td>26</td><td>88%</td><td>4.5</td></tr></table></div></div>
+</section>
+
+<section class="pg" id="notify">
+<div class="hd"><h1>Notifications</h1><a class="btn" href="#notify">+ New rule</a></div>
+<div class="c"><table><tr><th>Event</th><th>Audience</th><th>Channels</th><th>Template</th><th>Active</th></tr><tr><td>Request received</td><td>Customer, Ops</td><td><span class="tag">Email</span> <span class="tag">In-app</span></td><td>request_received</td><td><span class="tg"></span></td></tr><tr><td>Technician assigned</td><td>Customer, Technician</td><td><span class="tag">SMS</span> <span class="tag">Push</span></td><td>tech_assigned</td><td><span class="tg"></span></td></tr><tr><td>Technician en route</td><td>Customer</td><td><span class="tag">WhatsApp</span></td><td>en_route</td><td><span class="tg"></span></td></tr><tr><td>Invoice overdue</td><td>Customer, Admin</td><td><span class="tag">Email</span></td><td>invoice_overdue</td><td><span class="tg off"></span></td></tr></table><p class="mu" style="margin-top:8px">Also: quiet hours, retry on failure, opt-out, and a delivery log per notification.</p></div>
+</section>
+
+<section class="pg" id="users">
+<div class="hd"><h1>Users &amp; roles</h1><a class="btn" href="#users">Invite user</a></div>
+<div class="c"><table><tr><th>User</th><th>Role</th><th>Last login</th><th>Status</th></tr><tr><td>A. Mehta</td><td>Admin</td><td>Today</td><td><span class="b g">Active</span></td></tr><tr><td>P. Iyer</td><td>Operations</td><td>Today</td><td><span class="b g">Active</span></td></tr><tr><td>new.tech@co.in</td><td>Technician</td><td>—</td><td><span class="b y">Invited</span></td></tr></table></div>
+<div class="c"><h2>Permission matrix</h2><table><tr><th>Action</th><th>Admin</th><th>Ops</th><th>Technician</th><th>Customer</th></tr><tr><td>Create / triage requests</td><td class="ok">✓</td><td class="ok">✓</td><td>–</td><td>Create only</td></tr><tr><td>Assign work orders</td><td class="ok">✓</td><td class="ok">✓</td><td>–</td><td>–</td></tr><tr><td>View jobs</td><td class="ok">All</td><td class="ok">All</td><td>Own only</td><td>Own only</td></tr><tr><td>Edit paid invoice</td><td>–</td><td>–</td><td>–</td><td>–</td></tr><tr><td>Manage master data &amp; users</td><td class="ok">✓</td><td>–</td><td>–</td><td>–</td></tr></table></div>
+</section>
+
+<section class="pg" id="master">
+<div class="hd"><h1>Master data &amp; settings</h1></div>
+<div class="g3">
+<div class="c"><h2>Service types</h2><span class="tag">Installation</span> <span class="tag">Repair</span> <span class="tag">Maintenance</span> <span class="tag">Inspection</span><br><br><a class="btn o s" href="#master">Manage</a></div>
+<div class="c"><h2>Skills</h2><span class="tag">HVAC</span> <span class="tag">Electrical</span> <span class="tag">Lifts</span> <span class="tag">Generators</span><br><br><a class="btn o s" href="#master">Manage</a></div>
+<div class="c"><h2>Service areas</h2><span class="tag">Indiranagar 560038</span> <span class="tag">Whitefield 560066</span><br><br><a class="btn o s" href="#master">Manage pincodes</a></div>
+<div class="c"><h2>Priorities &amp; SLA</h2><table style="min-width:0"><tr><th>Priority</th><th>Respond</th><th>Resolve</th></tr><tr><td>Urgent</td><td>1h</td><td>8h</td></tr><tr><td>High</td><td>2h</td><td>24h</td></tr><tr><td>Normal</td><td>8h</td><td>3d</td></tr></table></div>
+<div class="c"><h2>Tax &amp; billing</h2><p class="mu">GST rates, HSN/SAC codes, currency, invoice numbering, coverage rules for warranty and AMC.</p></div>
+<div class="c"><h2>Company settings</h2><p class="mu">Working hours, holidays, warehouses, parts catalogue, photo requirements, retention.</p></div>
+</div>
+</section>
+
+<section class="pg" id="audit">
+<div class="hd"><h1>Audit log</h1><a class="btn o" href="#audit">Export</a></div>
+<div class="f"><select><option>All entities</option></select><select><option>All actors</option></select><input type="date"></div>
+<div class="c"><table><tr><th>Time</th><th>Actor</th><th>Entity</th><th>Action</th><th>Change</th><th>Reason</th></tr><tr><td>14:04</td><td>Ravi K.</td><td>Visit #2</td><td>Arrive</td><td>En route → Arrived</td><td>Geofence ok</td></tr><tr><td>10:20</td><td>Ravi K.</td><td>WO-1041</td><td>Accept</td><td>Assigned → Accepted</td><td>—</td></tr><tr><td>10:12</td><td>P. Iyer</td><td>WO-1041</td><td>Assign</td><td>Draft → Assigned</td><td>Best score</td></tr><tr><td>Yesterday</td><td>A. Mehta</td><td>INV-0385</td><td>Void</td><td>Issued → Void</td><td>Duplicate</td></tr></table></div>
+</section>
+
+</main></div></body></html> 

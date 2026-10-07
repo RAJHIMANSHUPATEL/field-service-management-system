@@ -1,0 +1,14 @@
+---
+description: HTTP route, validation, and error conventions
+globs: backend/src/modules/**/*.ts
+alwaysApply: false
+---
+
+# API conventions
+
+- Routes are `/api/v1/<plural-kebab>`. State changes are their own verbs: `POST /work-orders/:id/assign`, `POST /visits/:id/arrive`. Do not `PATCH` a `status` field.
+- Validate body, query, and params with Zod in the controller before the service runs. The service accepts the inferred type.
+- Errors are `{ error: { code, message, details? } }` with a stable `code`.
+- List endpoints accept `page` and `limit` and return `{ data, meta }`.
+- Mutations that a client may retry read an `Idempotency-Key` header.
+- Status enums and the allowed transition map live next to the module schema. Reject any jump that the map does not list.

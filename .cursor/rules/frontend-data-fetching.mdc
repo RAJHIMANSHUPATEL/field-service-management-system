@@ -1,0 +1,28 @@
+---
+description: API client, query keys, and mutation conventions
+globs: frontend/src/features/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Data fetching
+
+- All HTTP goes through `src/lib/apiClient.ts`. Feature files in `api/` are thin wrappers that return typed data.
+- Each feature exports a `queryKeys` object. Keys include every filter that changes the result.
+
+```typescript
+export const workOrderKeys = {
+  all: ["work-orders"] as const,
+  detail: (id: string) => [...workOrderKeys.all, id] as const,
+};
+
+export function useWorkOrder(id: string) {
+  return useQuery({
+    queryKey: workOrderKeys.detail(id),
+    queryFn: () => getWorkOrder(id),
+  });
+}
+```
+
+- Mutations invalidate the narrowest key that changed. Optimistic updates are reserved for status buttons the technician taps (`arrive`, `start`, `complete`).
+- Surface `error.code` from the API in the UI. Do not match on error message text.
+- Mirror API status enums in `src/lib/status.ts`. When the API adds a status, update that file in the same change.
