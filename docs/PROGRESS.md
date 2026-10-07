@@ -22,3 +22,4 @@ Read this file and `docs/stages/README.md` before starting any work. Never redo 
 | 4 | feat/phase4-scheduling (stage 10) | 1c154a7 | Phase 5: technician execution (my jobs, diagnosis, work, photos, signature, completion) |
 | 5 | feat/phase5-execution (stage 11) | 0c41a3b | Phase 6: parts and inventory (stock by location, transfers, reservation, consumption, ledger) |
 | 6 | feat/phase6-inventory (stage 12) | d679dd3 | Phase 7: incomplete jobs, AWAITING_PARTS / FOLLOW_UP_REQUIRED, part requests, visit two |
+| 7 | feat/phase7-follow-up (stage 13) | 0b91785 | Phase 8: service report PDF, invoice with coverage and tax, payment, overdue |
