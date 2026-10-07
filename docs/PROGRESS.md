@@ -25,3 +25,4 @@ Read this file and `docs/stages/README.md` before starting any work. Never redo 
 | 7 | feat/phase7-follow-up (stage 13) | 0b91785 | Phase 8: service report PDF, invoice with coverage and tax, payment, overdue |
 | 8 | feat/phase8-billing (stage 14) | 4a41697 | Phase 9: feedback and notifications (BullMQ on Redis, mocked channels) |
 | 9 | feat/phase9-feedback-notifications (stage 15) | 56b719a | Phase 10: contract visits and preventive maintenance plans |
+| 10 | feat/phase10-maintenance (stage 16) | e7bb153 | Phase 11: operations dashboard and technician performance |
