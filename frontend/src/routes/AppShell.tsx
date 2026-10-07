@@ -188,6 +188,7 @@ const sectionLabels: Record<string, string> = {
   analytics: "Analytics",
   notifications: "Notifications",
   feedback: "Customer feedback",
+  "my-jobs": "My jobs",
   users: "Users and roles",
   master: "Master data",
   audit: "Audit log",
@@ -235,6 +236,9 @@ function crumbsForPath(pathname: string): { label: string; to?: string }[] {
   }
   if (pathname === "/profile") {
     return [{ label: "Profile" }];
+  }
+  if (pathname === "/my-jobs") {
+    return [{ label: "My jobs" }];
   }
 
   const section = pathname.split("/").filter(Boolean)[0];

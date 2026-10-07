@@ -19,7 +19,8 @@ export function NotificationBell() {
   const rows = inbox.data?.data.slice(0, 12) ?? [];
 
   return (
-    <DropdownMenu>
+    // Opening the bell always fetches the latest, so it never shows a stale list.
+    <DropdownMenu onOpenChange={(open) => open && void inbox.refetch()}>
       <DropdownMenuTrigger
         render={<Button variant="ghost" size="icon" className="relative ml-auto" aria-label={`Notifications, ${unread} unread`} />}
       >
