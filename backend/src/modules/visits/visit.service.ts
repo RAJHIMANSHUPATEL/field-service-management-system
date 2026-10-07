@@ -3,6 +3,7 @@ import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { getWorkOrder } from "../workOrders/workOrder.service.js";
 import { canMoveVisit, canReplan, stepTimestamp, visitTransitions, type VisitStep } from "./visit.transitions.js";
+import { onWorkOrderCompleted } from "../maintenance/maintenance.service.js";
 import { createDraftInvoice } from "../invoices/invoice.service.js";
 import { releaseOpenReservations } from "../inventory/visitPart.service.js";
 import { assertTechnicianFree } from "./visit.scheduling.js";
@@ -72,6 +73,7 @@ export async function moveVisit(id: string, actor: AuthUser, step: VisitStep) {
       await releaseOpenReservations(tx, visit.id, actor.id);
       // The system prepares the invoice once the job is done; ops reviews and issues it.
       await createDraftInvoice(tx, visit.workOrder.id);
+      await onWorkOrderCompleted(tx, visit.workOrder.id, new Date());
     }
   });
   const event = ({ "en-route": "visit.en_route", arrive: "visit.arrived", complete: "service.completed" } as const)[

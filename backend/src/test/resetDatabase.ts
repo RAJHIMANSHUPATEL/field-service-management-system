@@ -5,6 +5,7 @@ export async function resetDatabase() {
   await prisma.notification.deleteMany();
   await prisma.notificationRule.deleteMany();
   await prisma.feedback.deleteMany();
+  await prisma.contractVisit.deleteMany();
   await prisma.invitation.deleteMany();
   await prisma.passwordResetToken.deleteMany();
   await prisma.visitChange.deleteMany();
@@ -13,7 +14,6 @@ export async function resetDatabase() {
   await prisma.invoiceLine.deleteMany();
   await prisma.invoice.deleteMany();
   await prisma.contractAsset.deleteMany();
-  await prisma.serviceContract.deleteMany();
   await prisma.partRequest.deleteMany();
   await prisma.stockMovement.deleteMany();
   await prisma.visitPart.deleteMany();
@@ -22,6 +22,8 @@ export async function resetDatabase() {
   await prisma.workOrderNote.deleteMany();
   await prisma.serviceVisit.deleteMany();
   await prisma.workOrder.deleteMany();
+  await prisma.maintenancePlan.deleteMany();
+  await prisma.serviceContract.deleteMany();
   await prisma.serviceRequestAttachment.deleteMany();
   await prisma.serviceRequestNote.deleteMany();
   await prisma.serviceRequest.deleteMany();

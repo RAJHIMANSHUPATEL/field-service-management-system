@@ -128,6 +128,7 @@ export function WorkOrderDetailPage() {
               label: "Technician",
               value: record.technician ? record.technician.user.name : "No technician assigned",
             },
+            ...(record.maintenancePlan ? [{ label: "Maintenance plan", value: record.maintenancePlan.name }] : []),
             ...(record.feedback
               ? [
                   {

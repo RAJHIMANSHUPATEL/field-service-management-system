@@ -19,5 +19,6 @@ Each stage is one slice of the product that can be signed in to and used. The de
 | 13 — Incomplete jobs and follow-up | Complete | [stage13.md](./stage13.md) |
 | 14 — Service report, invoice, payment | Complete | [stage14.md](./stage14.md) |
 | 15 — Feedback and notifications | Complete | [stage15.md](./stage15.md) |
+| 16 — Contracts and preventive maintenance | Complete | [stage16.md](./stage16.md) |
 
-The next stage starts when we pick it. Add `stage16.md` here when that work begins.
+The next stage starts when we pick it. Add `stage17.md` here when that work begins.

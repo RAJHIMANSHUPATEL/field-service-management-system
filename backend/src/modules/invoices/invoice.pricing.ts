@@ -146,6 +146,8 @@ export function chooseCoverage(input: {
     serviceChargeCoveredPercent: number;
     labourCoveredPercent: number;
     partsCoveredPercent: number;
+    // False when the contract's included visits are used up (and not by this job).
+    hasVisitsLeft?: boolean;
   }[];
 }): Coverage {
   if (input.warrantyExpiresAt && input.warrantyExpiresAt.getTime() >= input.completedAt.getTime()) {
@@ -155,6 +157,7 @@ export function chooseCoverage(input: {
     .filter(
       (contract) =>
         contract.status === "ACTIVE" &&
+        contract.hasVisitsLeft !== false &&
         contract.startsOn.getTime() <= input.completedAt.getTime() &&
         contract.endsOn.getTime() >= input.completedAt.getTime(),
     )

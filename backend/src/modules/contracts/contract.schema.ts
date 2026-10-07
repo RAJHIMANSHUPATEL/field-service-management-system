@@ -12,6 +12,8 @@ export const createContractSchema = z
     serviceChargeCoveredPercent: percent.default(100),
     labourCoveredPercent: percent.default(100),
     partsCoveredPercent: percent.default(0),
+    // Leave out for unlimited visits.
+    includedVisits: z.number().int().min(1).max(1000).optional(),
   })
   .refine((value) => value.endsOn >= value.startsOn, { message: "The contract must end on or after it starts", path: ["endsOn"] });
 
