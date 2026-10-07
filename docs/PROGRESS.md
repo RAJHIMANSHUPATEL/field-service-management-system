@@ -26,3 +26,4 @@ Read this file and `docs/stages/README.md` before starting any work. Never redo 
 | 8 | feat/phase8-billing (stage 14) | 4a41697 | Phase 9: feedback and notifications (BullMQ on Redis, mocked channels) |
 | 9 | feat/phase9-feedback-notifications (stage 15) | 56b719a | Phase 10: contract visits and preventive maintenance plans |
 | 10 | feat/phase10-maintenance (stage 16) | e7bb153 | Phase 11: operations dashboard and technician performance |
+| 11 | feat/phase11-analytics (stage 17) | 8f44487 | Phase 12: hardening, API docs, rate limits, idempotency, backup drill |
