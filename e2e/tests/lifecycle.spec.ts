@@ -87,6 +87,28 @@ test("request, triage, assign, schedule, accept, visit", async ({ browser }) => 
   await expect(ops.page.getByRole("link", { name: /Tara Technician/ }).first()).toBeVisible();
   await ops.page.goto(workOrderUrl);
 
+  // Ops stocks Tara's van from the main store.
+  await ops.page.goto("/inventory");
+  async function stockAction(button: string, fields: Record<string, string>, selects: Record<string, string>) {
+    await ops.page.getByRole("button", { name: button }).click();
+    const dialog = ops.page.getByRole("dialog");
+    for (const [label, option] of Object.entries(selects)) {
+      await dialog.getByLabel(label, { exact: true }).selectOption({ label: option });
+    }
+    for (const [label, value] of Object.entries(fields)) {
+      await dialog.getByLabel(label, { exact: true }).fill(value);
+    }
+    await dialogSubmit(ops.page, "Save");
+  }
+  await stockAction("Receive stock", { Quantity: "5", Reason: "PO e2e" }, { Part: "FLT-STD · Air filter", Location: "Main store" });
+  await stockAction(
+    "Transfer stock",
+    { Quantity: "2", Reason: "Van restock" },
+    { Part: "FLT-STD · Air filter", From: "Main store", To: "Tara's van" },
+  );
+  const vanRow = ops.page.getByRole("table", { name: "Stock levels" }).getByRole("row").filter({ hasText: "Tara's van" }).filter({ hasText: "FLT-STD" });
+  const vanBefore = Number(await vanRow.getByRole("cell").nth(2).innerText());
+
   // Technician finds the job under My jobs and drives it to completion on a phone.
   const tech = await signIn(browser, "technician@fieldservice.local", phone);
   await expect(tech.page).toHaveURL(/\/my-jobs$/);
@@ -117,10 +139,20 @@ test("request, triage, assign, schedule, accept, visit", async ({ browser }) => 
   await tech.page.getByLabel("Add photo").setInputFiles({ name: "drain.png", mimeType: "image/png", buffer: png });
   await expect(tech.page.getByRole("list", { name: "Visit photos" }).getByText("Drain before cleaning")).toBeVisible();
 
+  // Reserve a filter from the van at diagnosis.
+  const filterOption = tech.page.getByLabel("Part from van").locator("option", { hasText: "Air filter" });
+  await tech.page.getByLabel("Part from van").selectOption((await filterOption.getAttribute("value"))!);
+  await tech.page.getByRole("button", { name: "Reserve part" }).click();
+  await expect(tech.page.getByRole("list", { name: "Visit parts" }).getByText("Reserved")).toBeVisible();
+
   await tech.page.getByRole("button", { name: "Start job" }).click();
   await expect(tech.page.getByText("In progress", { exact: true }).first()).toBeVisible();
   await customerSees("Work started");
   await expect(customer.page.getByText("Clogged condensate drain")).toBeVisible();
+
+  // Use the reserved filter.
+  await tech.page.getByRole("list", { name: "Visit parts" }).getByRole("button", { name: "Use" }).click();
+  await expect(tech.page.getByRole("list", { name: "Visit parts" }).getByText("Used")).toBeVisible();
 
   // Work performed, a note, the customer's signature, then completion.
   await tech.page.getByLabel("Work performed").fill("Flushed the drain line and tested cooling");
@@ -156,6 +188,16 @@ test("request, triage, assign, schedule, accept, visit", async ({ browser }) => 
   ]);
   await photoTab.close();
   await customer.page.screenshot({ path: `${screensDir}/customer-job-completed.png`, fullPage: true });
+
+  // The van lost one filter and the ledger shows the use with its reason and actor.
+  await ops.page.goto("/inventory");
+  await expect(vanRow.getByRole("cell").nth(2)).toHaveText(String(vanBefore - 1));
+  const ledgerRow = ops.page.getByRole("table", { name: "Stock movements" }).getByRole("row").nth(1);
+  await expect(ledgerRow).toContainText("Used");
+  await expect(ledgerRow).toContainText("Tara's van");
+  await expect(ledgerRow).toContainText("Used on the visit");
+  await expect(ledgerRow).toContainText("Tara Technician");
+  await ops.page.screenshot({ path: `${screensDir}/ops-inventory-ledger.png`, fullPage: true });
 
   // The completed job moves to the Completed group under My jobs.
   await tech.page.goto("/my-jobs");

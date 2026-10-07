@@ -5,6 +5,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { textareaClassName } from "@/components/content";
 import { toastError } from "@/lib/toastError";
+import { VisitParts } from "./VisitParts";
 import { photoTypes, visitPhotoUrl, type Visit } from "../api/workOrders.api";
 import {
   useAddWorkOrderNote,
@@ -170,6 +171,8 @@ export function ExecutionPanel({ workOrderId, visit }: { workOrderId: string; vi
           }}
         />
       </div>
+
+      <VisitParts workOrderId={workOrderId} visit={visit} />
 
       {inProgress ? <SignaturePad workOrderId={workOrderId} visit={visit} /> : null}
 
