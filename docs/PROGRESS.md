@@ -18,3 +18,4 @@ Read this file and `docs/stages/README.md` before starting any work. Never redo 
 | 0 | feat/phase0-foundations (stage 6) | fbf8fb3 | Phase 1 |
 | 1 | feat/phase1-audit-and-access (stage 7) | 917e9fd | Phase 2 master data: skills, service areas, parts catalogue, warehouses, warranty |
 | 2 | feat/phase2-master-data (stage 8) | 9cecf63 | Phase 3: request attachments, set priority/service type at triage |
+| 3 | feat/phase3-request-attachments (stage 9) | a7cc563 | Phase 4: availability, calendar, scoring, reassignment, reschedule/cancel with history |
