@@ -3,6 +3,7 @@ import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { getWorkOrder } from "../workOrders/workOrder.service.js";
 import { canMoveVisit, canReplan, stepTimestamp, visitTransitions, type VisitStep } from "./visit.transitions.js";
+import { releaseOpenReservations } from "../inventory/visitPart.service.js";
 import { assertTechnicianFree } from "./visit.scheduling.js";
 import type { CalendarQuery, RescheduleVisitInput } from "./visit.schema.js";
 
@@ -66,6 +67,7 @@ export async function moveVisit(id: string, actor: AuthUser, step: VisitStep) {
       if (completed.count !== 1) {
         throw new AppError("INVALID_TRANSITION", 409, "This visit cannot move to that step");
       }
+      await releaseOpenReservations(tx, visit.id, actor.id);
     }
   });
 

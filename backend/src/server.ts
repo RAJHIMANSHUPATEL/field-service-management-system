@@ -19,6 +19,7 @@ import { visitRouter } from "./modules/visits/visit.routes.js";
 import { skillRouter } from "./modules/skills/skill.routes.js";
 import { serviceAreaRouter } from "./modules/serviceAreas/serviceArea.routes.js";
 import { partRouter } from "./modules/parts/part.routes.js";
+import { inventoryRouter } from "./modules/inventory/inventory.routes.js";
 import { warehouseRouter } from "./modules/warehouses/warehouse.routes.js";
 import "./types/authUser.js";
 
@@ -53,6 +54,7 @@ export function createApp() {
   app.use("/api/v1/service-areas", serviceAreaRouter);
   app.use("/api/v1/parts", partRouter);
   app.use("/api/v1/warehouses", warehouseRouter);
+  app.use("/api/v1/inventory", inventoryRouter);
   app.use("/api/v1/audit-events", auditEventRouter);
   app.get("/api/v1/admin/ping", requireAuth, requireRole("ADMIN"), (_req, res) => {
     res.status(200).json({ data: { ok: true } });
