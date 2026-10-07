@@ -87,6 +87,7 @@ model User {
   serviceRequestNotes ServiceRequestNote[]
   workOrderNotes      WorkOrderNote[]
   auditEvents         AuditEvent[]
+  visitChanges        VisitChange[]
   requestAttachments  ServiceRequestAttachment[]
   passwordResetTokens PasswordResetToken[]
   invitationsSent     Invitation[]
@@ -198,10 +199,13 @@ model ServiceType {
   isActive       Boolean      @default(true)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  requiredSkillId String?
   organization    Organization     @relation(fields: [organizationId], references: [id])
+  requiredSkill   Skill?           @relation(fields: [requiredSkillId], references: [id])
   serviceRequests ServiceRequest[]
   workOrders      WorkOrder[]
 
+  @@index([requiredSkillId])
   @@unique([organizationId, name])
   @@index([organizationId])
 }
@@ -221,6 +225,7 @@ model Technician {
   skills         TechnicianSkill[]
   serviceAreas   TechnicianServiceArea[]
   van            Warehouse?
+  timeOff        TechnicianTimeOff[]
 
   @@index([organizationId])
 }
@@ -312,13 +317,16 @@ model ServiceVisit {
   workOrderId    String
   technicianId   String
   scheduledStart DateTime
+  durationMinutes Int        @default(120)
   status         VisitStatus @default(SCHEDULED)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id])
   workOrder      WorkOrder    @relation(fields: [workOrderId], references: [id])
   technician     Technician   @relation(fields: [technicianId], references: [id])
+  changes        VisitChange[]
 
+  @@index([scheduledStart])
   @@index([organizationId])
   @@index([workOrderId])
   @@index([technicianId])
@@ -413,6 +421,7 @@ model Skill {
   updatedAt      DateTime          @updatedAt
   organization   Organization      @relation(fields: [organizationId], references: [id])
   technicians    TechnicianSkill[]
+  serviceTypes   ServiceType[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -517,4 +526,49 @@ model ServiceRequestAttachment {
   @@index([organizationId])
   @@index([requestId])
   @@index([uploadedById])
+}
+
+enum VisitChangeKind {
+  SCHEDULED
+  RESCHEDULED
+  REASSIGNED
+  CANCELLED
+}
+
+// History of how a visit was planned. One row per change, never edited.
+model VisitChange {
+  id               String          @id @default(cuid())
+  organizationId   String
+  visitId          String
+  actorId          String
+  kind             VisitChangeKind
+  fromStart        DateTime?
+  toStart          DateTime?
+  fromTechnicianId String?
+  toTechnicianId   String?
+  reason           String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  visit            ServiceVisit    @relation(fields: [visitId], references: [id])
+  actor            User            @relation(fields: [actorId], references: [id])
+
+  @@index([organizationId])
+  @@index([visitId])
+  @@index([actorId])
+}
+
+model TechnicianTimeOff {
+  id             String     @id @default(cuid())
+  organizationId String
+  technicianId   String
+  startsAt       DateTime
+  endsAt         DateTime
+  reason         String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  technician     Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([technicianId])
+  @@index([startsAt])
 }

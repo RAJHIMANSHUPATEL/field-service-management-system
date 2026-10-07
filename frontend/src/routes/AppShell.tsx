@@ -143,6 +143,7 @@ function navForRole(role: AuthUser["role"]): NavGroup[] {
       label: "Workspace",
       items: [
         { to: "/work-orders", label: "Jobs", icon: ListChecks },
+        { to: "/schedule", label: "My schedule", icon: Calendar },
         { to: "/profile", label: "Profile", icon: Users },
       ],
     },

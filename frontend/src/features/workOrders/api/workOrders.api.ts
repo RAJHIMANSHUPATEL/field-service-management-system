@@ -19,14 +19,108 @@ export type WorkOrder = {
   serviceType: { id: string; name: string };
   request: { id: string; status: string; preferredStart: string; preferredEnd: string };
   technician: { id: string; user: { id: string; name: string } } | null;
-  visits: { id: string; scheduledStart: string; status: VisitStatus }[];
+  visits: Visit[];
   notes: { id: string; body: string; createdAt: string; author: { id: string; name: string } }[];
+};
+
+export type VisitChange = {
+  id: string;
+  kind: "SCHEDULED" | "RESCHEDULED" | "REASSIGNED" | "CANCELLED";
+  fromStart: string | null;
+  toStart: string | null;
+  fromTechnicianId: string | null;
+  toTechnicianId: string | null;
+  reason: string | null;
+  createdAt: string;
+  actor: { id: string; name: string };
+};
+
+export type Visit = {
+  id: string;
+  scheduledStart: string;
+  durationMinutes: number;
+  status: VisitStatus;
+  technician: { id: string; user: { name: string } };
+  changes: VisitChange[];
+};
+
+export type Candidate = {
+  technicianId: string;
+  name: string;
+  score: number;
+  breakdown: { skill: number; area: number; workload: number };
+  openJobs: number;
+  hasSkill: boolean;
+  inArea: boolean;
+  available: boolean;
+};
+
+export type CalendarVisit = {
+  id: string;
+  scheduledStart: string;
+  durationMinutes: number;
+  status: VisitStatus;
+  technician: { id: string; user: { name: string } };
+  workOrder: {
+    id: string;
+    status: WorkOrderStatus;
+    customer: { name: string };
+    asset: { equipmentType: string };
+    address: { city: string; postalCode: string };
+  };
+};
+
+export type TimeOff = {
+  id: string;
+  startsAt: string;
+  endsAt: string;
+  reason: string | null;
+  technician: { id: string; user: { name: string } };
 };
 
 export const workOrderKeys = {
   all: ["work-orders"] as const,
   detail: (id: string) => ["work-orders", id] as const,
+  candidates: (id: string) => ["work-orders", id, "candidates"] as const,
+  calendar: (from: string, to: string, technicianId: string) => ["calendar", from, to, technicianId] as const,
 };
+
+export async function listCandidates(id: string) {
+  return (await api<{ data: Candidate[] }>(`/api/v1/work-orders/${id}/candidates`)).data;
+}
+
+export async function reassignWorkOrder(id: string, technicianId: string, reason: string) {
+  const result = await api<{ data: WorkOrder }>(`/api/v1/work-orders/${id}/reassign`, {
+    method: "POST",
+    body: JSON.stringify({ technicianId, reason }),
+  });
+  return result.data;
+}
+
+export async function rescheduleVisit(visitId: string, scheduledStart: string, reason: string) {
+  const result = await api<{ data: WorkOrder }>(`/api/v1/visits/${visitId}/reschedule`, {
+    method: "POST",
+    body: JSON.stringify({ scheduledStart, reason }),
+  });
+  return result.data;
+}
+
+export async function cancelVisit(visitId: string, reason: string) {
+  const result = await api<{ data: WorkOrder }>(`/api/v1/visits/${visitId}/cancel`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+  return result.data;
+}
+
+export async function getCalendar(from: string, to: string, technicianId: string) {
+  const params = new URLSearchParams({ from, to, ...(technicianId ? { technicianId } : {}) });
+  return (await api<{ data: { visits: CalendarVisit[]; timeOff: TimeOff[] } }>(`/api/v1/visits?${params}`)).data;
+}
+
+export async function addTimeOff(technicianId: string, input: { startsAt: string; endsAt: string; reason?: string }) {
+  return api(`/api/v1/technicians/${technicianId}/time-off`, { method: "POST", body: JSON.stringify(input) });
+}
 
 export async function listWorkOrders() {
   const result = await api<{ data: WorkOrder[]; meta: PageMeta }>("/api/v1/work-orders");

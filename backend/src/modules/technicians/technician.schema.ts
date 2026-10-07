@@ -19,3 +19,16 @@ export const updateTechnicianSchema = z.object({
 
 export type CreateTechnicianInput = z.infer<typeof createTechnicianSchema>;
 export type UpdateTechnicianInput = z.infer<typeof updateTechnicianSchema>;
+
+export const createTimeOffSchema = z
+  .object({
+    startsAt: z.iso.datetime(),
+    endsAt: z.iso.datetime(),
+    reason: z.string().trim().min(1).optional(),
+  })
+  .refine((value) => new Date(value.endsAt).getTime() > new Date(value.startsAt).getTime(), {
+    message: "endsAt must be after startsAt",
+    path: ["endsAt"],
+  });
+
+export type CreateTimeOffInput = z.infer<typeof createTimeOffSchema>;

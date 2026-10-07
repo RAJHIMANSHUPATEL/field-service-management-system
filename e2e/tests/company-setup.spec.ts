@@ -57,7 +57,7 @@ test("a new admin sets up a whole company from nothing", async ({ browser }) => 
   await page.getByRole("button", { name: "Add location" }).click();
   await page.getByRole("dialog").getByLabel("Name").fill("Tara's van");
   await page.getByRole("dialog").getByLabel("Kind").selectOption("VAN");
-  await page.getByRole("dialog").getByLabel("Technician").selectOption({ label: "Tara" });
+  await page.getByRole("dialog").getByLabel("Technician", { exact: true }).selectOption({ label: "Tara" });
   await dialogSubmit(page, "Add location");
 
   await page.goto("/customers");

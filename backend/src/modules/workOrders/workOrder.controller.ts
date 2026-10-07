@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import {
   assignWorkOrderSchema,
+  candidatesQuerySchema,
+  reassignWorkOrderSchema,
   declineWorkOrderSchema,
   listWorkOrdersQuerySchema,
   scheduleWorkOrderSchema,
@@ -45,5 +47,17 @@ export async function accept(req: Request, res: Response) {
 export async function decline(req: Request, res: Response) {
   const body = declineWorkOrderSchema.parse(req.body);
   const result = await workOrderService.declineWorkOrder(String(req.params.id), actor(req), body.reason);
+  res.status(200).json(result);
+}
+
+export async function reassign(req: Request, res: Response) {
+  const body = reassignWorkOrderSchema.parse(req.body);
+  const result = await workOrderService.reassignWorkOrder(String(req.params.id), actor(req), body);
+  res.status(200).json(result);
+}
+
+export async function candidates(req: Request, res: Response) {
+  const query = candidatesQuerySchema.parse(req.query);
+  const result = await workOrderService.technicianCandidates(String(req.params.id), actor(req), query.at);
   res.status(200).json(result);
 }
