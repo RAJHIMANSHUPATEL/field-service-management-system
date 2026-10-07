@@ -369,7 +369,7 @@ Stages 1, 2, 3, and 4 are complete. The records of decisions and finished work a
 The phases below are the long-term sequence. Stage 1 covers a slice of phases 0, 1, and 2.
 Stage 2 covers the request and unassigned work order slice of phase 3. Stage 3 covers
 assigning that work order, a slice of phase 4. Stage 4 schedules one visit and records the
-technician's accept or decline, still a slice of phase 4. Stages 6–14 complete phases 0–8; see the table and [`docs/PROGRESS.md`](./docs/PROGRESS.md).
+technician's accept or decline, still a slice of phase 4. Stages 6–15 complete phases 0–9; see the table and [`docs/PROGRESS.md`](./docs/PROGRESS.md).
 
 | Phase | State |
 |---|---|
@@ -382,7 +382,7 @@ technician's accept or decline, still a slice of phase 4. Stages 6–14 complete
 | 6 — Parts and inventory | Complete (stage 12) |
 | 7 — Incomplete jobs and follow-up | Complete (stage 13) |
 | 8 — Report, invoice, payment | Complete (stage 14) |
-| 9 — Feedback and notifications | Not started |
+| 9 — Feedback and notifications | Complete (stage 15) |
 | 10 — Contracts and maintenance | Not started |
 | 11 — Analytics | Not started |
 | 12 — Hardening and mobile readiness | Not started |

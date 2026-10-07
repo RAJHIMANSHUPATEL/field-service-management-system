@@ -18,5 +18,6 @@ Each stage is one slice of the product that can be signed in to and used. The de
 | 12 — Parts and inventory: van stock, reservation, consumption, ledger | Complete | [stage12.md](./stage12.md) |
 | 13 — Incomplete jobs and follow-up | Complete | [stage13.md](./stage13.md) |
 | 14 — Service report, invoice, payment | Complete | [stage14.md](./stage14.md) |
+| 15 — Feedback and notifications | Complete | [stage15.md](./stage15.md) |
 
-The next stage starts when we pick it. Add `stage15.md` here when that work begins.
+The next stage starts when we pick it. Add `stage16.md` here when that work begins.
