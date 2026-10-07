@@ -24,6 +24,10 @@ import { markOverdue } from "./modules/invoices/invoice.service.js";
 import { invoiceRouter } from "./modules/invoices/invoice.routes.js";
 import { partRequestRouter } from "./modules/partRequests/partRequest.routes.js";
 import { inventoryRouter } from "./modules/inventory/inventory.routes.js";
+import { feedbackRouter } from "./modules/feedback/feedback.routes.js";
+import { notificationRouter } from "./modules/notifications/notification.routes.js";
+import { runSweeps } from "./modules/notifications/notification.events.js";
+import { startNotificationWorker } from "./lib/queue.js";
 import { warehouseRouter } from "./modules/warehouses/warehouse.routes.js";
 import "./types/authUser.js";
 
@@ -62,6 +66,8 @@ export function createApp() {
   app.use("/api/v1/part-requests", partRequestRouter);
   app.use("/api/v1/contracts", contractRouter);
   app.use("/api/v1/invoices", invoiceRouter);
+  app.use("/api/v1/feedback", feedbackRouter);
+  app.use("/api/v1/notifications", notificationRouter);
   app.use("/api/v1/audit-events", auditEventRouter);
   app.get("/api/v1/admin/ping", requireAuth, requireRole("ADMIN"), (_req, res) => {
     res.status(200).json({ data: { ok: true } });
@@ -82,4 +88,9 @@ if (process.env.NODE_ENV !== "test") {
   setInterval(() => {
     markOverdue().catch((error: unknown) => console.error("Overdue sweep failed", error));
   }, 60 * 60_000).unref();
+  // Deliveries run on the BullMQ worker; delayed-job and contract-expiry checks every 5 minutes.
+  startNotificationWorker();
+  setInterval(() => {
+    runSweeps().catch((error: unknown) => console.error("Notification sweep failed", error));
+  }, 5 * 60_000).unref();
 }

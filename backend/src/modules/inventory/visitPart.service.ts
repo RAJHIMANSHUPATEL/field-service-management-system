@@ -7,6 +7,7 @@ import { applyMovement } from "./inventory.ledger.js";
 import { requirePart, requireWarehouse } from "./inventory.service.js";
 import type { AddVisitPartInput } from "./inventory.schema.js";
 import { canMoveVisitPart, stockEffect, visitPartTransitions, type VisitPartAction } from "./visitPart.transitions.js";
+import { checkLowStock, notify } from "../notifications/notification.events.js";
 
 // Parts are planned on arrival (reservation at diagnosis) and used once the work has started.
 const actionStatuses: Record<VisitPartAction | "reserve", string[]> = {
@@ -35,7 +36,7 @@ async function requireOwnVisit(id: string, actor: AuthUser, action: VisitPartAct
 
 export async function addVisitPart(visitId: string, actor: AuthUser, input: AddVisitPartInput) {
   const visit = await requireOwnVisit(visitId, actor, "reserve");
-  await prisma.$transaction(async (tx) => {
+  const reserved = await prisma.$transaction(async (tx) => {
     const part = await requirePart(input.partId, actor, tx);
     const warehouse = input.warehouseId
       ? await requireWarehouse(input.warehouseId, actor, tx)
@@ -68,7 +69,9 @@ export async function addVisitPart(visitId: string, actor: AuthUser, input: AddV
       visitId: visit.id,
       visitPartId: visitPart.id,
     });
+    return { warehouseId: warehouse.id, partId: part.id };
   });
+  await notify(() => checkLowStock(reserved.warehouseId, reserved.partId));
   return getWorkOrder(visit.workOrderId, actor);
 }
 

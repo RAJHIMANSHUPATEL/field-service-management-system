@@ -2,6 +2,9 @@ import { prisma } from "../lib/prisma.js";
 
 export async function resetDatabase() {
   await prisma.auditEvent.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.notificationRule.deleteMany();
+  await prisma.feedback.deleteMany();
   await prisma.invitation.deleteMany();
   await prisma.passwordResetToken.deleteMany();
   await prisma.visitChange.deleteMany();

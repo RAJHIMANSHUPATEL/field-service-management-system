@@ -1,3 +1,4 @@
+import * as feedbackController from "../feedback/feedback.controller.js";
 import { Router } from "express";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import * as workOrderController from "./workOrder.controller.js";
@@ -17,6 +18,7 @@ workOrderRouter.post("/:id/assign", requireAuth, writers, workOrderController.as
 workOrderRouter.post("/:id/schedule", requireAuth, writers, workOrderController.schedule);
 workOrderRouter.get("/:id/report", requireAuth, workOrderController.report);
 workOrderRouter.get("/:id/invoice", requireAuth, role("ADMIN", "OPS", "CUSTOMER"), workOrderController.invoice);
+workOrderRouter.post("/:id/feedback", requireAuth, requireRole("CUSTOMER"), feedbackController.create);
 workOrderRouter.post("/:id/notes", requireAuth, readers, workOrderController.addNote);
 workOrderRouter.post("/:id/accept", requireAuth, assignees, workOrderController.accept);
 workOrderRouter.post("/:id/decline", requireAuth, assignees, workOrderController.decline);

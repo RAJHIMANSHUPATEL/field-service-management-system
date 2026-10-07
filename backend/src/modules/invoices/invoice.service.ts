@@ -6,6 +6,7 @@ import { prisma } from "../../lib/prisma.js";
 import { chooseCoverage, priceInvoice, PricingError, type DecimalValue } from "./invoice.pricing.js";
 import type { AddLineInput, ListInvoicesQuery, RecordPaymentInput, UpdateInvoiceInput } from "./invoice.schema.js";
 import { canInvoice, editableStatuses, type InvoiceAction } from "./invoice.transitions.js";
+import { invoiceEvent, notify } from "../notifications/notification.events.js";
 
 type Tx = Prisma.TransactionClient;
 const Decimal = Prisma.Decimal;
@@ -226,6 +227,7 @@ export async function issueInvoice(id: string, actor: AuthUser) {
       throw new AppError("INVALID_TRANSITION", 409, "This invoice cannot be issued");
     }
   });
+  await notify(() => invoiceEvent("invoice.generated", invoice.id));
   return getInvoice(invoice.id, actor);
 }
 
@@ -261,6 +263,7 @@ async function applyPayment(
       data: { amountPaid, ...(settled ? { status: "PAID", paidAt: payment.paidAt } : {}) },
     });
   });
+  await notify(() => invoiceEvent("payment.received", invoiceId, payment.amount.toFixed(2)));
 }
 
 export async function recordPayment(id: string, actor: AuthUser, input: RecordPaymentInput) {
