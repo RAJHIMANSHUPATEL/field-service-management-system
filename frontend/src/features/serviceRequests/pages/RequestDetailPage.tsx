@@ -19,6 +19,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
+import { VisitProgress } from "@/features/workOrders/components/VisitExecution";
 import { visitStatusLabel, workOrderStatusLabel } from "@/lib/status";
 import { toastError } from "@/lib/toastError";
 import { useServiceTypes } from "@/features/serviceTypes/hooks/useServiceTypes";
@@ -117,6 +118,16 @@ export function RequestDetailPage() {
                 : []),
             ]}
           />
+          {record.workOrder && !canTriage
+            ? record.workOrder.visits
+                .filter((visit) => visit.status !== "CANCELLED" && visit.enRouteAt)
+                .map((visit) => (
+                  <section key={visit.id} className="rounded-lg border px-3 py-2" aria-label="Job progress">
+                    <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Job progress</p>
+                    <VisitProgress visit={visit} />
+                  </section>
+                ))
+            : null}
           <Attachments requestId={record.id} attachments={record.attachments} canAdd={record.status !== "REJECTED"} />
         </CardContent>
         {showActions ? (

@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import {
+  addNoteSchema,
   assignWorkOrderSchema,
   candidatesQuerySchema,
   reassignWorkOrderSchema,
@@ -60,4 +61,9 @@ export async function candidates(req: Request, res: Response) {
   const query = candidatesQuerySchema.parse(req.query);
   const result = await workOrderService.technicianCandidates(String(req.params.id), actor(req), query.at);
   res.status(200).json(result);
+}
+
+export async function addNote(req: Request, res: Response) {
+  const body = addNoteSchema.parse(req.body);
+  res.status(201).json(await workOrderService.addNote(String(req.params.id), actor(req), body.body));
 }

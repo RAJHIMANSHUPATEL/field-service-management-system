@@ -29,7 +29,23 @@ const requestInclude = {
     select: {
       id: true,
       status: true,
-      visits: { orderBy: { createdAt: "asc" as const }, select: { id: true, scheduledStart: true, status: true } },
+      visits: {
+        orderBy: { createdAt: "asc" as const },
+        select: {
+          id: true,
+          scheduledStart: true,
+          status: true,
+          enRouteAt: true,
+          arrivedAt: true,
+          startedAt: true,
+          completedAt: true,
+          diagnosis: true,
+          workPerformed: true,
+          signerName: true,
+          signedAt: true,
+          photos: { orderBy: { createdAt: "asc" as const }, select: { id: true, fileName: true, caption: true } },
+        },
+      },
     },
   },
   attachments: {

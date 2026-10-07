@@ -40,9 +40,64 @@ export type Visit = {
   scheduledStart: string;
   durationMinutes: number;
   status: VisitStatus;
+  enRouteAt: string | null;
+  arrivedAt: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  diagnosis: string | null;
+  workPerformed: string | null;
+  signerName: string | null;
+  signedAt: string | null;
+  photos: VisitPhoto[];
   technician: { id: string; user: { name: string } };
   changes: VisitChange[];
 };
+
+export type VisitPhoto = { id: string; fileName: string; contentType: string; caption: string | null; createdAt: string };
+
+export const photoTypes = ["image/jpeg", "image/png", "image/webp"];
+
+export async function saveVisitReport(visitId: string, input: { diagnosis?: string; workPerformed?: string }) {
+  const result = await api<{ data: WorkOrder }>(`/api/v1/visits/${visitId}/report`, { method: "PATCH", body: JSON.stringify(input) });
+  return result.data;
+}
+
+export async function uploadVisitPhoto(visitId: string, file: File, caption?: string) {
+  const headers: Record<string, string> = { "Content-Type": file.type, "X-File-Name": encodeURIComponent(file.name) };
+  if (caption) {
+    headers["X-Caption"] = encodeURIComponent(caption);
+  }
+  const result = await api<{ data: VisitPhoto }>(`/api/v1/visits/${visitId}/photos`, { method: "POST", body: file, headers });
+  return result.data;
+}
+
+export async function visitPhotoUrl(visitId: string, photoId: string) {
+  const result = await api<{ data: { url: string } }>(`/api/v1/visits/${visitId}/photos/${photoId}`);
+  return result.data.url;
+}
+
+export async function visitSignatureUrl(visitId: string) {
+  const result = await api<{ data: { url: string } }>(`/api/v1/visits/${visitId}/signature`);
+  return result.data.url;
+}
+
+export async function signVisit(visitId: string, signerName: string, image: string) {
+  const result = await api<{ data: WorkOrder }>(`/api/v1/visits/${visitId}/signature`, {
+    method: "POST",
+    body: JSON.stringify({ signerName, image }),
+  });
+  return result.data;
+}
+
+export async function completeVisit(visitId: string) {
+  const result = await api<{ data: WorkOrder }>(`/api/v1/visits/${visitId}/complete`, { method: "POST" });
+  return result.data;
+}
+
+export async function addWorkOrderNote(id: string, body: string) {
+  const result = await api<{ data: WorkOrder }>(`/api/v1/work-orders/${id}/notes`, { method: "POST", body: JSON.stringify({ body }) });
+  return result.data;
+}
 
 export type Candidate = {
   technicianId: string;
