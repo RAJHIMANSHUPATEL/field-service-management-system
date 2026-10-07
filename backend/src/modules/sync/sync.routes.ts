@@ -8,6 +8,8 @@ import { workOrderInclude } from "../workOrders/workOrder.service.js";
 // The client stores `serverTime` and sends it back as the next `since`; timestamps are UTC.
 export const syncQuerySchema = z.object({ since: z.iso.datetime().optional() });
 
+const SYNC_PAGE = 500;
+
 export const syncRouter = Router();
 
 syncRouter.get("/technician", requireAuth, requireRole("TECHNICIAN"), async (req: Request, res: Response) => {
@@ -24,8 +26,12 @@ syncRouter.get("/technician", requireAuth, requireRole("TECHNICIAN"), async (req
       ],
     },
     orderBy: { updatedAt: "asc" },
-    take: 500,
+    take: SYNC_PAGE + 1,
     include: workOrderInclude,
   });
-  res.status(200).json({ data: { serverTime: serverTime.toISOString(), full: !since, workOrders } });
+  // More than a page changed: return a page and a cursor at its last row so nothing is skipped.
+  const hasMore = workOrders.length > SYNC_PAGE;
+  const page = hasMore ? workOrders.slice(0, SYNC_PAGE) : workOrders;
+  const next = hasMore ? page[page.length - 1]!.updatedAt : serverTime;
+  res.status(200).json({ data: { serverTime: next.toISOString(), hasMore, full: !since, workOrders: page } });
 });

@@ -1,3 +1,4 @@
+import "dotenv/config";
 // Writes docs/openapi.json and the endpoint table in docs/api-reference.md from the live routers.
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";

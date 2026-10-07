@@ -21,5 +21,6 @@ Each stage is one slice of the product that can be signed in to and used. The de
 | 15 — Feedback and notifications | Complete | [stage15.md](./stage15.md) |
 | 16 — Contracts and preventive maintenance | Complete | [stage16.md](./stage16.md) |
 | 17 — Analytics | Complete | [stage17.md](./stage17.md) |
+| 18 — Hardening and mobile readiness (deployment documented locally only) | Complete | [stage18.md](./stage18.md) |
 
-The next stage starts when we pick it. Add `stage18.md` here when that work begins.
+All twelve delivery phases are covered. The next stage starts when we pick it.

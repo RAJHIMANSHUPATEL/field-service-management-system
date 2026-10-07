@@ -256,10 +256,13 @@ test("request, triage, assign, schedule, accept, visit, complete, invoice, pay",
 
   // Analytics spot check: the dashboard's pending invoices and completed jobs match the raw lists.
   const opsApi = await apiAs("ops@fieldservice.local");
-  const invoices = await opsApi<{ data: { status: string; total: string; amountPaid: string }[] }>("GET", "/invoices");
-  const pending = invoices.data.filter((row) => row.status === "ISSUED" || row.status === "OVERDUE");
+  // The invoice list is paginated (Phase 12), so count each pending status through meta.total.
+  const issued = await opsApi<{ meta: { total: number } }>("GET", "/invoices?status=ISSUED&limit=1");
+  const overdue = await opsApi<{ meta: { total: number } }>("GET", "/invoices?status=OVERDUE&limit=1");
+  const pendingCount = issued.meta.total + overdue.meta.total;
+  expect(issued.meta.total).toBeGreaterThan(0);
   await ops.page.goto("/");
-  await expect(ops.page.getByTestId("stat-pending-invoices")).toHaveText(String(pending.length));
+  await expect(ops.page.getByTestId("stat-pending-invoices")).toHaveText(String(pendingCount));
   await expect(ops.page.getByTestId("stat-active-jobs")).toBeVisible();
   await ops.page.screenshot({ path: `${screensDir}/ops-dashboard.png`, fullPage: true });
   await ops.page.goto("/analytics");

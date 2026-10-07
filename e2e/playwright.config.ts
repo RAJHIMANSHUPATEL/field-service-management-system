@@ -17,7 +17,7 @@ export default defineConfig({
     {
       command: "npm run dev",
       cwd: "../backend",
-      env: { MAIL_PROVIDER: "file", MAIL_OUTBOX_FILE: outbox, MAINTENANCE_SWEEP_MS: "3000" },
+      env: { MAIL_PROVIDER: "file", MAIL_OUTBOX_FILE: outbox, MAINTENANCE_SWEEP_MS: "3000", RATE_LIMIT_AUTH: "500" },
       url: "http://localhost:4000/health",
       reuseExistingServer: true,
       timeout: 60_000,
