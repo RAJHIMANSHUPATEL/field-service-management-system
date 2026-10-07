@@ -2,6 +2,11 @@ import { expect, test } from "@playwright/test";
 import { dialogSubmit, screensDir, signIn } from "./helpers";
 
 const phone = { width: 375, height: 812 };
+// 1x1 PNG used as the visit photo.
+const png = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "base64",
+);
 
 // A unique future slot per run so repeated runs never double-book the seeded technician.
 function slot(extraHours = 0) {
@@ -82,25 +87,79 @@ test("request, triage, assign, schedule, accept, visit", async ({ browser }) => 
   await expect(ops.page.getByRole("link", { name: /Tara Technician/ }).first()).toBeVisible();
   await ops.page.goto(workOrderUrl);
 
-  // Technician accepts and drives the visit on a phone.
+  // Technician finds the job under My jobs and drives it to completion on a phone.
   const tech = await signIn(browser, "technician@fieldservice.local", phone);
-  await tech.page.goto(workOrderUrl);
+  await expect(tech.page).toHaveURL(/\/my-jobs$/);
+  await tech.page.locator(`a[href="${workOrderUrl}"]`).click();
   await tech.page.getByRole("button", { name: "Accept" }).click();
   await expect(tech.page.getByText("Accepted", { exact: true })).toBeVisible();
-  for (const [button, status] of [
-    ["On my way", "En route"],
-    ["I've arrived", "Arrived"],
-    ["Start job", "In progress"],
-  ] as const) {
-    await tech.page.getByRole("button", { name: button }).click();
-    await expect(tech.page.getByText(status, { exact: true }).first()).toBeVisible();
-  }
-  await tech.page.screenshot({ path: `${screensDir}/technician-visit-in-progress.png`, fullPage: true });
 
-  // The customer sees the same state on their request.
-  await customer.page.reload();
-  await expect(customer.page.getByText("In progress").first()).toBeVisible();
-  await expect(customer.page.getByText(/· In progress$/)).toBeVisible();
+  // After each step the customer sees it on their request.
+  const progress = customer.page.getByRole("list", { name: "Visit progress" });
+  async function customerSees(text: string | RegExp) {
+    await customer.page.reload();
+    await expect(progress.getByText(text)).toBeVisible();
+  }
+
+  await tech.page.getByRole("button", { name: "On my way" }).click();
+  await expect(tech.page.getByText("En route", { exact: true }).first()).toBeVisible();
+  await customerSees("On the way");
+
+  await tech.page.getByRole("button", { name: "I've arrived" }).click();
+  await expect(tech.page.getByText("Arrived", { exact: true }).first()).toBeVisible();
+  await customerSees("Arrived");
+
+  // Diagnosis and a photo on arrival.
+  await tech.page.getByLabel("Diagnosis").fill("Clogged condensate drain");
+  await tech.page.getByRole("button", { name: "Save report" }).click();
+  await expect(tech.page.getByText("Report saved")).toBeVisible();
+  await tech.page.getByLabel("Photo caption").fill("Drain before cleaning");
+  await tech.page.getByLabel("Add photo").setInputFiles({ name: "drain.png", mimeType: "image/png", buffer: png });
+  await expect(tech.page.getByRole("list", { name: "Visit photos" }).getByText("Drain before cleaning")).toBeVisible();
+
+  await tech.page.getByRole("button", { name: "Start job" }).click();
+  await expect(tech.page.getByText("In progress", { exact: true }).first()).toBeVisible();
+  await customerSees("Work started");
+  await expect(customer.page.getByText("Clogged condensate drain")).toBeVisible();
+
+  // Work performed, a note, the customer's signature, then completion.
+  await tech.page.getByLabel("Work performed").fill("Flushed the drain line and tested cooling");
+  await tech.page.getByRole("button", { name: "Save report" }).click();
+  await expect(tech.page.getByText("Work performed:")).toBeVisible();
+  await tech.page.getByLabel("Add a note").fill("Recommend a filter change next visit");
+  await tech.page.getByRole("button", { name: "Add note" }).click();
+  await expect(tech.page.getByText("Recommend a filter change next visit")).toBeVisible();
+  await expect(tech.page.getByRole("button", { name: "Complete job" })).toBeDisabled();
+  await tech.page.getByLabel("Customer name").fill("Ana Customer");
+  const pad = tech.page.locator("canvas");
+  await pad.scrollIntoViewIfNeeded();
+  const box = (await pad.boundingBox())!;
+  await tech.page.mouse.move(box.x + 20, box.y + 40);
+  await tech.page.mouse.down();
+  await tech.page.mouse.move(box.x + 120, box.y + 80, { steps: 8 });
+  await tech.page.mouse.move(box.x + 220, box.y + 30, { steps: 8 });
+  await tech.page.mouse.up();
+  await tech.page.screenshot({ path: `${screensDir}/technician-signature-375.png`, fullPage: true });
+  await tech.page.getByRole("button", { name: "Save signature" }).click();
+  await expect(tech.page.getByText("Signed by Ana Customer").first()).toBeVisible();
+  await tech.page.getByRole("button", { name: "Complete job" }).click();
+  await expect(tech.page.getByText("Job completed")).toBeVisible();
+  await expect(tech.page.getByText("Completed", { exact: true }).first()).toBeVisible();
+  await tech.page.screenshot({ path: `${screensDir}/technician-visit-completed-375.png`, fullPage: true });
+
+  await customerSees("Completed");
+  await expect(customer.page.getByText("Flushed the drain line and tested cooling")).toBeVisible();
+  await expect(customer.page.getByText("Signed by Ana Customer")).toBeVisible();
+  const [photoTab] = await Promise.all([
+    customer.page.waitForEvent("popup"),
+    customer.page.getByRole("button", { name: "Drain before cleaning" }).click(),
+  ]);
+  await photoTab.close();
+  await customer.page.screenshot({ path: `${screensDir}/customer-job-completed.png`, fullPage: true });
+
+  // The completed job moves to the Completed group under My jobs.
+  await tech.page.goto("/my-jobs");
+  await expect(tech.page.getByRole("region", { name: "Completed" }).locator(`a[href="${workOrderUrl}"]`)).toBeVisible();
 
   for (const session of [customer, ops, tech]) {
     expect(session.problems).toEqual([]);

@@ -92,7 +92,7 @@ export function HomePage() {
   }
 
   if (user.role === "TECHNICIAN") {
-    return <Navigate to="/work-orders" replace />;
+    return <Navigate to="/my-jobs" replace />;
   }
 
   return <AdminHome />;

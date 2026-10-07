@@ -19,7 +19,7 @@ function nextVisit(workOrder: WorkOrder) {
 }
 
 function when(value: string) {
-  return new Date(value).toLocaleString(undefined, { weekday: "short", dateStyle: "medium", timeStyle: "short" });
+  return new Date(value).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 // Phone-first list of the technician's own jobs, active work first, soonest visit first.

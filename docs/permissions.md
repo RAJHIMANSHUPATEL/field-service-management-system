@@ -12,7 +12,9 @@ Every query is scoped to the caller's organization. A record in another organiza
 | Parts catalogue, warehouses and vans | Read, write | Read, write | Read | — |
 | Technicians | Read, write | Read, write | Read own profile | — |
 | Work orders | Read, assign, schedule, reassign, candidates | Read, assign, schedule, reassign, candidates | Read own, accept, decline | — |
-| Visits | Reschedule, cancel, calendar | Reschedule, cancel, calendar | Move own visit (en route, arrive, start), own calendar | — |
+| Visits | Reschedule, cancel, calendar | Reschedule, cancel, calendar | Move own visit (en route, arrive, start, complete), report, photos, signature, own calendar | — |
+| Work order notes | Add | Add | Add on own job | — |
+| Visit photos and signature | Read | Read | Read own | Read on own jobs |
 | Technician time off | Read, add, delete | Read, add, delete | Read own | — |
 | Users and invitations | Read, invite, revoke | — | — | — |
 | Audit events | Read | — | — | — |

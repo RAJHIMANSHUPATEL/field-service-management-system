@@ -443,7 +443,7 @@ function DeclineDialog({
               onSuccess: () => {
                 toast.success("Job declined");
                 closeDialog();
-                navigate("/work-orders");
+                navigate("/my-jobs");
               },
               onError: (error) => toastError(error, "Could not decline the job"),
             });
