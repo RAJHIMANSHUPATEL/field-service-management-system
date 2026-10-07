@@ -119,9 +119,9 @@ function navForRole(role: AuthUser["role"]): NavGroup[] {
         label: "System",
         items: [
           { to: "/notifications", label: "Notifications", icon: Bell },
-          { to: "/users", label: "Users and roles", icon: Shield },
+          ...(role === "ADMIN" ? [{ to: "/users", label: "Users and roles", icon: Shield }] : []),
           { to: "/master", label: "Master data", icon: Settings },
-          { to: "/audit", label: "Audit log", icon: ScrollText },
+          ...(role === "ADMIN" ? [{ to: "/audit", label: "Audit log", icon: ScrollText }] : []),
           { to: "/service-types", label: "Service types", icon: Wrench },
         ],
       },

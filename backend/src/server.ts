@@ -5,6 +5,9 @@ import helmet from "helmet";
 import { requireAuth, requireRole } from "./middleware/auth.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { requestLogger } from "./middleware/requestLogger.js";
+import { audit } from "./middleware/audit.js";
+import { auditEventRouter } from "./modules/auditEvents/auditEvent.routes.js";
+import { userRouter } from "./modules/users/user.routes.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { assetRouter } from "./modules/assets/asset.routes.js";
 import { customerRouter } from "./modules/customers/customer.routes.js";
@@ -27,6 +30,7 @@ export function createApp() {
   );
   app.use(express.json());
   app.use(requestLogger);
+  app.use("/api/v1", audit);
 
   app.get("/health", (_req, res) => {
     res.status(200).json({ data: { status: "ok" } });
@@ -40,6 +44,8 @@ export function createApp() {
   app.use("/api/v1/technicians", technicianRouter);
   app.use("/api/v1/work-orders", workOrderRouter);
   app.use("/api/v1/visits", visitRouter);
+  app.use("/api/v1/users", userRouter);
+  app.use("/api/v1/audit-events", auditEventRouter);
   app.get("/api/v1/admin/ping", requireAuth, requireRole("ADMIN"), (_req, res) => {
     res.status(200).json({ data: { ok: true } });
   });

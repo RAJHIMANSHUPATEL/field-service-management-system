@@ -7,4 +7,7 @@ export const authRouter = Router();
 authRouter.post("/login", authController.login);
 authRouter.post("/refresh", authController.refresh);
 authRouter.post("/logout", authController.logout);
+authRouter.post("/password-reset/request", authController.requestPasswordReset);
+authRouter.post("/password-reset/confirm", authController.confirmPasswordReset);
+authRouter.post("/invitations/accept", authController.acceptInvitation);
 authRouter.get("/me", requireAuth, authController.me);

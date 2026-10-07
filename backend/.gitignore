@@ -9,3 +9,4 @@ src/generated/
 .DS_Store
 
 /src/generated/prisma
+.mail/
