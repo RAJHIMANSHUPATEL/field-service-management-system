@@ -79,7 +79,7 @@ export function formatMoney(amount: string, currency: string) {
 }
 
 export async function listInvoices() {
-  return (await api<{ data: InvoiceSummary[] }>("/api/v1/invoices")).data;
+  return (await api<{ data: InvoiceSummary[] }>("/api/v1/invoices?limit=100")).data;
 }
 
 export async function getInvoice(id: string) {

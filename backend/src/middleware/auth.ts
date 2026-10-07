@@ -19,7 +19,7 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
 }
 
 export function requireRole(...roles: Role[]) {
-  return (req: Request, _res: Response, next: NextFunction) => {
+  const check = (req: Request, _res: Response, next: NextFunction) => {
     if (!req.user || !roles.includes(req.user.role)) {
       next(new AppError("FORBIDDEN", 403, "You do not have access to this resource"));
       return;
@@ -27,4 +27,6 @@ export function requireRole(...roles: Role[]) {
 
     next();
   };
+  // Read by the OpenAPI generator to document who may call each route.
+  return Object.assign(check, { roles });
 }

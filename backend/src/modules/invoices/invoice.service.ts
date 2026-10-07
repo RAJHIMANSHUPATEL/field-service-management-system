@@ -2,6 +2,7 @@ import { Prisma } from "../../generated/prisma/client.js";
 import type { AuthUser } from "../../types/authUser.js";
 import { AppError } from "../../lib/errors.js";
 import { charge } from "../../lib/payments.js";
+import { pageMeta } from "../../lib/pagination.js";
 import { prisma } from "../../lib/prisma.js";
 import { chooseCoverage, priceInvoice, PricingError, type DecimalValue } from "./invoice.pricing.js";
 import type { AddLineInput, ListInvoicesQuery, RecordPaymentInput, UpdateInvoiceInput } from "./invoice.schema.js";
@@ -154,12 +155,18 @@ export async function listInvoices(actor: AuthUser, query: ListInvoicesQuery) {
     const contact = await prisma.customerContact.findFirst({ where: { userId: actor.id } });
     customerFilter = { customerId: contact?.customerId ?? "none", status: { not: "DRAFT" as const } };
   }
-  const rows = await prisma.invoice.findMany({
-    where: { organizationId: actor.organizationId, ...(query.status ? { status: query.status } : {}), ...customerFilter },
-    orderBy: { createdAt: "desc" },
-    include: { customer: { select: { id: true, name: true } }, workOrder: { select: { id: true, asset: { select: { equipmentType: true } } } } },
-  });
-  return { data: rows };
+  const where = { organizationId: actor.organizationId, ...(query.status ? { status: query.status } : {}), ...customerFilter };
+  const [rows, total] = await Promise.all([
+    prisma.invoice.findMany({
+      where,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      skip: (query.page - 1) * query.limit,
+      take: query.limit,
+      include: { customer: { select: { id: true, name: true } }, workOrder: { select: { id: true, asset: { select: { equipmentType: true } } } } },
+    }),
+    prisma.invoice.count({ where }),
+  ]);
+  return { data: rows, meta: pageMeta(total, query.page, query.limit) };
 }
 
 export async function getInvoice(id: string, actor: AuthUser) {

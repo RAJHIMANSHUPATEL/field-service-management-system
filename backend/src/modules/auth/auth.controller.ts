@@ -49,6 +49,12 @@ function setRefreshCookie(res: Response, refreshToken: string) {
   res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions(REFRESH_COOKIE_MAX_AGE_MS));
 }
 
+// Native clients (React Native) cannot rely on cookies: with `X-Client: mobile` the refresh token
+// is also returned in the body, and refresh and logout accept it in the body.
+function mobileToken(req: Request, refreshToken: string) {
+  return req.header("x-client") === "mobile" ? { refreshToken } : {};
+}
+
 function clearRefreshCookie(res: Response) {
   res.clearCookie(REFRESH_COOKIE, refreshCookieOptions());
 }
@@ -61,6 +67,7 @@ export async function login(req: Request, res: Response) {
   res.status(200).json({
     data: {
       accessToken: session.accessToken,
+      ...mobileToken(req, session.refreshToken),
       user: session.user,
     },
   });
@@ -78,13 +85,15 @@ export async function refresh(req: Request, res: Response) {
   res.status(200).json({
     data: {
       accessToken: session.accessToken,
+      ...mobileToken(req, session.refreshToken),
       user: session.user,
     },
   });
 }
 
 export async function logout(req: Request, res: Response) {
-  const refreshToken = readCookie(req.header("cookie"), REFRESH_COOKIE);
+  const body = refreshSchema.parse(req.body ?? {});
+  const refreshToken = body.refreshToken ?? readCookie(req.header("cookie"), REFRESH_COOKIE);
   const user = await authService.logout(refreshToken);
   if (user) {
     setAuditActor(res, user.organizationId, user.id);
@@ -126,6 +135,7 @@ export async function acceptInvitation(req: Request, res: Response) {
   res.status(201).json({
     data: {
       accessToken: session.accessToken,
+      ...mobileToken(req, session.refreshToken),
       user: session.user,
     },
   });
