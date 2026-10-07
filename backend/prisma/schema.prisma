@@ -86,6 +86,9 @@ model Organization {
   invoices        Invoice[]
   invoiceLines    InvoiceLine[]
   payments        Payment[]
+  feedback        Feedback[]
+  notificationRules NotificationRule[]
+  notifications   Notification[]
 }
 
 model User {
@@ -112,6 +115,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   invitationsSent     Invitation[]
   paymentsRecorded    Payment[]
+  notifications       Notification[]
+  feedbackGiven       Feedback[]
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -330,6 +335,7 @@ model WorkOrder {
   partRequests   PartRequest[]
   notes          WorkOrderNote[]
   invoice        Invoice?
+  feedback       Feedback?
 
   @@index([organizationId])
   @@index([customerId])
@@ -529,6 +535,7 @@ model Part {
   movements      StockMovement[]
   visitParts     VisitPart[]
   requests       PartRequest[]
+  reorderLevel   Int          @default(0)
 
   @@unique([organizationId, sku])
   @@index([organizationId])
@@ -896,4 +903,85 @@ model Payment {
 
   @@index([invoiceId])
   @@index([organizationId])
+}
+
+// The customer's rating after a completed job, one per work order.
+model Feedback {
+  id             String       @id @default(cuid())
+  organizationId String
+  workOrderId    String       @unique
+  authorId       String
+  rating         Int
+  satisfied      Boolean
+  comment        String?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  workOrder      WorkOrder    @relation(fields: [workOrderId], references: [id])
+  author         User         @relation(fields: [authorId], references: [id])
+
+  @@index([organizationId, createdAt])
+}
+
+enum NotificationAudience {
+  CUSTOMER
+  TECHNICIAN
+  OPS
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// Table-driven rules: which channels an event uses for its audience, and the wording.
+model NotificationRule {
+  id             String               @id @default(cuid())
+  organizationId String
+  event          String
+  audience       NotificationAudience
+  channels       NotificationChannel[]
+  subject        String
+  body           String
+  isEnabled      Boolean              @default(true)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  organization   Organization         @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, event])
+}
+
+// One delivery of one event to one recipient on one channel; the worker sends it with retry.
+model Notification {
+  id             String              @id @default(cuid())
+  organizationId String
+  event          String
+  audience       NotificationAudience
+  channel        NotificationChannel
+  recipientId    String
+  subject        String
+  body           String
+  link           String?
+  entityType     String?
+  entityId       String?
+  dedupeKey      String?
+  status         NotificationStatus  @default(PENDING)
+  attempts       Int                 @default(0)
+  lastError      String?
+  sentAt         DateTime?
+  readAt         DateTime?
+  createdAt      DateTime            @default(now())
+  organization   Organization        @relation(fields: [organizationId], references: [id])
+  recipient      User                @relation(fields: [recipientId], references: [id])
+
+  @@unique([organizationId, dedupeKey, recipientId, channel])
+  @@index([organizationId, event])
+  @@index([recipientId, channel, readAt])
+  @@index([status])
 }
