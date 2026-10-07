@@ -1,4 +1,5 @@
-import { Router } from "express";
+import express, { Router } from "express";
+import { attachmentTypes, maxAttachmentBytes } from "./serviceRequest.schema.js";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import * as serviceRequestController from "./serviceRequest.controller.js";
 
@@ -14,3 +15,11 @@ serviceRequestRouter.post("/:id/accept", requireAuth, triageRoles, serviceReques
 serviceRequestRouter.post("/:id/reject", requireAuth, triageRoles, serviceRequestController.reject);
 serviceRequestRouter.post("/:id/request-info", requireAuth, triageRoles, serviceRequestController.requestInfo);
 serviceRequestRouter.post("/:id/reply", requireAuth, readRoles, serviceRequestController.reply);
+serviceRequestRouter.post(
+  "/:id/attachments",
+  requireAuth,
+  readRoles,
+  express.raw({ type: [...attachmentTypes], limit: maxAttachmentBytes + 1 }),
+  serviceRequestController.uploadAttachment,
+);
+serviceRequestRouter.get("/:id/attachments/:attachmentId", requireAuth, readRoles, serviceRequestController.attachmentUrl);

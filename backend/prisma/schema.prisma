@@ -87,6 +87,7 @@ model User {
   serviceRequestNotes ServiceRequestNote[]
   workOrderNotes      WorkOrderNote[]
   auditEvents         AuditEvent[]
+  requestAttachments  ServiceRequestAttachment[]
   passwordResetTokens PasswordResetToken[]
   invitationsSent     Invitation[]
 
@@ -246,6 +247,7 @@ model ServiceRequest {
   address         Address              @relation(fields: [addressId], references: [id])
   serviceType     ServiceType          @relation(fields: [serviceTypeId], references: [id])
   notes           ServiceRequestNote[]
+  attachments     ServiceRequestAttachment[]
   workOrder       WorkOrder?
 
   @@index([organizationId])
@@ -496,4 +498,23 @@ model Warehouse {
 
   @@unique([organizationId, name])
   @@index([organizationId])
+}
+
+model ServiceRequestAttachment {
+  id             String         @id @default(cuid())
+  organizationId String
+  requestId      String
+  uploadedById   String
+  fileName       String
+  contentType    String
+  size           Int
+  storageKey     String         @unique
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  request        ServiceRequest @relation(fields: [requestId], references: [id])
+  uploadedBy     User           @relation(fields: [uploadedById], references: [id])
+
+  @@index([organizationId])
+  @@index([requestId])
+  @@index([uploadedById])
 }

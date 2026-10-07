@@ -19,7 +19,10 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
+import { visitStatusLabel, workOrderStatusLabel } from "@/lib/status";
 import { toastError } from "@/lib/toastError";
+import { useServiceTypes } from "@/features/serviceTypes/hooks/useServiceTypes";
+import { attachmentTypes, attachmentUrl, type RequestAttachment } from "../api/serviceRequests.api";
 import type { RequestPriority, RequestStatus } from "../api/serviceRequests.api";
 import {
   useAcceptServiceRequest,
@@ -27,6 +30,7 @@ import {
   useReplyToServiceRequest,
   useRequestServiceInfo,
   useServiceRequest,
+  useUploadAttachments,
 } from "../hooks/useServiceRequests";
 import { messageSchema, type MessageInput } from "../schemas/serviceRequest.schema";
 import { statusLabel } from "./RequestsPage";
@@ -98,10 +102,22 @@ export function RequestDetailPage() {
                 value: `${record.address.label}, ${record.address.line1}, ${record.address.city}, ${record.address.state} ${record.address.postalCode}`,
               },
               ...(record.workOrder && !canTriage
-                ? [{ label: "Work order", value: record.workOrder.status.toLowerCase() }]
+                ? [
+                    { label: "Job status", value: workOrderStatusLabel(record.workOrder.status) },
+                    ...record.workOrder.visits
+                      .filter((visit) => visit.status !== "CANCELLED")
+                      .map((visit) => ({
+                        label: "Visit",
+                        value: `${new Date(visit.scheduledStart).toLocaleString(undefined, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })} · ${visitStatusLabel(visit.status)}`,
+                      })),
+                  ]
                 : []),
             ]}
           />
+          <Attachments requestId={record.id} attachments={record.attachments} canAdd={record.status !== "REJECTED"} />
         </CardContent>
         {showActions ? (
           <CardFooter className="flex-wrap gap-2">
@@ -153,6 +169,7 @@ export function RequestDetailPage() {
         requestId={record.id}
         open={acceptOpen}
         priority={record.priority}
+        serviceTypeId={record.serviceType.id}
         onOpenChange={setAcceptOpen}
       />
       <ReasonDialog
@@ -190,8 +207,10 @@ function AcceptDialog({
   requestId,
   open,
   priority,
+  serviceTypeId,
   onOpenChange,
 }: {
+  serviceTypeId: string;
   requestId: string;
   open: boolean;
   priority: RequestPriority;
@@ -199,6 +218,8 @@ function AcceptDialog({
 }) {
   const accept = useAcceptServiceRequest(requestId);
   const [nextPriority, setNextPriority] = useState<RequestPriority>(priority);
+  const serviceTypes = useServiceTypes();
+  const [nextServiceType, setNextServiceType] = useState(serviceTypeId);
   const [note, setNote] = useState("");
 
   function closeDialog() {
@@ -215,7 +236,7 @@ function AcceptDialog({
           onSubmit={(event) => {
             event.preventDefault();
             accept.mutate(
-              { priority: nextPriority, note: note.trim() || undefined },
+              { priority: nextPriority, serviceTypeId: nextServiceType, note: note.trim() || undefined },
               {
                 onSuccess: () => {
                   toast.success("Request accepted");
@@ -243,6 +264,23 @@ function AcceptDialog({
                 <option value="NORMAL">Normal</option>
                 <option value="HIGH">High</option>
                 <option value="URGENT">Urgent</option>
+              </select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="accept-service-type">Service type</FieldLabel>
+              <select
+                id="accept-service-type"
+                className={selectClassName}
+                value={nextServiceType}
+                onChange={(event) => setNextServiceType(event.target.value)}
+              >
+                {(serviceTypes.data ?? [])
+                  .filter((serviceType) => serviceType.isActive || serviceType.id === serviceTypeId)
+                  .map((serviceType) => (
+                    <option key={serviceType.id} value={serviceType.id}>
+                      {serviceType.name}
+                    </option>
+                  ))}
               </select>
             </Field>
             <Field>
@@ -348,5 +386,70 @@ function ReasonDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function sizeLabel(bytes: number) {
+  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function Attachments({
+  requestId,
+  attachments,
+  canAdd,
+}: {
+  requestId: string;
+  attachments: RequestAttachment[];
+  canAdd: boolean;
+}) {
+  const upload = useUploadAttachments(requestId);
+  if (attachments.length === 0 && !canAdd) {
+    return null;
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Attachments</p>
+      {attachments.length === 0 ? <p className="text-sm text-muted-foreground">No photos or files yet.</p> : null}
+      <ul className="flex flex-col gap-2">
+        {attachments.map((attachment) => (
+          <li key={attachment.id} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
+            <button
+              type="button"
+              className="truncate text-left text-sm font-medium text-primary underline-offset-4 hover:underline"
+              onClick={() =>
+                void attachmentUrl(requestId, attachment.id)
+                  .then((url) => window.open(url, "_blank", "noopener"))
+                  .catch((error: unknown) => toastError(error, "Could not open the file"))
+              }
+            >
+              {attachment.fileName}
+            </button>
+            <span className="shrink-0 text-xs text-muted-foreground">{sizeLabel(attachment.size)}</span>
+          </li>
+        ))}
+      </ul>
+      {canAdd ? (
+        <label className="text-sm">
+          <span className="sr-only">Add photos or files</span>
+          <Input
+            type="file"
+            aria-label="Add photos or files"
+            multiple
+            accept={attachmentTypes.join(",")}
+            disabled={upload.isPending}
+            onChange={(event) => {
+              const files = Array.from(event.target.files ?? []);
+              event.target.value = "";
+              if (files.length > 0) {
+                upload.mutate(files, {
+                  onSuccess: () => toast.success(files.length === 1 ? "File added" : "Files added"),
+                  onError: (error) => toastError(error, "Could not upload the file"),
+                });
+              }
+            }}
+          />
+        </label>
+      ) : null}
+    </div>
   );
 }

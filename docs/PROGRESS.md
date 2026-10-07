@@ -5,6 +5,8 @@ Read this file and `docs/stages/README.md` before starting any work. Never redo 
 ## Environment on the box
 
 - PostgreSQL 17 runs natively (`sudo service postgresql start`). The user is `postgres`, the local password is in `backend/.env`, and that file is never committed.
+- Redis runs natively (`sudo service redis-server start`).
+- Object storage: the MinIO binary download is gone (HTTP 410), so the box runs the S3 emulator `moto_server` on :9000 from `/workspace/.venv-moto` (`/workspace/.venv-moto/bin/moto_server -H 0.0.0.0 -p 9000`). `docker-compose.yml` still uses the MinIO image for machines with Docker.
 - Node 24 is in `/usr/local`. Playwright Chromium is installed for `e2e/`.
 - Checks: `cd backend && npm run lint && npm run build && npm test`; `cd frontend && npm run lint && npm run build`; `cd backend && npm run db:migrate && npm run db:seed`, then `cd e2e && npx playwright test`.
 

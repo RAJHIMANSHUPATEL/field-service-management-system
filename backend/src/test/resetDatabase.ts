@@ -7,6 +7,7 @@ export async function resetDatabase() {
   await prisma.workOrderNote.deleteMany();
   await prisma.serviceVisit.deleteMany();
   await prisma.workOrder.deleteMany();
+  await prisma.serviceRequestAttachment.deleteMany();
   await prisma.serviceRequestNote.deleteMany();
   await prisma.serviceRequest.deleteMany();
   await prisma.asset.deleteMany();
