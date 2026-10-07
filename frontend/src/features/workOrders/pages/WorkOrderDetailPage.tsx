@@ -18,12 +18,15 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
 import { useTechnicians } from "@/features/technicians/hooks/useTechnicians";
+import { visitStatusLabel, workOrderStatusLabel } from "@/lib/status";
 import { toastError } from "@/lib/toastError";
-import type { VisitStatus, WorkOrderStatus } from "../api/workOrders.api";
+import type { WorkOrderStatus } from "../api/workOrders.api";
+import { nextVisitStep, visitSteps } from "../schemas/workOrder.schema";
 import {
   useAcceptWorkOrder,
   useAssignWorkOrder,
   useDeclineWorkOrder,
+  useMoveVisit,
   useScheduleWorkOrder,
   useWorkOrder,
 } from "../hooks/useWorkOrders";
@@ -33,27 +36,17 @@ function dateLabel(value: string) {
 }
 
 function statusLabel(status: WorkOrderStatus) {
-  if (status === "ASSIGNED") {
-    return "Assigned";
-  }
-  if (status === "ACCEPTED") {
-    return "Accepted";
-  }
-  return "Open";
+  return workOrderStatusLabel(status);
 }
 
 function statusVariant(status: WorkOrderStatus) {
-  if (status === "ACCEPTED") {
+  if (status === "ACCEPTED" || status === "IN_PROGRESS") {
     return "default" as const;
   }
   if (status === "ASSIGNED") {
     return "secondary" as const;
   }
   return "outline" as const;
-}
-
-function visitStatusLabel(status: VisitStatus) {
-  return status === "SCHEDULED" ? "Scheduled" : "Cancelled";
 }
 
 function visitTime(value: string) {
@@ -69,6 +62,7 @@ export function WorkOrderDetailPage() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
   const accept = useAcceptWorkOrder(workOrderId);
+  const moveVisit = useMoveVisit(workOrderId);
 
   if (workOrder.isPending) {
     return <Skeleton className="h-40 w-full" />;
@@ -85,8 +79,11 @@ export function WorkOrderDetailPage() {
   const showSchedule = canAssign && record.status === "ASSIGNED" && !hasScheduledVisit;
   const showAccept = isAssignee && record.status === "ASSIGNED" && hasScheduledVisit;
   const showDecline = isAssignee && record.status === "ASSIGNED";
+  const activeVisit = record.visits.find((visit) => nextVisitStep(visit.status) !== null);
+  const visitStep =
+    isAssignee && record.status === "ACCEPTED" && activeVisit ? nextVisitStep(activeVisit.status) : null;
 
-  const showActions = canAssign || showAssign || showSchedule || showAccept || showDecline;
+  const showActions = canAssign || showAssign || showSchedule || showAccept || showDecline || visitStep !== null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -129,7 +126,7 @@ export function WorkOrderDetailPage() {
               {record.visits.map((visit) => (
                 <li key={visit.id} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
                   <span className="text-sm font-medium text-foreground">{visitTime(visit.scheduledStart)}</span>
-                  <Badge variant={visit.status === "SCHEDULED" ? "default" : "outline"}>{visitStatusLabel(visit.status)}</Badge>
+                  <Badge variant={visit.status === "CANCELLED" ? "outline" : "default"}>{visitStatusLabel(visit.status)}</Badge>
                 </li>
               ))}
             </ul>
@@ -141,6 +138,25 @@ export function WorkOrderDetailPage() {
           {canAssign ? (
             <Button variant="outline" nativeButton={false} render={<Link to={`/requests/${record.request.id}`} />}>
               View request
+            </Button>
+          ) : null}
+          {visitStep && activeVisit ? (
+            <Button
+              type="button"
+              size="lg"
+              className="h-12 w-full sm:w-auto"
+              disabled={moveVisit.isPending}
+              onClick={() =>
+                moveVisit.mutate(
+                  { visitId: activeVisit.id, step: visitStep },
+                  {
+                    onSuccess: () => toast.success(visitSteps[visitStep].done),
+                    onError: (error) => toastError(error, "Could not update the visit"),
+                  },
+                )
+              }
+            >
+              {moveVisit.isPending ? "Saving..." : visitSteps[visitStep].label}
             </Button>
           ) : null}
           {showAccept ? (

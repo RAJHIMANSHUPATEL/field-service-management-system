@@ -5,9 +5,11 @@ import {
   declineWorkOrder,
   getWorkOrder,
   listWorkOrders,
+  moveVisit,
   scheduleWorkOrder,
   workOrderKeys,
 } from "../api/workOrders.api";
+import type { VisitStep } from "../schemas/workOrder.schema";
 
 export function useWorkOrders() {
   return useQuery({
@@ -59,6 +61,14 @@ export function useDeclineWorkOrder(id: string) {
   const refresh = useRefreshWorkOrder(id);
   return useMutation({
     mutationFn: (reason: string) => declineWorkOrder(id, reason),
+    onSuccess: refresh,
+  });
+}
+
+export function useMoveVisit(workOrderId: string) {
+  const refresh = useRefreshWorkOrder(workOrderId);
+  return useMutation({
+    mutationFn: ({ visitId, step }: { visitId: string; step: VisitStep }) => moveVisit(visitId, step),
     onSuccess: refresh,
   });
 }
