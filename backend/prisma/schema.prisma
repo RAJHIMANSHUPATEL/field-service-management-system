@@ -63,6 +63,8 @@ model Organization {
   workOrders      WorkOrder[]
   serviceVisits   ServiceVisit[]
   workOrderNotes  WorkOrderNote[]
+  auditEvents     AuditEvent[]
+  invitations     Invitation[]
 }
 
 model User {
@@ -80,6 +82,9 @@ model User {
   technician          Technician?
   serviceRequestNotes ServiceRequestNote[]
   workOrderNotes      WorkOrderNote[]
+  auditEvents         AuditEvent[]
+  passwordResetTokens PasswordResetToken[]
+  invitationsSent     Invitation[]
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -326,4 +331,66 @@ model WorkOrderNote {
   @@index([organizationId])
   @@index([workOrderId])
   @@index([authorId])
+}
+
+model AuditEvent {
+  id             String       @id @default(cuid())
+  organizationId String
+  actorId        String?
+  action         String
+  entityType     String
+  entityId       String?
+  method         String
+  path           String
+  status         Int
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  actor          User?        @relation(fields: [actorId], references: [id])
+
+  @@index([organizationId])
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+model Invitation {
+  id             String           @id @default(cuid())
+  organizationId String
+  invitedById    String
+  email          String
+  name           String
+  role           Role
+  tokenHash      String           @unique
+  status         InvitationStatus @default(PENDING)
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  organization   Organization     @relation(fields: [organizationId], references: [id])
+  invitedBy      User             @relation(fields: [invitedById], references: [id])
+
+  @@index([organizationId])
+  @@index([invitedById])
+  @@index([email])
+  @@index([status])
 }

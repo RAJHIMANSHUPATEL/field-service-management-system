@@ -1,6 +1,13 @@
 import type { CookieOptions, Request, Response } from "express";
 import { AppError } from "../../lib/errors.js";
-import { loginSchema, refreshSchema } from "./auth.schema.js";
+import type { AuditActor } from "../../middleware/audit.js";
+import {
+  acceptInvitationSchema,
+  confirmPasswordResetSchema,
+  loginSchema,
+  refreshSchema,
+  requestPasswordResetSchema,
+} from "./auth.schema.js";
 import * as authService from "./auth.service.js";
 
 export const REFRESH_COOKIE = "refreshToken";
@@ -32,6 +39,11 @@ export function readCookie(header: string | undefined, name: string): string | u
   return undefined;
 }
 
+function setAuditActor(res: Response, organizationId: string, actorId: string | null) {
+  const actor: AuditActor = { organizationId, actorId };
+  res.locals.auditActor = actor;
+}
+
 function setRefreshCookie(res: Response, refreshToken: string) {
   res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions(REFRESH_COOKIE_MAX_AGE_MS));
 }
@@ -44,6 +56,7 @@ export async function login(req: Request, res: Response) {
   const body = loginSchema.parse(req.body);
   const session = await authService.login(body);
   setRefreshCookie(res, session.refreshToken);
+  setAuditActor(res, session.user.organization.id, session.user.id);
   res.status(200).json({
     data: {
       accessToken: session.accessToken,
@@ -71,7 +84,10 @@ export async function refresh(req: Request, res: Response) {
 
 export async function logout(req: Request, res: Response) {
   const refreshToken = readCookie(req.header("cookie"), REFRESH_COOKIE);
-  await authService.logout(refreshToken);
+  const user = await authService.logout(refreshToken);
+  if (user) {
+    setAuditActor(res, user.organizationId, user.id);
+  }
   clearRefreshCookie(res);
   res.status(204).send();
 }
@@ -83,4 +99,33 @@ export async function me(req: Request, res: Response) {
 
   const user = await authService.currentUser(req.user.id);
   res.status(200).json({ data: user });
+}
+
+export async function requestPasswordReset(req: Request, res: Response) {
+  const body = requestPasswordResetSchema.parse(req.body);
+  const user = await authService.requestPasswordReset(body.email);
+  if (user) {
+    setAuditActor(res, user.organizationId, user.id);
+  }
+  res.status(202).json({ data: { sent: true } });
+}
+
+export async function confirmPasswordReset(req: Request, res: Response) {
+  const body = confirmPasswordResetSchema.parse(req.body);
+  const user = await authService.confirmPasswordReset(body);
+  setAuditActor(res, user.organizationId, user.id);
+  res.status(200).json({ data: { reset: true } });
+}
+
+export async function acceptInvitation(req: Request, res: Response) {
+  const body = acceptInvitationSchema.parse(req.body);
+  const session = await authService.acceptInvitation(body);
+  setRefreshCookie(res, session.refreshToken);
+  setAuditActor(res, session.user.organization.id, session.user.id);
+  res.status(201).json({
+    data: {
+      accessToken: session.accessToken,
+      user: session.user,
+    },
+  });
 }

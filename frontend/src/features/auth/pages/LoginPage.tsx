@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -56,9 +57,14 @@ export function LoginPage() {
             {loginError ? <p className="mt-4 text-sm text-destructive">{loginError}</p> : null}
           </CardContent>
           <CardFooter>
-            <Button className="w-full" type="submit" disabled={login.isPending}>
-              {login.isPending ? "Signing in..." : "Sign in"}
-            </Button>
+            <div className="flex w-full flex-col gap-3">
+              <Button className="w-full" type="submit" disabled={login.isPending}>
+                {login.isPending ? "Signing in..." : "Sign in"}
+              </Button>
+              <Link className="text-center text-sm text-muted-foreground underline-offset-4 hover:underline" to="/forgot-password">
+                Forgot password?
+              </Link>
+            </div>
           </CardFooter>
         </form>
       </Card>

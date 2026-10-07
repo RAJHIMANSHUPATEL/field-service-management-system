@@ -11,6 +11,9 @@ import { TechnicianProfilePage } from "@/features/technicians/pages/TechnicianPr
 import { TechniciansPage } from "@/features/technicians/pages/TechniciansPage";
 import { WorkOrderDetailPage } from "@/features/workOrders/pages/WorkOrderDetailPage";
 import { WorkOrdersPage } from "@/features/workOrders/pages/WorkOrdersPage";
+import { AuditLogPage } from "@/features/auditEvents/pages/AuditLogPage";
+import { AcceptInvitePage, ForgotPasswordPage, ResetPasswordPage } from "@/features/users/pages/PublicAuthPages";
+import { UsersPage } from "@/features/users/pages/UsersPage";
 import { AppShell } from "./AppShell";
 import { NotReadyPage } from "./NotReadyPage";
 import { RequireAuth } from "./RequireAuth";
@@ -22,6 +25,9 @@ export const router = createBrowserRouter([
     path: "/login",
     element: <LoginPage />,
   },
+  { path: "/forgot-password", element: <ForgotPasswordPage /> },
+  { path: "/reset-password", element: <ResetPasswordPage /> },
+  { path: "/accept-invite", element: <AcceptInvitePage /> },
   {
     path: "/",
     element: <RequireAuth />,
@@ -44,9 +50,14 @@ export const router = createBrowserRouter([
               { path: "contracts", element: <NotReadyPage /> },
               { path: "analytics", element: <NotReadyPage /> },
               { path: "notifications", element: <NotReadyPage /> },
-              { path: "users", element: <NotReadyPage /> },
               { path: "master", element: <NotReadyPage /> },
-              { path: "audit", element: <NotReadyPage /> },
+            ],
+          },
+          {
+            element: <RequireRole roles={["ADMIN"]} />,
+            children: [
+              { path: "users", element: <UsersPage /> },
+              { path: "audit", element: <AuditLogPage /> },
             ],
           },
           {

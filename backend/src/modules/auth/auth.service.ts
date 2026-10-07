@@ -5,7 +5,8 @@ import type { Role } from "../../generated/prisma/client.js";
 import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import type { AuthUser } from "../../types/authUser.js";
-import type { LoginInput } from "./auth.schema.js";
+import { appUrl, sendMail } from "../../lib/mailer.js";
+import type { AcceptInvitationInput, ConfirmPasswordResetInput, LoginInput } from "./auth.schema.js";
 
 const ACCESS_TOKEN_TTL = "15m";
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -32,7 +33,7 @@ function requiredEnv(name: string): string {
   return value;
 }
 
-function hashToken(token: string): string {
+export function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
@@ -143,22 +144,24 @@ export async function refresh(refreshToken: string): Promise<AuthSession> {
   };
 }
 
-export async function logout(refreshToken: string | undefined): Promise<void> {
+export async function logout(refreshToken: string | undefined) {
   if (!refreshToken) {
-    return;
+    return null;
   }
 
   const existing = await prisma.refreshToken.findUnique({
     where: { tokenHash: hashToken(refreshToken) },
+    include: { user: { select: { id: true, organizationId: true } } },
   });
   if (!existing || existing.revokedAt) {
-    return;
+    return null;
   }
 
   await prisma.refreshToken.update({
     where: { id: existing.id },
     data: { revokedAt: new Date() },
   });
+  return existing.user;
 }
 
 export async function authenticate(accessToken: string): Promise<AuthUser> {
@@ -197,4 +200,98 @@ export async function currentUser(userId: string): Promise<SessionUser> {
   }
 
   return toSessionUser(user);
+}
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+
+function newToken() {
+  return randomBytes(32).toString("base64url");
+}
+
+export async function requestPasswordReset(emailInput: string) {
+  const email = emailInput.toLowerCase();
+  const users = await prisma.user.findMany({ where: { email } });
+  const user = users.length === 1 ? users[0] : undefined;
+  // Same response whether or not the account exists, so the endpoint does not reveal accounts.
+  if (!user) {
+    return null;
+  }
+  const token = newToken();
+  await prisma.passwordResetToken.create({
+    data: { userId: user.id, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS) },
+  });
+  const link = appUrl(`/reset-password?token=${token}`);
+  await sendMail({ to: user.email, subject: "Reset your password", text: `Reset your password: ${link}`, link });
+  return { id: user.id, organizationId: user.organizationId };
+}
+
+export async function confirmPasswordReset(input: ConfirmPasswordResetInput) {
+  const existing = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash: hashToken(input.token) },
+    include: { user: true },
+  });
+  if (!existing || existing.expiresAt.getTime() <= Date.now()) {
+    throw new AppError("TOKEN_INVALID", 400, "This link is invalid or has expired");
+  }
+  if (existing.usedAt) {
+    throw new AppError("INVALID_TRANSITION", 409, "This link has already been used");
+  }
+  const passwordHash = await argon2.hash(input.password);
+  await prisma.$transaction(async (tx) => {
+    const used = await tx.passwordResetToken.updateMany({
+      where: { id: existing.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    if (used.count !== 1) {
+      throw new AppError("INVALID_TRANSITION", 409, "This link has already been used");
+    }
+    await tx.user.update({ where: { id: existing.userId }, data: { passwordHash } });
+    await tx.refreshToken.updateMany({
+      where: { userId: existing.userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  });
+  return { id: existing.user.id, organizationId: existing.user.organizationId };
+}
+
+export async function acceptInvitation(input: AcceptInvitationInput): Promise<AuthSession> {
+  const invitation = await prisma.invitation.findUnique({ where: { tokenHash: hashToken(input.token) } });
+  if (!invitation || invitation.expiresAt.getTime() <= Date.now()) {
+    throw new AppError("TOKEN_INVALID", 400, "This invitation is invalid or has expired");
+  }
+  if (invitation.status !== "PENDING") {
+    throw new AppError("INVALID_TRANSITION", 409, "This invitation is no longer open");
+  }
+  const taken = await prisma.user.findFirst({
+    where: { organizationId: invitation.organizationId, email: invitation.email },
+  });
+  if (taken) {
+    throw new AppError("EMAIL_IN_USE", 409, "A user with this email already exists");
+  }
+  const passwordHash = await argon2.hash(input.password);
+  const user = await prisma.$transaction(async (tx) => {
+    const updated = await tx.invitation.updateMany({
+      where: { id: invitation.id, status: "PENDING" },
+      data: { status: "ACCEPTED", acceptedAt: new Date() },
+    });
+    if (updated.count !== 1) {
+      throw new AppError("INVALID_TRANSITION", 409, "This invitation is no longer open");
+    }
+    return tx.user.create({
+      data: {
+        organizationId: invitation.organizationId,
+        email: invitation.email,
+        name: invitation.name,
+        role: invitation.role,
+        passwordHash,
+      },
+      include: { organization: true },
+    });
+  });
+  const sessionUser = toSessionUser(user);
+  return {
+    accessToken: signAccessToken(sessionUser),
+    refreshToken: await issueRefreshToken(user.id, randomUUID()),
+    user: sessionUser,
+  };
 }

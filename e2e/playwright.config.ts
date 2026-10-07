@@ -1,7 +1,11 @@
+import { resolve } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
+
+export const outbox = resolve(import.meta.dirname, "test-results/outbox.jsonl");
 
 export default defineConfig({
   testDir: "./tests",
+  globalSetup: "./global-setup.ts",
   timeout: 120_000,
   workers: 1,
   use: {
@@ -13,6 +17,7 @@ export default defineConfig({
     {
       command: "npm run dev",
       cwd: "../backend",
+      env: { MAIL_PROVIDER: "file", MAIL_OUTBOX_FILE: outbox },
       url: "http://localhost:4000/health",
       reuseExistingServer: true,
       timeout: 60_000,

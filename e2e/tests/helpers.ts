@@ -33,3 +33,20 @@ export async function dialogSubmit(page: Page, name: string | RegExp) {
   await page.getByRole("dialog").getByRole("button", { name }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 }
+
+export async function lastMailLink(to: string) {
+  const { readFile } = await import("node:fs/promises");
+  const { outbox } = await import("../playwright.config");
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const lines = (await readFile(outbox, "utf8").catch(() => "")).trim().split("\n").filter(Boolean);
+    const match = lines
+      .map((line) => JSON.parse(line) as { to: string; link?: string })
+      .reverse()
+      .find((mail) => mail.to === to && mail.link);
+    if (match?.link) {
+      return new URL(match.link).pathname + new URL(match.link).search;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`No mail for ${to}`);
+}
