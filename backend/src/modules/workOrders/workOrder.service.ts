@@ -71,6 +71,7 @@ const workOrderInclude = {
   },
   invoice: { select: { id: true, number: true, status: true, total: true, currency: true } },
   feedback: { select: { id: true, rating: true, satisfied: true, comment: true, createdAt: true } },
+  maintenancePlan: { select: { id: true, name: true, nextDueOn: true } },
   partRequests: {
     orderBy: { createdAt: "asc" as const },
     select: {
@@ -128,6 +129,7 @@ export async function createOpenWorkOrder(
     serviceTypeId: string;
     priority: RequestPriority;
     description: string;
+    maintenancePlanId?: string;
   },
 ) {
   return tx.workOrder.create({
@@ -140,6 +142,7 @@ export async function createOpenWorkOrder(
       serviceTypeId: input.serviceTypeId,
       priority: input.priority,
       description: input.description,
+      maintenancePlanId: input.maintenancePlanId,
       status: "OPEN",
     },
   });

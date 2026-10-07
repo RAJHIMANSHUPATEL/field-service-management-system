@@ -7,6 +7,11 @@ import { contractTransitions } from "./contract.transitions.js";
 const include = {
   customer: { select: { id: true, name: true } },
   assets: { select: { asset: { select: { id: true, equipmentType: true, serialNumber: true } } } },
+  visits: {
+    orderBy: { createdAt: "desc" as const },
+    select: { id: true, createdAt: true, workOrder: { select: { id: true, asset: { select: { equipmentType: true } } } } },
+  },
+  maintenancePlans: { select: { id: true, name: true, nextDueOn: true, isActive: true, intervalDays: true } },
 };
 
 // Dates are whole days: a contract covers from the start of startsOn to the end of endsOn (UTC).
@@ -67,6 +72,7 @@ export async function createContract(actor: AuthUser, input: CreateContractInput
       serviceChargeCoveredPercent: input.serviceChargeCoveredPercent,
       labourCoveredPercent: input.labourCoveredPercent,
       partsCoveredPercent: input.partsCoveredPercent,
+      includedVisits: input.includedVisits ?? null,
       assets: { create: assets.map((asset) => ({ assetId: asset.id })) },
     },
     include,

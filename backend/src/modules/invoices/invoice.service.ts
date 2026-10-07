@@ -38,6 +38,7 @@ async function pricingSource(tx: Tx, workOrderId: string) {
       organization: true,
       serviceType: true,
       asset: { include: { contractAssets: { include: { contract: true } } } },
+      contractVisit: true,
       visits: { include: { parts: { include: { part: true } } } },
     },
   });
@@ -54,7 +55,13 @@ async function pricingSource(tx: Tx, workOrderId: string) {
     completedAt,
     warrantyExpiresAt: workOrder.asset.warrantyExpiresAt,
     contracts: workOrder.asset.contractAssets
-      .map((row) => row.contract)
+      .map((row) => ({
+        ...row.contract,
+        hasVisitsLeft:
+          row.contract.includedVisits === null ||
+          row.contract.usedVisits < row.contract.includedVisits ||
+          workOrder.contractVisit?.contractId === row.contract.id,
+      }))
       .filter((contract) => contract.customerId === workOrder.customerId),
   });
   const parts = workOrder.visits.flatMap((visit) =>

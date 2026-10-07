@@ -28,6 +28,8 @@ import { feedbackRouter } from "./modules/feedback/feedback.routes.js";
 import { notificationRouter } from "./modules/notifications/notification.routes.js";
 import { runSweeps } from "./modules/notifications/notification.events.js";
 import { startNotificationWorker } from "./lib/queue.js";
+import { maintenanceRouter } from "./modules/maintenance/maintenance.routes.js";
+import { generateDue } from "./modules/maintenance/maintenance.service.js";
 import { warehouseRouter } from "./modules/warehouses/warehouse.routes.js";
 import "./types/authUser.js";
 
@@ -66,6 +68,7 @@ export function createApp() {
   app.use("/api/v1/part-requests", partRequestRouter);
   app.use("/api/v1/contracts", contractRouter);
   app.use("/api/v1/invoices", invoiceRouter);
+  app.use("/api/v1/maintenance-plans", maintenanceRouter);
   app.use("/api/v1/feedback", feedbackRouter);
   app.use("/api/v1/notifications", notificationRouter);
   app.use("/api/v1/audit-events", auditEventRouter);
@@ -93,4 +96,9 @@ if (process.env.NODE_ENV !== "test") {
   setInterval(() => {
     runSweeps().catch((error: unknown) => console.error("Notification sweep failed", error));
   }, 5 * 60_000).unref();
+  // Due maintenance plans open their work orders without anyone pressing a button.
+  const maintenanceEvery = Number(process.env.MAINTENANCE_SWEEP_MS ?? 15 * 60_000);
+  const generate = () => generateDue().catch((error: unknown) => console.error("Maintenance sweep failed", error));
+  void generate();
+  setInterval(generate, maintenanceEvery).unref();
 }
