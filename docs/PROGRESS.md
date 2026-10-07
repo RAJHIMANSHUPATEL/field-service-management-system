@@ -21,3 +21,4 @@ Read this file and `docs/stages/README.md` before starting any work. Never redo 
 | 3 | feat/phase3-request-attachments (stage 9) | a7cc563 | Phase 4: availability, calendar, scoring, reassignment, reschedule/cancel with history |
 | 4 | feat/phase4-scheduling (stage 10) | 1c154a7 | Phase 5: technician execution (my jobs, diagnosis, work, photos, signature, completion) |
 | 5 | feat/phase5-execution (stage 11) | 0c41a3b | Phase 6: parts and inventory (stock by location, transfers, reservation, consumption, ledger) |
+| 6 | feat/phase6-inventory (stage 12) | d679dd3 | Phase 7: incomplete jobs, AWAITING_PARTS / FOLLOW_UP_REQUIRED, part requests, visit two |
