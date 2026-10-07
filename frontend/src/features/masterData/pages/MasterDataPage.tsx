@@ -231,11 +231,13 @@ export function MasterDataPage() {
           { name: "name", label: "Name", initial: "" },
           { name: "unitPrice", label: "Unit price", initial: "" },
           { name: "currency", label: "Currency", initial: "INR" },
+          { name: "reorderLevel", label: "Low-stock alert at", initial: "0" },
         ]}
         columns={[
           { label: "SKU", cell: (row) => <span className="font-mono text-xs">{row.sku}</span> },
           { label: "Name", cell: (row) => row.name },
           { label: "Price", cell: (row) => `${row.currency} ${Number(row.unitPrice).toFixed(2)}` },
+          { label: "Alert at", cell: (row) => (row.reorderLevel > 0 ? row.reorderLevel : "—") },
         ]}
       />
       <CatalogCard<Warehouse>

@@ -17,6 +17,10 @@ export const partSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
   unitPrice: z.string().regex(/^\d{1,10}(\.\d{1,2})?$/, "Use an amount like 1250.00"),
   currency: z.string().trim().length(3, "Use a 3-letter code like INR"),
+  reorderLevel: z
+    .string()
+    .regex(/^\d{0,6}$/, "Use a whole number")
+    .transform((value) => (value === "" ? 0 : Number(value))),
 });
 
 export const warehouseSchema = z

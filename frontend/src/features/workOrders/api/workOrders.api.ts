@@ -22,6 +22,7 @@ export type WorkOrder = {
   visits: Visit[];
   partRequests: PartRequest[];
   invoice: InvoiceRef | null;
+  feedback: { rating: number; satisfied: boolean; comment: string | null } | null;
   notes: { id: string; body: string; createdAt: string; author: { id: string; name: string } }[];
 };
 
