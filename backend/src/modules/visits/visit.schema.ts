@@ -29,3 +29,44 @@ export const calendarQuerySchema = z
 
 export type RescheduleVisitInput = z.infer<typeof rescheduleVisitSchema>;
 export type CalendarQuery = z.infer<typeof calendarQuerySchema>;
+
+export const photoParamsSchema = z.object({ id: z.string().min(1), photoId: z.string().min(1) });
+
+export const visitReportSchema = z
+  .object({
+    diagnosis: z.string().trim().min(1).max(5000).optional(),
+    workPerformed: z.string().trim().min(1).max(5000).optional(),
+  })
+  .refine((value) => value.diagnosis !== undefined || value.workPerformed !== undefined, {
+    message: "Send a diagnosis or the work performed",
+  });
+
+export const photoTypes = ["image/jpeg", "image/png", "image/webp"] as const;
+export const maxPhotoBytes = 10 * 1024 * 1024;
+
+export const uploadPhotoSchema = z.object({
+  contentType: z.enum(photoTypes),
+  fileName: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .transform((value) => value.replace(/[^\w. -]/g, "_")),
+  caption: z.string().trim().max(200).optional(),
+});
+
+const pngDataUrl = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/;
+
+// The signature arrives as a PNG data URL from the signature pad.
+export const signatureSchema = z.object({
+  signerName: z.string().trim().min(1).max(120),
+  image: z
+    .string()
+    .max(2_000_000)
+    .regex(pngDataUrl, "Send the signature as a PNG data URL")
+    .transform((value) => Buffer.from(value.replace(pngDataUrl, "$1"), "base64"))
+    .refine((buffer) => buffer.length > 8 && buffer.subarray(1, 4).toString() === "PNG", "The signature is not a PNG"),
+});
+
+export type VisitReportInput = z.infer<typeof visitReportSchema>;
+export type SignatureInput = z.infer<typeof signatureSchema>;

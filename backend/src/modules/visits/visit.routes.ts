@@ -1,4 +1,5 @@
-import { Router } from "express";
+import express, { Router } from "express";
+import { maxPhotoBytes, photoTypes } from "./visit.schema.js";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import * as visitController from "./visit.controller.js";
 
@@ -15,3 +16,16 @@ visitRouter.post("/:id/cancel", requireAuth, planners, visitController.cancel);
 visitRouter.post("/:id/en-route", requireAuth, assignees, visitController.enRoute);
 visitRouter.post("/:id/arrive", requireAuth, assignees, visitController.arrive);
 visitRouter.post("/:id/start", requireAuth, assignees, visitController.start);
+visitRouter.post("/:id/complete", requireAuth, assignees, visitController.complete);
+
+visitRouter.patch("/:id/report", requireAuth, assignees, visitController.report);
+visitRouter.post(
+  "/:id/photos",
+  requireAuth,
+  assignees,
+  express.raw({ type: [...photoTypes], limit: maxPhotoBytes + 1 }),
+  visitController.uploadPhoto,
+);
+visitRouter.get("/:id/photos/:photoId", requireAuth, visitController.photoUrl);
+visitRouter.post("/:id/signature", requireAuth, assignees, visitController.signature);
+visitRouter.get("/:id/signature", requireAuth, visitController.signatureUrl);

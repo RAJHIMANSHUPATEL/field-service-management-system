@@ -30,3 +30,5 @@ export type AssignWorkOrderInput = z.infer<typeof assignWorkOrderSchema>;
 export type ScheduleWorkOrderInput = z.infer<typeof scheduleWorkOrderSchema>;
 export type DeclineWorkOrderInput = z.infer<typeof declineWorkOrderSchema>;
 export type ReassignWorkOrderInput = z.infer<typeof reassignWorkOrderSchema>;
+
+export const addNoteSchema = z.object({ body: z.string().trim().min(1).max(5000) });

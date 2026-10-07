@@ -2,7 +2,7 @@ import type { AuthUser } from "../../types/authUser.js";
 import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { getWorkOrder } from "../workOrders/workOrder.service.js";
-import { canMoveVisit, canReplan, visitTransitions, type VisitStep } from "./visit.transitions.js";
+import { canMoveVisit, canReplan, stepTimestamp, visitTransitions, type VisitStep } from "./visit.transitions.js";
 import { assertTechnicianFree } from "./visit.scheduling.js";
 import type { CalendarQuery, RescheduleVisitInput } from "./visit.schema.js";
 
@@ -27,15 +27,27 @@ export async function moveVisit(id: string, actor: AuthUser, step: VisitStep) {
   }
 
   const { from, to } = visitTransitions[step];
-  // The work order stays ACCEPTED until the visit starts.
-  if (!canMoveVisit(step, visit.status) || visit.workOrder.status !== "ACCEPTED") {
+  // The work order stays ACCEPTED until the visit starts, then IN_PROGRESS until completion.
+  const workOrderFrom = step === "complete" ? "IN_PROGRESS" : "ACCEPTED";
+  if (!canMoveVisit(step, visit.status) || visit.workOrder.status !== workOrderFrom) {
     throw new AppError("INVALID_TRANSITION", 409, "This visit cannot move to that step");
+  }
+  if (step === "complete") {
+    const missing = [
+      ...(visit.workPerformed ? [] : ["workPerformed"]),
+      ...(visit.signatureKey ? [] : ["signature"]),
+    ];
+    if (missing.length > 0) {
+      throw new AppError("INVALID_TRANSITION", 409, "Record the work performed and the customer signature first", {
+        missing,
+      });
+    }
   }
 
   await prisma.$transaction(async (tx) => {
     const moved = await tx.serviceVisit.updateMany({
       where: { id: visit.id, organizationId: actor.organizationId, status: from },
-      data: { status: to },
+      data: { status: to, [stepTimestamp[step]]: new Date() },
     });
     if (moved.count !== 1) {
       throw new AppError("INVALID_TRANSITION", 409, "This visit cannot move to that step");
@@ -45,6 +57,15 @@ export async function moveVisit(id: string, actor: AuthUser, step: VisitStep) {
         where: { id: visit.workOrder.id, organizationId: actor.organizationId, status: "ACCEPTED" },
         data: { status: "IN_PROGRESS" },
       });
+    }
+    if (step === "complete") {
+      const completed = await tx.workOrder.updateMany({
+        where: { id: visit.workOrder.id, organizationId: actor.organizationId, status: "IN_PROGRESS" },
+        data: { status: "COMPLETED" },
+      });
+      if (completed.count !== 1) {
+        throw new AppError("INVALID_TRANSITION", 409, "This visit cannot move to that step");
+      }
     }
   });
 

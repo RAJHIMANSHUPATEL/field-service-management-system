@@ -32,7 +32,7 @@ export function createApp() {
       credentials: true,
     }),
   );
-  app.use(express.json());
+  app.use(express.json({ limit: "3mb" })); // room for a signature PNG data URL
   app.use(requestLogger);
   app.use("/api/v1", audit);
 

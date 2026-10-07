@@ -14,5 +14,6 @@ workOrderRouter.get("/:id/candidates", requireAuth, writers, workOrderController
 workOrderRouter.post("/:id/reassign", requireAuth, writers, workOrderController.reassign);
 workOrderRouter.post("/:id/assign", requireAuth, writers, workOrderController.assign);
 workOrderRouter.post("/:id/schedule", requireAuth, writers, workOrderController.schedule);
+workOrderRouter.post("/:id/notes", requireAuth, readers, workOrderController.addNote);
 workOrderRouter.post("/:id/accept", requireAuth, assignees, workOrderController.accept);
 workOrderRouter.post("/:id/decline", requireAuth, assignees, workOrderController.decline);

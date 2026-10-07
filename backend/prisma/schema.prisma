@@ -39,6 +39,7 @@ enum WorkOrderStatus {
   ASSIGNED
   ACCEPTED
   IN_PROGRESS
+  COMPLETED
 }
 
 enum VisitStatus {
@@ -46,6 +47,7 @@ enum VisitStatus {
   EN_ROUTE
   ARRIVED
   IN_PROGRESS
+  COMPLETED
   CANCELLED
 }
 
@@ -69,6 +71,7 @@ model Organization {
   serviceAreas    ServiceArea[]
   parts           Part[]
   warehouses      Warehouse[]
+  visitPhotos     VisitPhoto[]
 }
 
 model User {
@@ -89,6 +92,7 @@ model User {
   auditEvents         AuditEvent[]
   visitChanges        VisitChange[]
   requestAttachments  ServiceRequestAttachment[]
+  visitPhotos         VisitPhoto[]
   passwordResetTokens PasswordResetToken[]
   invitationsSent     Invitation[]
 
@@ -319,12 +323,22 @@ model ServiceVisit {
   scheduledStart DateTime
   durationMinutes Int        @default(120)
   status         VisitStatus @default(SCHEDULED)
+  enRouteAt      DateTime?
+  arrivedAt      DateTime?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  diagnosis      String?
+  workPerformed  String?
+  signerName     String?
+  signatureKey   String?
+  signedAt       DateTime?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id])
   workOrder      WorkOrder    @relation(fields: [workOrderId], references: [id])
   technician     Technician   @relation(fields: [technicianId], references: [id])
   changes        VisitChange[]
+  photos         VisitPhoto[]
 
   @@index([scheduledStart])
   @@index([organizationId])
@@ -571,4 +585,23 @@ model TechnicianTimeOff {
   @@index([organizationId])
   @@index([technicianId])
   @@index([startsAt])
+}
+
+model VisitPhoto {
+  id             String       @id @default(cuid())
+  organizationId String
+  visitId        String
+  uploadedById   String
+  fileName       String
+  contentType    String
+  size           Int
+  storageKey     String
+  caption        String?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  visit          ServiceVisit @relation(fields: [visitId], references: [id])
+  uploadedBy     User         @relation(fields: [uploadedById], references: [id])
+
+  @@index([organizationId])
+  @@index([visitId])
 }

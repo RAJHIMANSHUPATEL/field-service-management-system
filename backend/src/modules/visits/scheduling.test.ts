@@ -1,147 +1,18 @@
-import argon2 from "argon2";
 import request from "supertest";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "../../lib/prisma.js";
 import { app } from "../../server.js";
 import { resetDatabase } from "../../test/resetDatabase.js";
-
-const password = "Password123!";
-let passwordHash: string;
-
-async function login(email: string) {
-  const response = await request(app).post("/api/v1/auth/login").send({ email, password });
-  expect(response.status).toBe(200);
-  return response.body.data.accessToken as string;
-}
-
-function auth(token: string) {
-  return { Authorization: `Bearer ${token}` };
-}
-
-beforeAll(async () => {
-  passwordHash = await argon2.hash(password);
-});
+import { auth, hashedPassword, login, password, scheduledJob, seedStaff, setup } from "../../test/jobFixtures.js";
 
 beforeEach(async () => {
   await resetDatabase();
-  const organization = await prisma.organization.create({ data: { name: "Plan Co" } });
-  await prisma.user.create({
-    data: {
-      organizationId: organization.id,
-      email: "admin@example.com",
-      name: "Admin",
-      role: "ADMIN",
-      passwordHash,
-    },
-  });
-  await prisma.user.create({
-    data: {
-      organizationId: organization.id,
-      email: "ops@example.com",
-      name: "Ops",
-      role: "OPS",
-      passwordHash,
-    },
-  });
+  await seedStaff();
 });
 
 afterAll(async () => {
   await prisma.$disconnect();
 });
-
-type Setup = Awaited<ReturnType<typeof setup>>;
-
-async function setup() {
-  const adminToken = await login("admin@example.com");
-  const opsToken = await login("ops@example.com");
-  const skill = await request(app).post("/api/v1/skills").set(auth(adminToken)).send({ name: "Boilers" });
-  const area = await request(app)
-    .post("/api/v1/service-areas")
-    .set(auth(adminToken))
-    .send({ name: "East", postalCodes: ["78702"] });
-  const customer = await request(app).post("/api/v1/customers").set(auth(adminToken)).send({ name: "Owner Co" });
-  const customerId = customer.body.data.id as string;
-  await request(app).post(`/api/v1/customers/${customerId}/contacts`).set(auth(adminToken)).send({
-    name: "Owner",
-    email: "owner@example.com",
-    password,
-  });
-  const address = await request(app).post(`/api/v1/customers/${customerId}/addresses`).set(auth(adminToken)).send({
-    label: "Site",
-    line1: "10 Main",
-    city: "Austin",
-    state: "TX",
-    postalCode: "78702",
-  });
-  const serviceType = await request(app)
-    .post("/api/v1/service-types")
-    .set(auth(adminToken))
-    .send({ name: "Repair", requiredSkillId: skill.body.data.id });
-  expect(serviceType.status).toBe(201);
-  const technicians: Record<string, string> = {};
-  for (const name of ["tara", "sam", "nia"]) {
-    const created = await request(app)
-      .post("/api/v1/technicians")
-      .set(auth(adminToken))
-      .send({ name, email: `${name}@example.com`, password });
-    technicians[name] = created.body.data.id as string;
-  }
-  await request(app)
-    .patch(`/api/v1/technicians/${technicians.tara}`)
-    .set(auth(adminToken))
-    .send({ skillIds: [skill.body.data.id], serviceAreaIds: [area.body.data.id] });
-  await request(app)
-    .patch(`/api/v1/technicians/${technicians.sam}`)
-    .set(auth(adminToken))
-    .send({ skillIds: [skill.body.data.id] });
-  const ownerToken = await login("owner@example.com");
-  let serial = 0;
-
-  async function workOrder() {
-    serial += 1;
-    const asset = await request(app).post("/api/v1/assets").set(auth(adminToken)).send({
-      customerId,
-      addressId: address.body.data.id,
-      equipmentType: "Boiler",
-      model: "Heat 1",
-      serialNumber: `B-${serial}`,
-    });
-    const created = await request(app).post("/api/v1/service-requests").set(auth(ownerToken)).send({
-      assetId: asset.body.data.id,
-      serviceTypeId: serviceType.body.data.id,
-      description: "No heat",
-      preferredStart: "2026-11-02",
-      preferredEnd: "2026-11-04",
-    });
-    const accepted = await request(app)
-      .post(`/api/v1/service-requests/${created.body.data.id as string}/accept`)
-      .set(auth(opsToken))
-      .send({});
-    return accepted.body.data.workOrder.id as string;
-  }
-
-  return { adminToken, opsToken, ownerToken, technicians, workOrder };
-}
-
-async function scheduledJob(context: Setup, technician: string, scheduledStart: string, accept = true) {
-  const id = await context.workOrder();
-  const assigned = await request(app)
-    .post(`/api/v1/work-orders/${id}/assign`)
-    .set(auth(context.opsToken))
-    .send({ technicianId: context.technicians[technician] });
-  expect(assigned.status).toBe(200);
-  const scheduled = await request(app)
-    .post(`/api/v1/work-orders/${id}/schedule`)
-    .set(auth(context.opsToken))
-    .send({ scheduledStart });
-  expect(scheduled.status).toBe(200);
-  if (accept) {
-    const token = await login(`${technician}@example.com`);
-    const accepted = await request(app).post(`/api/v1/work-orders/${id}/accept`).set(auth(token));
-    expect(accepted.status).toBe(200);
-  }
-  return { workOrderId: id, visitId: scheduled.body.data.visits[0].id as string };
-}
 
 describe("reschedule and cancel with history", () => {
   it("reaches ACCEPTED with a SCHEDULED visit, and a reschedule leaves an auditable trail", async () => {
@@ -222,6 +93,7 @@ describe("reschedule and cancel with history", () => {
     expect(tech.status).toBe(403);
     expect(tech.body.error.code).toBe("FORBIDDEN");
 
+    const passwordHash = await hashedPassword();
     const other = await prisma.organization.create({ data: { name: "Other" } });
     await prisma.user.create({
       data: { organizationId: other.id, email: "x@other.example", name: "X", role: "OPS", passwordHash },

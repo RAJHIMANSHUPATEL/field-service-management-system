@@ -24,6 +24,18 @@ const workOrderInclude = {
       scheduledStart: true,
       durationMinutes: true,
       status: true,
+      enRouteAt: true,
+      arrivedAt: true,
+      startedAt: true,
+      completedAt: true,
+      diagnosis: true,
+      workPerformed: true,
+      signerName: true,
+      signedAt: true,
+      photos: {
+        orderBy: { createdAt: "asc" as const },
+        select: { id: true, fileName: true, contentType: true, caption: true, createdAt: true },
+      },
       technician: { select: { id: true, user: { select: { name: true } } } },
       changes: {
         orderBy: { createdAt: "asc" as const },
@@ -379,4 +391,15 @@ export async function technicianCandidates(id: string, actor: AuthUser, at?: str
     (a, b) => Number(b.available) - Number(a.available) || b.score - a.score || a.name.localeCompare(b.name),
   );
   return { data: rows };
+}
+
+export async function addNote(id: string, actor: AuthUser, body: string) {
+  const workOrder = await requireWorkOrder(id, actor);
+  if (actor.role === "TECHNICIAN") {
+    assertAssignedTechnician(workOrder.technician?.userId, actor);
+  }
+  await prisma.workOrderNote.create({
+    data: { organizationId: actor.organizationId, workOrderId: workOrder.id, authorId: actor.id, body },
+  });
+  return getWorkOrder(workOrder.id, actor);
 }
