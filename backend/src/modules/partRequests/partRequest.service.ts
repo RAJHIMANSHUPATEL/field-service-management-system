@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { partsArrivedTransition } from "../workOrders/workOrder.transitions.js";
 import type { ListPartRequestsQuery } from "./partRequest.schema.js";
 import { partRequestTransitions, type PartRequestAction } from "./partRequest.transitions.js";
+import { jobEvent, notify } from "../notifications/notification.events.js";
 
 const select = {
   id: true,
@@ -33,7 +34,7 @@ export async function resolvePartRequest(id: string, actor: AuthUser, action: Pa
   if (!request) {
     throw new AppError("PART_REQUEST_NOT_FOUND", 404, "Part request not found");
   }
-  await prisma.$transaction(async (tx) => {
+  const readyForVisit = await prisma.$transaction(async (tx) => {
     const moved = await tx.partRequest.updateMany({
       where: { id: request.id, status: from },
       data: { status: to, resolvedAt: new Date(), ...(note ? { note } : {}) },
@@ -56,8 +57,13 @@ export async function resolvePartRequest(id: string, actor: AuthUser, action: Pa
             body: "All requested parts are resolved; the job is ready for a follow-up visit.",
           },
         });
+        return true;
       }
     }
+    return false;
   });
+  if (readyForVisit) {
+    await notify(() => jobEvent("follow_up.required", request.workOrderId));
+  }
   return { data: await prisma.partRequest.findUniqueOrThrow({ where: { id: request.id }, select }) };
 }

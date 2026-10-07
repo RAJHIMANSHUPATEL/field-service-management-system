@@ -10,6 +10,7 @@ import {
   Package,
   Receipt,
   ScrollText,
+  Star,
   Settings,
   Shield,
   Users,
@@ -55,6 +56,7 @@ import {
 import type { AuthUser } from "@/features/auth/api/auth.api";
 import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
 import { useLogout } from "@/features/auth/hooks/useLogin";
+import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 
 type NavItem = {
   to: string;
@@ -113,7 +115,10 @@ function navForRole(role: AuthUser["role"]): NavGroup[] {
       },
       {
         label: "Insights",
-        items: [{ to: "/analytics", label: "Analytics", icon: BarChart3 }],
+        items: [
+          { to: "/analytics", label: "Analytics", icon: BarChart3 },
+          { to: "/feedback", label: "Customer feedback", icon: Star },
+        ],
       },
       {
         label: "System",
@@ -182,6 +187,8 @@ const sectionLabels: Record<string, string> = {
   contracts: "Contracts and maintenance",
   analytics: "Analytics",
   notifications: "Notifications",
+  feedback: "Customer feedback",
+  "my-jobs": "My jobs",
   users: "Users and roles",
   master: "Master data",
   audit: "Audit log",
@@ -229,6 +236,9 @@ function crumbsForPath(pathname: string): { label: string; to?: string }[] {
   }
   if (pathname === "/profile") {
     return [{ label: "Profile" }];
+  }
+  if (pathname === "/my-jobs") {
+    return [{ label: "My jobs" }];
   }
 
   const section = pathname.split("/").filter(Boolean)[0];
@@ -296,7 +306,7 @@ function UserMenu({ user }: { user: AuthUser }) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" className="ml-auto" />}>
+      <DropdownMenuTrigger render={<Button variant="ghost" />}>
         <Avatar size="sm">
           <AvatarFallback>{initials(user.name)}</AvatarFallback>
         </Avatar>
@@ -350,6 +360,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
               })}
             </BreadcrumbList>
           </Breadcrumb>
+          <NotificationBell />
           <UserMenu user={user} />
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4">

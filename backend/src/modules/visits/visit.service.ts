@@ -7,6 +7,7 @@ import { createDraftInvoice } from "../invoices/invoice.service.js";
 import { releaseOpenReservations } from "../inventory/visitPart.service.js";
 import { assertTechnicianFree } from "./visit.scheduling.js";
 import type { CalendarQuery, RescheduleVisitInput } from "./visit.schema.js";
+import { jobEvent, notify } from "../notifications/notification.events.js";
 
 async function requireVisit(id: string, actor: AuthUser) {
   const visit = await prisma.serviceVisit.findFirst({
@@ -73,6 +74,12 @@ export async function moveVisit(id: string, actor: AuthUser, step: VisitStep) {
       await createDraftInvoice(tx, visit.workOrder.id);
     }
   });
+  const event = ({ "en-route": "visit.en_route", arrive: "visit.arrived", complete: "service.completed" } as const)[
+    step as "en-route" | "arrive" | "complete"
+  ];
+  if (event) {
+    await notify(() => jobEvent(event, visit.workOrder.id));
+  }
 
   return getWorkOrder(visit.workOrder.id, actor);
 }
@@ -113,6 +120,8 @@ export async function rescheduleVisit(id: string, actor: AuthUser, input: Resche
       },
     });
   });
+  await notify(() => jobEvent("appointment.rescheduled", visit.workOrder.id, { at: start, vars: { reason: input.reason } }));
+  await notify(() => jobEvent("appointment.changed", visit.workOrder.id, { at: start, technicianIds: [visit.technicianId] }));
   return getWorkOrder(visit.workOrder.id, actor);
 }
 
@@ -147,6 +156,9 @@ export async function cancelVisit(id: string, actor: AuthUser, reason: string) {
       data: { status: "ASSIGNED" },
     });
   });
+  await notify(() =>
+    jobEvent("job.cancelled", visit.workOrder.id, { at: visit.scheduledStart, technicianIds: [visit.technicianId], vars: { reason } }),
+  );
   return getWorkOrder(visit.workOrder.id, actor);
 }
 

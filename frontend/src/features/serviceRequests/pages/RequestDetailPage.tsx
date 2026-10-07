@@ -19,6 +19,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
+import { FeedbackCard } from "@/features/notifications/components/FeedbackForm";
 import { openServiceReport } from "@/features/invoices/api/invoices.api";
 import { VisitProgress } from "@/features/workOrders/components/VisitExecution";
 import { visitStatusLabel, workOrderStatusLabel } from "@/lib/status";
@@ -146,6 +147,9 @@ export function RequestDetailPage() {
                 </Button>
               ) : null}
             </div>
+          ) : null}
+          {record.workOrder && !canTriage && record.workOrder.status === "COMPLETED" ? (
+            <FeedbackCard workOrderId={record.workOrder.id} feedback={record.workOrder.feedback} />
           ) : null}
           <Attachments requestId={record.id} attachments={record.attachments} canAdd={record.status !== "REJECTED"} />
         </CardContent>

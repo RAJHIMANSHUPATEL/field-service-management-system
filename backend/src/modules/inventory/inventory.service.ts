@@ -5,6 +5,7 @@ import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { applyMovement } from "./inventory.ledger.js";
 import type { AdjustmentInput, MovementQuery, ReceiptInput, StockQuery, TransferInput } from "./inventory.schema.js";
+import { checkLowStock, notify } from "../notifications/notification.events.js";
 
 const levelSelect = {
   id: true,
@@ -116,6 +117,7 @@ export async function transfer(actor: AuthUser, input: TransferInput) {
     await applyMovement(tx, { ...base, warehouseId: input.fromWarehouseId, kind: "TRANSFER_OUT", onHandDelta: -input.quantity });
     await applyMovement(tx, { ...base, warehouseId: input.toWarehouseId, kind: "TRANSFER_IN", onHandDelta: input.quantity });
   });
+  await notify(() => checkLowStock(input.fromWarehouseId, input.partId));
   return {
     data: await prisma.stockMovement.findMany({
       where: { organizationId: actor.organizationId, transferGroup },
@@ -139,5 +141,6 @@ export async function adjust(actor: AuthUser, input: AdjustmentInput) {
       actorId: actor.id,
     });
   });
+  await notify(() => checkLowStock(input.warehouseId, input.partId));
   return { data: await prisma.stockMovement.findUniqueOrThrow({ where: { id: movement.id }, select: movementSelect }) };
 }

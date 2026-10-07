@@ -12,6 +12,7 @@ import {
   type CreateServiceRequestInput,
   type ListServiceRequestsQuery,
 } from "./serviceRequest.schema.js";
+import { notify, requestEvent } from "../notifications/notification.events.js";
 
 const requestInclude = {
   customer: { select: { id: true, name: true } },
@@ -30,6 +31,7 @@ const requestInclude = {
       id: true,
       status: true,
       invoice: { select: { id: true, number: true, status: true, total: true, currency: true } },
+      feedback: { select: { id: true, rating: true, satisfied: true, comment: true, createdAt: true } },
       visits: {
         orderBy: { createdAt: "asc" as const },
         select: {
@@ -164,6 +166,8 @@ export async function createServiceRequest(input: CreateServiceRequestInput, act
     },
     include: requestInclude,
   });
+  await notify(() => requestEvent("request.received", created.id));
+  await notify(() => requestEvent("request.new", created.id));
 
   return { data: created };
 }
@@ -212,6 +216,7 @@ export async function acceptServiceRequest(id: string, input: AcceptServiceReque
       include: requestInclude,
     });
   });
+  await notify(() => requestEvent("request.accepted", id));
 
   return { data: updated };
 }

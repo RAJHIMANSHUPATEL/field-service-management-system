@@ -128,6 +128,16 @@ export function WorkOrderDetailPage() {
               label: "Technician",
               value: record.technician ? record.technician.user.name : "No technician assigned",
             },
+            ...(record.feedback
+              ? [
+                  {
+                    label: "Customer feedback",
+                    value: `${record.feedback.rating}/5 · ${record.feedback.satisfied ? "Satisfied" : "Not satisfied"}${
+                      record.feedback.comment ? ` · “${record.feedback.comment}”` : ""
+                    }`,
+                  },
+                ]
+              : []),
           ]}
         />
         {record.visits.length > 0 ? (

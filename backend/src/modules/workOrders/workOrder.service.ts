@@ -6,6 +6,7 @@ import { prisma } from "../../lib/prisma.js";
 import { assertTechnicianFree, DEFAULT_VISIT_MINUTES, findConflict } from "../visits/visit.scheduling.js";
 import { canSchedule } from "./workOrder.transitions.js";
 import type { ListWorkOrdersQuery, ReassignWorkOrderInput, ScheduleWorkOrderInput } from "./workOrder.schema.js";
+import { jobEvent, notify } from "../notifications/notification.events.js";
 
 function isAssignable(status: string) {
   return status === "OPEN" || status === "ASSIGNED";
@@ -69,6 +70,7 @@ const workOrderInclude = {
     },
   },
   invoice: { select: { id: true, number: true, status: true, total: true, currency: true } },
+  feedback: { select: { id: true, rating: true, satisfied: true, comment: true, createdAt: true } },
   partRequests: {
     orderBy: { createdAt: "asc" as const },
     select: {
@@ -200,6 +202,8 @@ export async function assignWorkOrder(id: string, actor: AuthUser, input: { tech
     data: { technicianId: technician.id, status: "ASSIGNED" },
     include: workOrderInclude,
   });
+  await notify(() => jobEvent("job.assigned", workOrder.id));
+  await notify(() => jobEvent("technician.assigned", workOrder.id));
   return { data: updated };
 }
 
@@ -267,6 +271,8 @@ export async function acceptWorkOrder(id: string, actor: AuthUser) {
     data: { status: "ACCEPTED" },
     include: workOrderInclude,
   });
+  const visit = await scheduledVisit(workOrder.id);
+  await notify(() => jobEvent("appointment.confirmed", workOrder.id, { at: visit?.scheduledStart }));
   return { data: updated };
 }
 
@@ -307,6 +313,8 @@ export async function declineWorkOrder(id: string, actor: AuthUser, reason: stri
       include: workOrderInclude,
     });
   });
+  const declinedBy = (await prisma.user.findUnique({ where: { id: actor.id }, select: { name: true } }))?.name;
+  await notify(() => jobEvent("assignment.declined", workOrder.id, { vars: { technician: declinedBy, reason } }));
   return { data: updated };
 }
 
@@ -369,6 +377,9 @@ export async function reassignWorkOrder(id: string, actor: AuthUser, input: Reas
       throw new AppError("INVALID_TRANSITION", 409, "This work order changed; reload and try again");
     }
   });
+  await notify(() => jobEvent("assignment.changed", workOrder.id, { technicianIds: [fromTechnicianId], vars: { reason: input.reason } }));
+  await notify(() => jobEvent("job.assigned", workOrder.id));
+  await notify(() => jobEvent("technician.assigned", workOrder.id));
   return getWorkOrder(id, actor);
 }
 

@@ -10,6 +10,7 @@ export type Part = {
   sku: string;
   name: string;
   unitPrice: string;
+  reorderLevel: number;
   currency: string;
   isSerialized: boolean;
   isActive: boolean;

@@ -6,6 +6,7 @@ import { releaseOpenReservations } from "../inventory/visitPart.service.js";
 import { getWorkOrder } from "../workOrders/workOrder.service.js";
 import type { UnsuccessfulVisitInput } from "./visit.schema.js";
 import { unsuccessfulFrom } from "./visit.transitions.js";
+import { jobEvent, notify } from "../notifications/notification.events.js";
 
 const outcomeLabels = {
   AWAITING_PARTS: "Awaiting parts",
@@ -71,5 +72,16 @@ export async function endUnsuccessful(id: string, actor: AuthUser, input: Unsucc
       },
     });
   });
+  const workOrderId = visit.workOrder.id;
+  await notify(() => jobEvent("job.another_visit", workOrderId, { vars: { reason: input.reason } }));
+  if (input.outcome === "AWAITING_PARTS") {
+    const parts = await prisma.part.findMany({ where: { id: { in: input.partRequests.map((row) => row.partId) } } });
+    const wanted = input.partRequests
+      .map((row) => `${row.quantity} × ${parts.find((part) => part.id === row.partId)?.name ?? "part"}`)
+      .join(", ");
+    await notify(() => jobEvent("part.unavailable", workOrderId, { vars: { parts: wanted } }));
+  } else {
+    await notify(() => jobEvent("follow_up.required", workOrderId));
+  }
   return getWorkOrder(visit.workOrder.id, actor);
 }

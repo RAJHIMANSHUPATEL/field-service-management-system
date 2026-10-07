@@ -30,6 +30,7 @@ export type ServiceRequest = {
     id: string;
     status: WorkOrderStatus;
     invoice: InvoiceRef | null;
+    feedback: { rating: number; satisfied: boolean; comment: string | null } | null;
     visits: ({ id: string; scheduledStart: string; status: VisitStatus } & VisitProgressData)[];
   } | null;
   attachments: RequestAttachment[];

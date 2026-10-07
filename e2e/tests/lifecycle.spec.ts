@@ -219,9 +219,40 @@ test("request, triage, assign, schedule, accept, visit, complete, invoice, pay",
   await expect(ops.page.getByText("Paid", { exact: true }).first()).toBeVisible();
   await expect(ops.page.getByRole("list", { name: "Payments" })).toContainText("online");
 
+  // Notifications: the customer's bell carries each step, ending with the payment receipt.
+  await customer.page.getByRole("button", { name: /^Notifications, \d+ unread$/ }).click();
+  const customerMenu = customer.page.getByRole("menu");
+  await expect(customerMenu).toContainText("Payment received");
+  await expect(customerMenu).toContainText("Service completed");
+  await customer.page.screenshot({ path: `${screensDir}/customer-notifications.png`, fullPage: true });
+  await customerMenu.getByText("Service completed").first().click();
+  await expect(customer.page).toHaveURL(new RegExp(`/requests/${requestId}$`));
+
+  // The customer rates the job; ops sees it in feedback and on the work order.
+  await customer.page.getByRole("radio", { name: "4 stars" }).click();
+  await customer.page.getByRole("button", { name: "Satisfied", exact: true }).click();
+  await customer.page.getByLabel("Comments").fill("Quick and tidy");
+  await customer.page.getByRole("button", { name: "Send feedback" }).click();
+  await expect(customer.page.getByText("Your feedback")).toBeVisible();
+  await ops.page.goto("/feedback");
+  await expect(ops.page.getByRole("table", { name: "Feedback" })).toContainText("Quick and tidy");
+  await ops.page.goto(workOrderUrl);
+  await expect(ops.page.getByText(/4\/5 · Satisfied/)).toBeVisible();
+
+  // The worker delivers on BullMQ: the office log shows this job's emails as sent.
+  await ops.page.goto("/notifications");
+  const log = ops.page.getByRole("table", { name: "Deliveries" });
+  await expect(log).toContainText("Payment received");
+  await expect(log.getByRole("row").filter({ hasText: "Payment received" }).filter({ hasText: "Email" }).first()).toContainText("Sent");
+  await ops.page.screenshot({ path: `${screensDir}/ops-notification-deliveries.png`, fullPage: true });
+
   // The completed job moves to the Completed group under My jobs.
   await tech.page.goto("/my-jobs");
   await expect(tech.page.getByRole("region", { name: "Completed" }).locator(`a[href="${workOrderUrl}"]`)).toBeVisible();
+  await tech.page.getByRole("button", { name: /^Notifications, \d+ unread$/ }).click();
+  await expect(tech.page.getByRole("menu")).toContainText("New job assigned");
+  await tech.page.screenshot({ path: `${screensDir}/technician-notifications-375.png`, fullPage: true });
+  await tech.page.keyboard.press("Escape");
 
   for (const session of [customer, ops, tech]) {
     expect(session.problems).toEqual([]);
