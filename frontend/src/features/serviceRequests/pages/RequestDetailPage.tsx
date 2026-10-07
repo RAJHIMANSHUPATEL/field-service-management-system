@@ -19,6 +19,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
+import { openServiceReport } from "@/features/invoices/api/invoices.api";
 import { VisitProgress } from "@/features/workOrders/components/VisitExecution";
 import { visitStatusLabel, workOrderStatusLabel } from "@/lib/status";
 import { toastError } from "@/lib/toastError";
@@ -128,6 +129,24 @@ export function RequestDetailPage() {
                   </section>
                 ))
             : null}
+          {record.workOrder && !canTriage && record.workOrder.status === "COMPLETED" ? (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  openServiceReport(record.workOrder!.id).catch((error: unknown) => toastError(error, "Could not open the report"))
+                }
+              >
+                Service report
+              </Button>
+              {record.workOrder.invoice && record.workOrder.invoice.status !== "DRAFT" ? (
+                <Button nativeButton={false} render={<Link to={`/invoices/${record.workOrder.invoice.id}`} />}>
+                  View invoice
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
           <Attachments requestId={record.id} attachments={record.attachments} canAdd={record.status !== "REJECTED"} />
         </CardContent>
         {showActions ? (

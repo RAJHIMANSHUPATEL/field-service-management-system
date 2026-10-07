@@ -19,6 +19,9 @@ import { visitRouter } from "./modules/visits/visit.routes.js";
 import { skillRouter } from "./modules/skills/skill.routes.js";
 import { serviceAreaRouter } from "./modules/serviceAreas/serviceArea.routes.js";
 import { partRouter } from "./modules/parts/part.routes.js";
+import { contractRouter } from "./modules/contracts/contract.routes.js";
+import { markOverdue } from "./modules/invoices/invoice.service.js";
+import { invoiceRouter } from "./modules/invoices/invoice.routes.js";
 import { partRequestRouter } from "./modules/partRequests/partRequest.routes.js";
 import { inventoryRouter } from "./modules/inventory/inventory.routes.js";
 import { warehouseRouter } from "./modules/warehouses/warehouse.routes.js";
@@ -57,6 +60,8 @@ export function createApp() {
   app.use("/api/v1/warehouses", warehouseRouter);
   app.use("/api/v1/inventory", inventoryRouter);
   app.use("/api/v1/part-requests", partRequestRouter);
+  app.use("/api/v1/contracts", contractRouter);
+  app.use("/api/v1/invoices", invoiceRouter);
   app.use("/api/v1/audit-events", auditEventRouter);
   app.get("/api/v1/admin/ping", requireAuth, requireRole("ADMIN"), (_req, res) => {
     res.status(200).json({ data: { ok: true } });
@@ -73,4 +78,8 @@ if (process.env.NODE_ENV !== "test") {
   app.listen(port, () => {
     console.log(`API listening on port ${port}`);
   });
+  // Overdue detection also runs before every invoice read; the timer keeps idle orgs current.
+  setInterval(() => {
+    markOverdue().catch((error: unknown) => console.error("Overdue sweep failed", error));
+  }, 60 * 60_000).unref();
 }

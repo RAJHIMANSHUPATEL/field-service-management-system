@@ -18,6 +18,9 @@ Every query is scoped to the caller's organization. A record in another organiza
 | Stock and ledger | Read, receive, transfer, adjust | Read, receive, transfer, adjust | Read own van | — |
 | Part requests | Read, fulfil, cancel | Read, fulfil, cancel | Raise when ending a visit | — |
 | Visit parts | — | — | Reserve, use, release, return on own visit | — |
+| Invoices | Read, adjust draft, issue, record payment, void | Read, adjust draft, issue, record payment, void | — | Read own issued, pay online |
+| Contracts | Read, create, cancel | Read, create, cancel | — | Read own |
+| Service report PDF | Read | Read | Read own job | Read own job |
 | Technician time off | Read, add, delete | Read, add, delete | Read own | — |
 | Users and invitations | Read, invite, revoke | — | — | — |
 | Audit events | Read | — | — | — |

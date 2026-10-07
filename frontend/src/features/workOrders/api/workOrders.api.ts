@@ -21,6 +21,7 @@ export type WorkOrder = {
   technician: { id: string; user: { id: string; name: string } } | null;
   visits: Visit[];
   partRequests: PartRequest[];
+  invoice: InvoiceRef | null;
   notes: { id: string; body: string; createdAt: string; author: { id: string; name: string } }[];
 };
 
@@ -278,3 +279,5 @@ export async function endVisitUnsuccessful(visitId: string, input: UnsuccessfulI
 export async function resolvePartRequest(id: string, action: "fulfil" | "cancel") {
   return api<{ data: unknown }>(`/api/v1/part-requests/${id}/${action}`, { method: "POST", body: JSON.stringify({}) });
 }
+
+export type InvoiceRef = { id: string; number: string | null; status: string; total: string; currency: string };

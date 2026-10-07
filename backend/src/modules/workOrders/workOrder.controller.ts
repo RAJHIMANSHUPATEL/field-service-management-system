@@ -9,6 +9,8 @@ import {
   scheduleWorkOrderSchema,
 } from "./workOrder.schema.js";
 import * as workOrderService from "./workOrder.service.js";
+import { serviceReportPdf } from "./workOrder.report.js";
+import { invoiceForWorkOrder } from "../invoices/invoice.service.js";
 
 function actor(req: Request) {
   if (!req.user) {
@@ -66,4 +68,14 @@ export async function candidates(req: Request, res: Response) {
 export async function addNote(req: Request, res: Response) {
   const body = addNoteSchema.parse(req.body);
   res.status(201).json(await workOrderService.addNote(String(req.params.id), actor(req), body.body));
+}
+
+export async function report(req: Request, res: Response) {
+  const pdf = await serviceReportPdf(String(req.params.id), actor(req));
+  res.status(200).type("application/pdf").setHeader("Content-Disposition", `inline; filename="service-report-${String(req.params.id)}.pdf"`);
+  res.end(pdf);
+}
+
+export async function invoice(req: Request, res: Response) {
+  res.status(200).json(await invoiceForWorkOrder(String(req.params.id), actor(req)));
 }

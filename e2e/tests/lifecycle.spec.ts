@@ -9,14 +9,14 @@ const png = Buffer.from(
 );
 
 
-test("request, triage, assign, schedule, accept, visit", async ({ browser }) => {
+test("request, triage, assign, schedule, accept, visit, complete, invoice, pay", async ({ browser }) => {
   const description = `Lifecycle ${Date.now()}`;
 
   // Customer reports a problem.
   const customer = await signIn(browser, "customer@fieldservice.local");
   await customer.page.goto("/requests");
   await customer.page.getByRole("button", { name: "New request" }).click();
-  await customer.page.getByLabel("Equipment").selectOption({ index: 1 });
+  await customer.page.getByLabel("Equipment").selectOption({ label: "Water heater · WH-2001" });
   await customer.page.getByLabel("Service type").selectOption({ index: 1 });
   await customer.page.getByLabel("What is wrong").fill(description);
   await customer.page.getByLabel("Preferred start").fill("2026-11-02");
@@ -191,6 +191,33 @@ test("request, triage, assign, schedule, accept, visit", async ({ browser }) => 
   await expect(ledgerRow).toContainText("Used on the visit");
   await expect(ledgerRow).toContainText("Tara Technician");
   await ops.page.screenshot({ path: `${screensDir}/ops-inventory-ledger.png`, fullPage: true });
+
+  // Ops reviews the draft invoice prepared at completion and issues it.
+  await ops.page.goto(workOrderUrl);
+  const reportResponse = ops.page.waitForResponse((r) => r.url().endsWith("/report") && r.status() === 200);
+  await ops.page.getByRole("button", { name: "Service report" }).click();
+  expect((await reportResponse).headers()["content-type"]).toContain("application/pdf");
+  await ops.page.getByRole("button", { name: "Invoice" }).click();
+  const lines = ops.page.getByRole("table", { name: "Invoice lines" });
+  await expect(lines.getByText("Service charge · Repair")).toBeVisible();
+  await expect(lines.getByText("Labour (0.5 h)")).toBeVisible();
+  await expect(lines.getByText("Air filter (FLT-STD)")).toBeVisible();
+  // 500 service + 500 labour + 450 filter = 1,450; 9% CGST + 9% SGST = 261.
+  await expect(ops.page.getByTestId("invoice-total")).toHaveText("₹1,711.00");
+  await ops.page.getByRole("button", { name: "Issue invoice" }).click();
+  await expect(ops.page.getByText("Issued", { exact: true })).toBeVisible();
+  const invoiceUrl = new URL(ops.page.url()).pathname;
+
+  // The customer opens the invoice from the request and pays online.
+  await customer.page.reload();
+  await customer.page.getByRole("button", { name: "View invoice" }).click();
+  await expect(customer.page).toHaveURL(new RegExp(`${invoiceUrl}$`));
+  await customer.page.getByRole("button", { name: "Pay ₹1,711.00" }).click();
+  await expect(customer.page.getByText("Paid", { exact: true }).first()).toBeVisible();
+  await customer.page.screenshot({ path: `${screensDir}/customer-invoice-paid.png`, fullPage: true });
+  await ops.page.reload();
+  await expect(ops.page.getByText("Paid", { exact: true }).first()).toBeVisible();
+  await expect(ops.page.getByRole("list", { name: "Payments" })).toContainText("online");
 
   // The completed job moves to the Completed group under My jobs.
   await tech.page.goto("/my-jobs");

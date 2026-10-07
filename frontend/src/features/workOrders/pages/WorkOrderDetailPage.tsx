@@ -21,6 +21,7 @@ import { useTechnicians } from "@/features/technicians/hooks/useTechnicians";
 import { visitStatusLabel, workOrderStatusLabel } from "@/lib/status";
 import { toastError } from "@/lib/toastError";
 import type { Visit, WorkOrderStatus } from "../api/workOrders.api";
+import { openServiceReport } from "@/features/invoices/api/invoices.api";
 import { PartRequests } from "../components/FollowUp";
 import { AddNoteForm, ExecutionPanel, VisitProgress } from "../components/VisitExecution";
 import { CandidateHint, ReassignDialog, ReplanDialog, VisitHistory } from "../components/VisitPlanning";
@@ -93,7 +94,7 @@ export function WorkOrderDetailPage() {
 
   const showReassign =
     canAssign && Boolean(record.technician) && (record.status === "ACCEPTED" || (record.status === "ASSIGNED" && hasScheduledVisit));
-  const showActions = canAssign || showAssign || showSchedule || showAccept || showDecline || visitStep !== null;
+  const showActions = record.status === "COMPLETED" || canAssign || showAssign || showSchedule || showAccept || showDecline || visitStep !== null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -170,6 +171,20 @@ export function WorkOrderDetailPage() {
           {canAssign ? (
             <Button variant="outline" nativeButton={false} render={<Link to={`/requests/${record.request.id}`} />}>
               View request
+            </Button>
+          ) : null}
+          {record.status === "COMPLETED" ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => openServiceReport(record.id).catch((error: unknown) => toastError(error, "Could not open the report"))}
+            >
+              Service report
+            </Button>
+          ) : null}
+          {canAssign && record.invoice ? (
+            <Button nativeButton={false} render={<Link to={`/invoices/${record.invoice.id}`} />}>
+              Invoice
             </Button>
           ) : null}
           {visitStep && activeVisit ? (

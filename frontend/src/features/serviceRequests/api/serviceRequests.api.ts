@@ -1,3 +1,4 @@
+import type { InvoiceRef } from "@/features/workOrders/api/workOrders.api";
 import type { VisitProgressData } from "@/features/workOrders/components/VisitExecution";
 import { api } from "@/lib/apiClient";
 import type { PageMeta } from "@/features/customers/api/customers.api";
@@ -28,6 +29,7 @@ export type ServiceRequest = {
   workOrder: {
     id: string;
     status: WorkOrderStatus;
+    invoice: InvoiceRef | null;
     visits: ({ id: string; scheduledStart: string; status: VisitStatus } & VisitProgressData)[];
   } | null;
   attachments: RequestAttachment[];

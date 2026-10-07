@@ -10,6 +10,8 @@ import { ServiceTypesPage } from "@/features/serviceTypes/pages/ServiceTypesPage
 import { TechnicianProfilePage } from "@/features/technicians/pages/TechnicianProfilePage";
 import { TechniciansPage } from "@/features/technicians/pages/TechniciansPage";
 import { WorkOrderDetailPage } from "@/features/workOrders/pages/WorkOrderDetailPage";
+import { InvoiceDetailPage } from "@/features/invoices/pages/InvoiceDetailPage";
+import { InvoicesPage } from "@/features/invoices/pages/InvoicesPage";
 import { InventoryPage } from "@/features/inventory/pages/InventoryPage";
 import { MyJobsPage } from "@/features/workOrders/pages/MyJobsPage";
 import { WorkOrdersPage } from "@/features/workOrders/pages/WorkOrdersPage";
@@ -52,7 +54,6 @@ export const router = createBrowserRouter([
               { path: "technicians", element: <TechniciansPage /> },
               { path: "assets", element: <AssetsPage /> },
               { path: "inventory", element: <InventoryPage /> },
-              { path: "invoices", element: <NotReadyPage /> },
               { path: "contracts", element: <NotReadyPage /> },
               { path: "analytics", element: <NotReadyPage /> },
               { path: "notifications", element: <NotReadyPage /> },
@@ -84,6 +85,13 @@ export const router = createBrowserRouter([
           {
             element: <RequireRole roles={["TECHNICIAN"]} />,
             children: [{ path: "my-jobs", element: <MyJobsPage /> }],
+          },
+          {
+            element: <RequireRole roles={["ADMIN", "OPS", "CUSTOMER"]} />,
+            children: [
+              { path: "invoices", element: <InvoicesPage /> },
+              { path: "invoices/:invoiceId", element: <InvoiceDetailPage /> },
+            ],
           },
           {
             element: <RequireRole roles={["CUSTOMER"]} />,

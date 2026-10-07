@@ -79,6 +79,13 @@ model Organization {
   stockMovements  StockMovement[]
   visitParts      VisitPart[]
   partRequests    PartRequest[]
+  taxRatePercent  Decimal         @default(18) @db.Decimal(5, 2)
+  paymentTermsDays Int            @default(15)
+  invoiceSequence Int             @default(0)
+  contracts       ServiceContract[]
+  invoices        Invoice[]
+  invoiceLines    InvoiceLine[]
+  payments        Payment[]
 }
 
 model User {
@@ -104,6 +111,7 @@ model User {
   partRequests        PartRequest[]
   passwordResetTokens PasswordResetToken[]
   invitationsSent     Invitation[]
+  paymentsRecorded    Payment[]
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -139,6 +147,8 @@ model Customer {
   assets          Asset[]
   serviceRequests ServiceRequest[]
   workOrders      WorkOrder[]
+  contracts       ServiceContract[]
+  invoices        Invoice[]
 
   @@index([organizationId])
 }
@@ -197,6 +207,7 @@ model Asset {
   address           Address          @relation(fields: [addressId], references: [id])
   serviceRequests   ServiceRequest[]
   workOrders        WorkOrder[]
+  contractAssets    ContractAsset[]
 
   @@unique([organizationId, serialNumber])
   @@index([organizationId])
@@ -217,6 +228,9 @@ model ServiceType {
   requiredSkill   Skill?           @relation(fields: [requiredSkillId], references: [id])
   serviceRequests ServiceRequest[]
   workOrders      WorkOrder[]
+  serviceCharge     Decimal      @default(0) @db.Decimal(12, 2)
+  labourRatePerHour Decimal      @default(0) @db.Decimal(12, 2)
+  sacCode           String?
 
   @@index([requiredSkillId])
   @@unique([organizationId, name])
@@ -315,6 +329,7 @@ model WorkOrder {
   visits         ServiceVisit[]
   partRequests   PartRequest[]
   notes          WorkOrderNote[]
+  invoice        Invoice?
 
   @@index([organizationId])
   @@index([customerId])
@@ -735,4 +750,150 @@ model PartRequest {
 
   @@index([organizationId, status])
   @@index([workOrderId])
+}
+
+enum ContractStatus {
+  ACTIVE
+  CANCELLED
+}
+
+// An AMC or service contract. Coverage percentages apply to the matching invoice lines of a job
+// on a covered asset completed while the contract is active.
+model ServiceContract {
+  id                          String         @id @default(cuid())
+  organizationId              String
+  customerId                  String
+  name                        String
+  startsOn                    DateTime
+  endsOn                      DateTime
+  status                      ContractStatus @default(ACTIVE)
+  serviceChargeCoveredPercent Int            @default(100)
+  labourCoveredPercent        Int            @default(100)
+  partsCoveredPercent         Int            @default(0)
+  createdAt                   DateTime       @default(now())
+  updatedAt                   DateTime       @updatedAt
+  organization                Organization   @relation(fields: [organizationId], references: [id])
+  customer                    Customer       @relation(fields: [customerId], references: [id])
+  assets                      ContractAsset[]
+  invoices                    Invoice[]
+
+  @@index([organizationId])
+  @@index([customerId])
+}
+
+model ContractAsset {
+  id         String          @id @default(cuid())
+  contractId String
+  assetId    String
+  contract   ServiceContract @relation(fields: [contractId], references: [id])
+  asset      Asset           @relation(fields: [assetId], references: [id])
+
+  @@unique([contractId, assetId])
+  @@index([assetId])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  OVERDUE
+  PAID
+  VOID
+}
+
+enum CoverageSource {
+  NONE
+  WARRANTY
+  CONTRACT
+}
+
+model Invoice {
+  id              String         @id @default(cuid())
+  organizationId  String
+  workOrderId     String         @unique
+  customerId      String
+  number          String?
+  status          InvoiceStatus  @default(DRAFT)
+  currency        String         @default("INR")
+  subtotal        Decimal        @db.Decimal(12, 2)
+  coveredTotal    Decimal        @db.Decimal(12, 2)
+  discount        Decimal        @default(0) @db.Decimal(12, 2)
+  taxableAmount   Decimal        @db.Decimal(12, 2)
+  taxRatePercent  Decimal        @db.Decimal(5, 2)
+  cgst            Decimal        @db.Decimal(12, 2)
+  sgst            Decimal        @db.Decimal(12, 2)
+  taxTotal        Decimal        @db.Decimal(12, 2)
+  total           Decimal        @db.Decimal(12, 2)
+  amountPaid      Decimal        @default(0) @db.Decimal(12, 2)
+  coverageSource  CoverageSource @default(NONE)
+  contractId      String?
+  notes           String?
+  issuedAt        DateTime?
+  dueAt           DateTime?
+  paidAt          DateTime?
+  voidedAt        DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  organization    Organization   @relation(fields: [organizationId], references: [id])
+  workOrder       WorkOrder      @relation(fields: [workOrderId], references: [id])
+  customer        Customer       @relation(fields: [customerId], references: [id])
+  contract        ServiceContract? @relation(fields: [contractId], references: [id])
+  lines           InvoiceLine[]
+  payments        Payment[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([customerId])
+}
+
+enum InvoiceLineKind {
+  SERVICE_CHARGE
+  LABOUR
+  PART
+  ADDITIONAL
+}
+
+model InvoiceLine {
+  id             String          @id @default(cuid())
+  organizationId String
+  invoiceId      String
+  kind           InvoiceLineKind
+  description    String
+  quantity       Decimal         @db.Decimal(10, 2)
+  unitPrice      Decimal         @db.Decimal(12, 2)
+  amount         Decimal         @db.Decimal(12, 2)
+  coveredAmount  Decimal         @default(0) @db.Decimal(12, 2)
+  sacCode        String?
+  visitPartId    String?
+  position       Int
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  invoice        Invoice         @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId])
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  BANK_TRANSFER
+  ONLINE
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  organizationId String
+  invoiceId      String
+  amount         Decimal       @db.Decimal(12, 2)
+  method         PaymentMethod
+  reference      String?
+  provider       String?
+  paidAt         DateTime
+  recordedById   String
+  createdAt      DateTime      @default(now())
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  invoice        Invoice       @relation(fields: [invoiceId], references: [id])
+  recordedBy     User          @relation(fields: [recordedById], references: [id])
+
+  @@index([invoiceId])
+  @@index([organizationId])
 }

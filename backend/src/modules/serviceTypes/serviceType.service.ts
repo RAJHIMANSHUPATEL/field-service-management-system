@@ -49,6 +49,9 @@ export async function createServiceType(input: CreateServiceTypeInput, actor: Au
       description: input.description,
       isActive: input.isActive ?? true,
       requiredSkillId: input.requiredSkillId ?? null,
+      serviceCharge: input.serviceCharge ?? "0",
+      labourRatePerHour: input.labourRatePerHour ?? "0",
+      sacCode: input.sacCode ?? null,
     },
   });
   return { data: serviceType };
