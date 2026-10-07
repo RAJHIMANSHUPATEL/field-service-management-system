@@ -4,6 +4,7 @@ import express from "express";
 import helmet from "helmet";
 import { requireAuth, requireRole } from "./middleware/auth.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { requestLogger } from "./middleware/requestLogger.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { assetRouter } from "./modules/assets/asset.routes.js";
 import { customerRouter } from "./modules/customers/customer.routes.js";
@@ -25,6 +26,7 @@ export function createApp() {
     }),
   );
   app.use(express.json());
+  app.use(requestLogger);
 
   app.get("/health", (_req, res) => {
     res.status(200).json({ data: { status: "ok" } });

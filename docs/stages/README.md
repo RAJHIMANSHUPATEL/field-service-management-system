@@ -9,5 +9,6 @@ Each stage is one slice of the product that can be signed in to and used. The de
 | 3 — Assign the work order | Complete | [stage3.md](./stage3.md) |
 | 4 — Schedule the visit and accept the job | Complete | [stage4.md](./stage4.md) |
 | 5 — Start the accepted job | Complete | [stage5.md](./stage5.md) |
+| 6 — Foundations: one-command stack, CI, lifecycle test | Complete | [stage6.md](./stage6.md) |
 
-The next stage starts when we pick it. Add `stage6.md` here when that work begins.
+The next stage starts when we pick it. Add `stage7.md` here when that work begins.
