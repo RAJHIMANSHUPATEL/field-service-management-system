@@ -10,6 +10,7 @@ import { ServiceTypesPage } from "@/features/serviceTypes/pages/ServiceTypesPage
 import { TechnicianProfilePage } from "@/features/technicians/pages/TechnicianProfilePage";
 import { TechniciansPage } from "@/features/technicians/pages/TechniciansPage";
 import { WorkOrderDetailPage } from "@/features/workOrders/pages/WorkOrderDetailPage";
+import { InventoryPage } from "@/features/inventory/pages/InventoryPage";
 import { MyJobsPage } from "@/features/workOrders/pages/MyJobsPage";
 import { WorkOrdersPage } from "@/features/workOrders/pages/WorkOrdersPage";
 import { AuditLogPage } from "@/features/auditEvents/pages/AuditLogPage";
@@ -50,7 +51,7 @@ export const router = createBrowserRouter([
               { path: "service-types", element: <ServiceTypesPage /> },
               { path: "technicians", element: <TechniciansPage /> },
               { path: "assets", element: <AssetsPage /> },
-              { path: "inventory", element: <NotReadyPage /> },
+              { path: "inventory", element: <InventoryPage /> },
               { path: "invoices", element: <NotReadyPage /> },
               { path: "contracts", element: <NotReadyPage /> },
               { path: "analytics", element: <NotReadyPage /> },

@@ -15,6 +15,8 @@ Every query is scoped to the caller's organization. A record in another organiza
 | Visits | Reschedule, cancel, calendar | Reschedule, cancel, calendar | Move own visit (en route, arrive, start, complete), report, photos, signature, own calendar | — |
 | Work order notes | Add | Add | Add on own job | — |
 | Visit photos and signature | Read | Read | Read own | Read on own jobs |
+| Stock and ledger | Read, receive, transfer, adjust | Read, receive, transfer, adjust | Read own van | — |
+| Visit parts | — | — | Reserve, use, release, return on own visit | — |
 | Technician time off | Read, add, delete | Read, add, delete | Read own | — |
 | Users and invitations | Read, invite, revoke | — | — | — |
 | Audit events | Read | — | — | — |

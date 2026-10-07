@@ -7,6 +7,8 @@ import {
   listWorkOrders,
   moveVisit,
   addWorkOrderNote,
+  addVisitPart,
+  moveVisitPart,
   completeVisit,
   saveVisitReport,
   signVisit,
@@ -165,4 +167,39 @@ export function useCompleteVisit(workOrderId: string) {
 export function useAddWorkOrderNote(workOrderId: string) {
   const refresh = useRefreshWorkOrder(workOrderId);
   return useMutation({ mutationFn: (body: string) => addWorkOrderNote(workOrderId, body), onSuccess: refresh });
+}
+
+export function useAddVisitPart(workOrderId: string) {
+  const refresh = useRefreshWorkOrder(workOrderId);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ visitId, partId, quantity }: { visitId: string; partId: string; quantity: number }) =>
+      addVisitPart(visitId, partId, quantity),
+    onSuccess: () => {
+      refresh();
+      void queryClient.invalidateQueries({ queryKey: ["inventory"] });
+    },
+  });
+}
+
+export function useMoveVisitPart(workOrderId: string) {
+  const refresh = useRefreshWorkOrder(workOrderId);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      visitId,
+      visitPartId,
+      action,
+      reason,
+    }: {
+      visitId: string;
+      visitPartId: string;
+      action: "consume" | "release" | "return";
+      reason?: string;
+    }) => moveVisitPart(visitId, visitPartId, action, reason),
+    onSuccess: () => {
+      refresh();
+      void queryClient.invalidateQueries({ queryKey: ["inventory"] });
+    },
+  });
 }

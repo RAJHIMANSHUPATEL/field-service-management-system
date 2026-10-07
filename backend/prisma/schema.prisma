@@ -72,6 +72,9 @@ model Organization {
   parts           Part[]
   warehouses      Warehouse[]
   visitPhotos     VisitPhoto[]
+  stockLevels     StockLevel[]
+  stockMovements  StockMovement[]
+  visitParts      VisitPart[]
 }
 
 model User {
@@ -93,6 +96,7 @@ model User {
   visitChanges        VisitChange[]
   requestAttachments  ServiceRequestAttachment[]
   visitPhotos         VisitPhoto[]
+  stockMovements      StockMovement[]
   passwordResetTokens PasswordResetToken[]
   invitationsSent     Invitation[]
 
@@ -339,6 +343,7 @@ model ServiceVisit {
   technician     Technician   @relation(fields: [technicianId], references: [id])
   changes        VisitChange[]
   photos         VisitPhoto[]
+  parts          VisitPart[]
 
   @@index([scheduledStart])
   @@index([organizationId])
@@ -497,6 +502,9 @@ model Part {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id])
+  stockLevels    StockLevel[]
+  movements      StockMovement[]
+  visitParts     VisitPart[]
 
   @@unique([organizationId, sku])
   @@index([organizationId])
@@ -518,6 +526,9 @@ model Warehouse {
   updatedAt      DateTime      @updatedAt
   organization   Organization  @relation(fields: [organizationId], references: [id])
   technician     Technician?   @relation(fields: [technicianId], references: [id])
+  stockLevels    StockLevel[]
+  movements      StockMovement[]
+  visitParts     VisitPart[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -601,6 +612,88 @@ model VisitPhoto {
   organization   Organization @relation(fields: [organizationId], references: [id])
   visit          ServiceVisit @relation(fields: [visitId], references: [id])
   uploadedBy     User         @relation(fields: [uploadedById], references: [id])
+
+  @@index([organizationId])
+  @@index([visitId])
+}
+
+// On-hand and reserved quantity of one part at one location. Available = onHand - reserved.
+model StockLevel {
+  id             String       @id @default(cuid())
+  organizationId String
+  warehouseId    String
+  partId         String
+  onHand         Int          @default(0)
+  reserved       Int          @default(0)
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  warehouse      Warehouse    @relation(fields: [warehouseId], references: [id])
+  part           Part         @relation(fields: [partId], references: [id])
+
+  @@unique([warehouseId, partId])
+  @@index([organizationId])
+}
+
+enum StockMovementKind {
+  RECEIVED
+  TRANSFER_OUT
+  TRANSFER_IN
+  RESERVED
+  RELEASED
+  CONSUMED
+  RETURNED
+  ADJUSTED
+}
+
+// Append-only ledger. onHandDelta and reservedDelta are what the row did to the StockLevel.
+model StockMovement {
+  id                 String            @id @default(cuid())
+  organizationId     String
+  warehouseId        String
+  partId             String
+  kind               StockMovementKind
+  onHandDelta        Int
+  reservedDelta      Int               @default(0)
+  reason             String
+  actorId            String
+  visitId            String?
+  visitPartId        String?
+  transferGroup      String?
+  createdAt          DateTime          @default(now())
+  organization       Organization      @relation(fields: [organizationId], references: [id])
+  warehouse          Warehouse         @relation(fields: [warehouseId], references: [id])
+  part               Part              @relation(fields: [partId], references: [id])
+  actor              User              @relation(fields: [actorId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([warehouseId, partId])
+  @@index([visitId])
+}
+
+enum VisitPartStatus {
+  RESERVED
+  CONSUMED
+  RELEASED
+  RETURNED
+}
+
+// A part planned for or used on a visit, priced at the catalogue price when added.
+model VisitPart {
+  id             String          @id @default(cuid())
+  organizationId String
+  visitId        String
+  partId         String
+  warehouseId    String
+  quantity       Int
+  status         VisitPartStatus @default(RESERVED)
+  unitPrice      Decimal         @db.Decimal(12, 2)
+  currency       String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  visit          ServiceVisit    @relation(fields: [visitId], references: [id])
+  part           Part            @relation(fields: [partId], references: [id])
+  warehouse      Warehouse       @relation(fields: [warehouseId], references: [id])
 
   @@index([organizationId])
   @@index([visitId])

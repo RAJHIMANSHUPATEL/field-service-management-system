@@ -49,11 +49,38 @@ export type Visit = {
   signerName: string | null;
   signedAt: string | null;
   photos: VisitPhoto[];
+  parts: VisitPart[];
   technician: { id: string; user: { name: string } };
   changes: VisitChange[];
 };
 
 export type VisitPhoto = { id: string; fileName: string; contentType: string; caption: string | null; createdAt: string };
+
+export type VisitPart = {
+  id: string;
+  quantity: number;
+  status: "RESERVED" | "CONSUMED" | "RELEASED" | "RETURNED";
+  unitPrice: string;
+  currency: string;
+  part: { id: string; sku: string; name: string };
+  warehouse: { id: string; name: string };
+};
+
+export async function addVisitPart(visitId: string, partId: string, quantity: number) {
+  const result = await api<{ data: WorkOrder }>(`/api/v1/visits/${visitId}/parts`, {
+    method: "POST",
+    body: JSON.stringify({ partId, quantity }),
+  });
+  return result.data;
+}
+
+export async function moveVisitPart(visitId: string, visitPartId: string, action: "consume" | "release" | "return", reason?: string) {
+  const result = await api<{ data: WorkOrder }>(`/api/v1/visits/${visitId}/parts/${visitPartId}/${action}`, {
+    method: "POST",
+    ...(reason ? { body: JSON.stringify({ reason }) } : {}),
+  });
+  return result.data;
+}
 
 export const photoTypes = ["image/jpeg", "image/png", "image/webp"];
 

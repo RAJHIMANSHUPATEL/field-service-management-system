@@ -2,6 +2,7 @@ import express, { Router } from "express";
 import { maxPhotoBytes, photoTypes } from "./visit.schema.js";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import * as visitController from "./visit.controller.js";
+import * as inventoryController from "../inventory/inventory.controller.js";
 
 export const visitRouter = Router();
 
@@ -29,3 +30,8 @@ visitRouter.post(
 visitRouter.get("/:id/photos/:photoId", requireAuth, visitController.photoUrl);
 visitRouter.post("/:id/signature", requireAuth, assignees, visitController.signature);
 visitRouter.get("/:id/signature", requireAuth, visitController.signatureUrl);
+
+visitRouter.post("/:id/parts", requireAuth, assignees, inventoryController.addVisitPart);
+visitRouter.post("/:id/parts/:visitPartId/consume", requireAuth, assignees, inventoryController.consumeVisitPart);
+visitRouter.post("/:id/parts/:visitPartId/release", requireAuth, assignees, inventoryController.releaseVisitPart);
+visitRouter.post("/:id/parts/:visitPartId/return", requireAuth, assignees, inventoryController.returnVisitPart);

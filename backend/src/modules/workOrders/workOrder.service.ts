@@ -32,6 +32,18 @@ const workOrderInclude = {
       workPerformed: true,
       signerName: true,
       signedAt: true,
+      parts: {
+        orderBy: { createdAt: "asc" as const },
+        select: {
+          id: true,
+          quantity: true,
+          status: true,
+          unitPrice: true,
+          currency: true,
+          part: { select: { id: true, sku: true, name: true } },
+          warehouse: { select: { id: true, name: true } },
+        },
+      },
       photos: {
         orderBy: { createdAt: "asc" as const },
         select: { id: true, fileName: true, contentType: true, caption: true, createdAt: true },
