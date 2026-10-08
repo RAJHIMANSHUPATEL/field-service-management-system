@@ -20,6 +20,12 @@ const client = new S3Client({
   },
 });
 
+// The demo seed replays months of history under a simulated clock; request signing must still
+// use real time, so it tells the client how far the simulated clock is from the real one.
+export function setStorageClockOffset(offsetMs: number) {
+  client.config.systemClockOffset = offsetMs;
+}
+
 let bucketReady: Promise<void> | null = null;
 
 function ensureBucket() {

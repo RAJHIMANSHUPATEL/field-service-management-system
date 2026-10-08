@@ -61,6 +61,13 @@ function toSessionUser(user: {
   };
 }
 
+// For scripts acting as an existing user (the demo seed replays months of activity under a
+// simulated clock): the same access token a login would issue, without a password round trip.
+export async function accessTokenFor(userId: string): Promise<string> {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, include: { organization: true } });
+  return signAccessToken(toSessionUser(user));
+}
+
 function signAccessToken(user: SessionUser): string {
   return jwt.sign(
     {
