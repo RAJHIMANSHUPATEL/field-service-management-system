@@ -88,14 +88,18 @@ export function openapiDocument() {
       ...(schemas.body ? { requestBody: { required: true, content: { "application/json": { schema: jsonSchema(schemas.body) } } } } : {}),
       responses: {
         [op.method === "post" && /\/(?:$|feedback$)/.test(op.path) ? "201" : "200"]: {
-          description: "Success: `{ data, meta? }`.",
-          content: { "application/json": { schema: { type: "object", properties: { data: {}, meta: {} } } } },
+          ...(schemas.produces
+            ? { description: `Success: a ${schemas.produces} file.`, content: { [schemas.produces]: { schema: { type: "string", format: "binary" } } } }
+            : {
+                description: "Success: `{ data, meta? }`.",
+                content: { "application/json": { schema: { type: "object", properties: { data: {}, meta: {} } } } },
+              }),
         },
         ...(schemas.body || schemas.query ? { 400: { $ref: "#/components/responses/Error" } } : {}),
         ...(op.authenticated ? { 401: { $ref: "#/components/responses/Error" } } : {}),
         ...(op.roles ? { 403: { $ref: "#/components/responses/Error" } } : {}),
         ...(pathParams.length ? { 404: { $ref: "#/components/responses/Error" } } : {}),
-        ...(isWrite ? { 409: { $ref: "#/components/responses/Error" } } : {}),
+        ...(isWrite || schemas.conflict ? { 409: { $ref: "#/components/responses/Error" } } : {}),
         429: { $ref: "#/components/responses/Error" },
       },
     };

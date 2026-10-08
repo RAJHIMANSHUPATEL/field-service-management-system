@@ -47,7 +47,9 @@ import { calendarQuerySchema, cancelVisitSchema, rescheduleVisitSchema, signatur
 import { createWarehouseSchema, listWarehousesQuerySchema, updateWarehouseSchema } from "../modules/warehouses/warehouse.schema.js";
 import { addNoteSchema, assignWorkOrderSchema, candidatesQuerySchema, declineWorkOrderSchema, listWorkOrdersQuerySchema, reassignWorkOrderSchema, scheduleWorkOrderSchema } from "../modules/workOrders/workOrder.schema.js";
 
-type Schemas = { body?: z.ZodType; query?: z.ZodType };
+// produces: a binary success body instead of JSON. conflict: a GET that can answer 409 (a document
+// that is not available in the record's current state).
+type Schemas = { body?: z.ZodType; query?: z.ZodType; produces?: string; conflict?: boolean };
 
 // Request schemas by controller function: the same Zod schemas the controllers parse with.
 export const requestSchemas = new Map<unknown, Schemas>([
@@ -82,6 +84,7 @@ export const requestSchemas = new Map<unknown, Schemas>([
   [inventoryController.adjust, { body: adjustmentSchema }],
   [inventoryController.addVisitPart, { body: addVisitPartSchema }],
   [inventoryController.returnVisitPart, { body: returnVisitPartSchema }],
+  [invoiceController.pdf, { produces: "application/pdf", conflict: true }],
   [invoiceController.list, { query: listInvoicesQuerySchema }],
   [invoiceController.update, { body: updateInvoiceSchema }],
   [invoiceController.addLine, { body: addLineSchema }],
@@ -128,6 +131,7 @@ export const requestSchemas = new Map<unknown, Schemas>([
   [warehouseController.list, { query: listWarehousesQuerySchema }],
   [warehouseController.create, { body: createWarehouseSchema }],
   [warehouseController.update, { body: updateWarehouseSchema }],
+  [workOrderController.report, { produces: "application/pdf", conflict: true }],
   [workOrderController.list, { query: listWorkOrdersQuerySchema }],
   [workOrderController.assign, { body: assignWorkOrderSchema }],
   [workOrderController.schedule, { body: scheduleWorkOrderSchema }],
