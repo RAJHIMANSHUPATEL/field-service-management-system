@@ -21,6 +21,7 @@ and which test covers it.
 
 ## Known gaps (accepted for now)
 - No MFA and no account lockout beyond rate limiting.
+- Strict refresh-token reuse detection: if a refresh response is lost (the page is reloaded or closed while `/auth/refresh` is in flight), the next refresh is treated as reuse and the session ends. CI hit this in e2e when a test navigated away mid-refresh. A short reuse grace window would avoid it but loosens the reuse rule, so that is left as a product decision.
 - Notifications are sent through file/log providers only; no real SMS or email provider is configured.
 - No production deployment exists, so TLS, WAF and secret rotation are deployment concerns, see [deployment.md](./deployment.md).
 - `npm audit --omit=dev` reports 4 high findings (`deepmerge-ts`, `mysql2`) that come in through Prisma 7's tooling packages; the only fix offered is a forced breaking downgrade. The API uses the Postgres adapter, so the MySQL driver is never loaded. Revisit on the next Prisma release.
