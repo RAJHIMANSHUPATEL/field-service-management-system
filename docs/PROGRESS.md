@@ -33,3 +33,4 @@ Read this file and `docs/stages/README.md` before starting any work. Never redo 
 | Auth | fix/refresh-grace-window (10 s refresh grace window, sealed successor; decision in docs/security.md) | c216139 | All phases 0-12 complete; demo dataset available. Strict checks: /workspace/check-strict.sh |
 | Billing | feat/billing-igst (stage 20: IGST for inter-state supply, org GST state; ADR 0004 amended) | ab7eb2a | All phases 0-12 complete; demo dataset available. Strict checks: /workspace/check-strict.sh |
 | Billing | feat/invoice-pdf (stage 21: downloadable invoice PDF, GET /invoices/:id/pdf, 409 INVOICE_NOT_ISSUED) | d4a9e17 | All phases 0-12 complete; demo dataset available. Strict checks: /workspace/check-strict.sh |
+| Billing | feat/invoice-credits-refunds (stage 22: credit notes and refunds, one balance definition; ADR 0004 amended) | 7e74ccc | All phases 0-12 complete; demo dataset available. Strict checks: /workspace/check-strict.sh |
