@@ -24,5 +24,6 @@ Each stage is one slice of the product that can be signed in to and used. The de
 | 18 — Hardening and mobile readiness (deployment documented locally only) | Complete | [stage18.md](./stage18.md) |
 | 19 — Demo dataset: deterministic Indian demo seed | Complete | [stage19.md](./stage19.md) |
 | 20 — IGST for inter-state supply | Complete | [stage20.md](./stage20.md) |
+| 21 — Downloadable invoice PDF | Complete | [stage21.md](./stage21.md) |
 
 All twelve delivery phases are covered. The next stage starts when we pick it.

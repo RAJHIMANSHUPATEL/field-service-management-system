@@ -11,8 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
 import { toastError } from "@/lib/toastError";
-import { formatMoney, invoiceActions, invoiceStatusLabels, openServiceReport, type Invoice } from "../api/invoices.api";
+import { downloadInvoicePdf, formatMoney, invoiceActions, invoiceStatusLabels, openServiceReport, type Invoice } from "../api/invoices.api";
 import { useInvoice, useInvoiceAction } from "../hooks/useInvoices";
+import { canDownloadInvoicePdf } from "../schemas/invoice.schema";
 
 const coverageLabels: Record<Invoice["coverageSource"], string> = {
   NONE: "Not covered",
@@ -26,6 +27,7 @@ export function InvoiceDetailPage() {
   const invoice = useInvoice(invoiceId);
   const isOffice = currentUser.data?.role === "ADMIN" || currentUser.data?.role === "OPS";
   const isCustomer = currentUser.data?.role === "CUSTOMER";
+  const [downloading, setDownloading] = useState(false);
   const issue = useInvoiceAction(invoiceId, () => invoiceActions.issue(invoiceId));
   const payOnline = useInvoiceAction(invoiceId, () => invoiceActions.payOnline(invoiceId));
 
@@ -139,6 +141,20 @@ export function InvoiceDetailPage() {
           ) : null}
         </CardContent>
         <CardFooter className="flex-wrap gap-2">
+          {canDownloadInvoicePdf(record.status) ? (
+            <Button
+              type="button"
+              disabled={downloading}
+              onClick={() => {
+                setDownloading(true);
+                downloadInvoicePdf(record.id, record.number)
+                  .catch((error: unknown) => toastError(error, "Could not download the invoice PDF"))
+                  .finally(() => setDownloading(false));
+              }}
+            >
+              {downloading ? "Preparing PDF..." : "Download PDF"}
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"

@@ -203,6 +203,28 @@ export async function getInvoice(id: string, actor: AuthUser) {
   return { data: await requireInvoice(id, actor) };
 }
 
+// Statuses with a downloadable PDF: anything that has been issued. A draft is not an invoice yet.
+export const pdfStatuses = ["ISSUED", "OVERDUE", "PAID", "VOID"] as const;
+
+// The stored invoice plus what the PDF prints around it. Never reprices: the figures are the ones
+// saved at issue. Same access rules as reading the invoice (customers: own and not draft).
+export async function invoiceForPdf(id: string, actor: AuthUser) {
+  await markOverdue(actor.organizationId);
+  const invoice = await requireInvoice(id, actor);
+  if (!(pdfStatuses as readonly string[]).includes(invoice.status)) {
+    throw new AppError("INVOICE_NOT_ISSUED", 409, "The invoice PDF is available once the invoice is issued");
+  }
+  const context = await prisma.workOrder.findUniqueOrThrow({
+    where: { id: invoice.workOrderId },
+    select: {
+      organization: { select: { name: true, gstState: true } },
+      address: { select: { line1: true, line2: true, city: true, state: true, postalCode: true } },
+      asset: { select: { model: true } },
+    },
+  });
+  return { ...invoice, ...context };
+}
+
 export async function invoiceForWorkOrder(workOrderId: string, actor: AuthUser) {
   const invoice = await prisma.invoice.findFirst({ where: { workOrderId, organizationId: actor.organizationId } });
   if (!invoice) {

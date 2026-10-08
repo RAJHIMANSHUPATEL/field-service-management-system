@@ -3886,15 +3886,12 @@
         ],
         "responses": {
           "200": {
-            "description": "Success: `{ data, meta? }`.",
+            "description": "Success: a application/pdf file.",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {},
-                    "meta": {}
-                  }
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }
@@ -3903,6 +3900,9 @@
             "$ref": "#/components/responses/Error"
           },
           "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
             "$ref": "#/components/responses/Error"
           },
           "429": {
@@ -8287,6 +8287,58 @@
           },
           "400": {
             "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/invoices/{id}/pdf": {
+      "get": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "GET /api/v1/invoices/:id/pdf",
+        "description": "Roles: ADMIN, OPS, CUSTOMER.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success: a application/pdf file.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
           },
           "401": {
             "$ref": "#/components/responses/Error"

@@ -10,6 +10,7 @@ const readers = requireRole("ADMIN", "OPS", "CUSTOMER");
 invoiceRouter.get("/", requireAuth, readers, invoiceController.list);
 invoiceRouter.post("/mark-overdue", requireAuth, office, invoiceController.markOverdue);
 invoiceRouter.get("/:id", requireAuth, readers, invoiceController.get);
+invoiceRouter.get("/:id/pdf", requireAuth, readers, invoiceController.pdf);
 invoiceRouter.patch("/:id", requireAuth, office, invoiceController.update);
 invoiceRouter.post("/:id/lines", requireAuth, office, invoiceController.addLine);
 invoiceRouter.post("/:id/issue", requireAuth, office, invoiceController.issue);

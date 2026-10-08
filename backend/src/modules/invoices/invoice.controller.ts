@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { addLineSchema, listInvoicesQuerySchema, recordPaymentSchema, updateInvoiceSchema, voidInvoiceSchema } from "./invoice.schema.js";
+import { invoicePdf } from "./invoice.pdf.js";
 import * as invoiceService from "./invoice.service.js";
 
 function actor(req: Request) {
@@ -45,4 +46,10 @@ export async function voidInvoice(req: Request, res: Response) {
 
 export async function markOverdue(req: Request, res: Response) {
   res.status(200).json({ data: { marked: await invoiceService.markOverdue(actor(req).organizationId) } });
+}
+
+export async function pdf(req: Request, res: Response) {
+  const { pdf: body, number } = await invoicePdf(id(req), actor(req));
+  res.status(200).type("application/pdf").setHeader("Content-Disposition", `inline; filename="invoice-${number}.pdf"`);
+  res.end(body);
 }

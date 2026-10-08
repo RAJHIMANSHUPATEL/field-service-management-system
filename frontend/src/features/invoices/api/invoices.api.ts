@@ -1,6 +1,8 @@
+import type { z } from "zod";
 import { api, apiBlob } from "@/lib/apiClient";
+import type { invoiceStatusSchema } from "../schemas/invoice.schema";
 
-export type InvoiceStatus = "DRAFT" | "ISSUED" | "OVERDUE" | "PAID" | "VOID";
+export type InvoiceStatus = z.infer<typeof invoiceStatusSchema>;
 
 export const invoiceStatusLabels: Record<InvoiceStatus, string> = {
   DRAFT: "Draft",
@@ -101,6 +103,19 @@ export const invoiceActions = {
   payOnline: (id: string) => post(`/${id}/pay`),
   void: (id: string, reason: string) => post(`/${id}/void`, { reason }),
 };
+
+// Downloads the invoice PDF through the authenticated client (a bare link would carry no token).
+export async function downloadInvoicePdf(invoiceId: string, number: string | null) {
+  const blob = await apiBlob(`/api/v1/invoices/${invoiceId}/pdf`);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `invoice-${number ?? invoiceId}.pdf`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
 
 export async function openServiceReport(workOrderId: string) {
   const blob = await apiBlob(`/api/v1/work-orders/${workOrderId}/report`);
