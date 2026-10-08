@@ -11,9 +11,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
 import { toastError } from "@/lib/toastError";
-import { downloadInvoicePdf, formatMoney, invoiceActions, invoiceStatusLabels, openServiceReport, type Invoice } from "../api/invoices.api";
+import { downloadInvoicePdf, formatMoney, invoiceActions, invoiceStatusLabels, openServiceReport, type Adjustment, type Invoice } from "../api/invoices.api";
+import { AdjustmentDialog } from "../components/AdjustmentDialog";
 import { useInvoice, useInvoiceAction } from "../hooks/useInvoices";
-import { canDownloadInvoicePdf } from "../schemas/invoice.schema";
+import { canCredit, canDownloadInvoicePdf, canRefund } from "../schemas/invoice.schema";
 
 const coverageLabels: Record<Invoice["coverageSource"], string> = {
   NONE: "Not covered",
@@ -28,6 +29,7 @@ export function InvoiceDetailPage() {
   const isOffice = currentUser.data?.role === "ADMIN" || currentUser.data?.role === "OPS";
   const isCustomer = currentUser.data?.role === "CUSTOMER";
   const [downloading, setDownloading] = useState(false);
+  const [dialog, setDialog] = useState<"credit" | "refund" | null>(null);
   const issue = useInvoiceAction(invoiceId, () => invoiceActions.issue(invoiceId));
   const payOnline = useInvoiceAction(invoiceId, () => invoiceActions.payOnline(invoiceId));
 
@@ -39,7 +41,8 @@ export function InvoiceDetailPage() {
   }
   const record = invoice.data;
   const money = (value: string) => formatMoney(value, record.currency);
-  const balance = (Number(record.total) - Number(record.amountPaid)).toFixed(2);
+  // One balance definition, computed by the API (the PDF prints the same figures).
+  const { balance, refundDue, creditable, refundable } = record.settlement;
   const payable = record.status === "ISSUED" || record.status === "OVERDUE";
   const halfRate = (Number(record.taxRatePercent) / 2).toString();
   // Only the components that apply: CGST and SGST within the state, IGST across states.
@@ -57,7 +60,8 @@ export function InvoiceDetailPage() {
             <Badge variant={record.status === "OVERDUE" ? "destructive" : record.status === "PAID" ? "default" : "secondary"}>
               {invoiceStatusLabels[record.status]}
             </Badge>
-            {payable && Number(record.amountPaid) > 0 ? <Badge variant="outline">Partially paid</Badge> : null}
+            {payable && Number(record.settlement.netPaid) > 0 ? <Badge variant="outline">Partially paid</Badge> : null}
+            {Number(refundDue) > 0 ? <Badge variant="destructive">Refund due</Badge> : null}
             <Badge variant="outline">{coverageLabels[record.coverageSource]}</Badge>
           </div>
           <CardTitle>{record.number ?? "Draft invoice"}</CardTitle>
@@ -121,10 +125,48 @@ export function InvoiceDetailPage() {
             <dd className="text-right font-semibold" data-testid="invoice-total">
               {money(record.total)}
             </dd>
+            {Number(record.creditedTotal) > 0 ? (
+              <>
+                <dt>Credit notes</dt>
+                <dd className="text-right" data-testid="invoice-credited">
+                  −{money(record.creditedTotal)}
+                </dd>
+              </>
+            ) : null}
             <dt>Paid</dt>
             <dd className="text-right">{money(record.amountPaid)}</dd>
-            <dt>Balance</dt>
-            <dd className="text-right">{money(balance)}</dd>
+            {Number(record.refundedTotal) > 0 ? (
+              <>
+                <dt>Refunded</dt>
+                <dd className="text-right" data-testid="invoice-refunded">
+                  −{money(record.refundedTotal)}
+                </dd>
+              </>
+            ) : null}
+            <dt className="font-semibold">Balance</dt>
+            <dd className="text-right font-semibold" data-testid="invoice-balance">
+              {money(balance)}
+            </dd>
+            {Number(refundDue) > 0 ? (
+              <>
+                <dt className="font-semibold text-destructive">Refund due</dt>
+                <dd className="text-right font-semibold text-destructive" data-testid="invoice-refund-due">
+                  {money(refundDue)}
+                </dd>
+              </>
+            ) : null}
+            {isOffice && record.status !== "DRAFT" && record.status !== "VOID" ? (
+              <>
+                <dt className="text-muted-foreground">Creditable</dt>
+                <dd className="text-right text-muted-foreground" data-testid="invoice-creditable">
+                  {money(creditable)}
+                </dd>
+                <dt className="text-muted-foreground">Refundable</dt>
+                <dd className="text-right text-muted-foreground" data-testid="invoice-refundable">
+                  {money(refundable)}
+                </dd>
+              </>
+            ) : null}
           </dl>
           {record.dueAt ? <p className="text-sm text-muted-foreground">Due {new Date(record.dueAt).toLocaleDateString()}</p> : null}
           {record.notes ? <p className="text-sm whitespace-pre-line">{record.notes}</p> : null}
@@ -139,6 +181,8 @@ export function InvoiceDetailPage() {
               ))}
             </ul>
           ) : null}
+          <AdjustmentList title="Credit notes" rows={record.creditNotes} money={money} />
+          <AdjustmentList title="Refunds" rows={record.refunds} money={money} />
         </CardContent>
         <CardFooter className="flex-wrap gap-2">
           {canDownloadInvoicePdf(record.status) ? (
@@ -181,6 +225,16 @@ export function InvoiceDetailPage() {
               Issue invoice
             </Button>
           ) : null}
+          {isOffice && canCredit(record.status, creditable) ? (
+            <Button type="button" variant="outline" onClick={() => setDialog("credit")}>
+              Issue credit note
+            </Button>
+          ) : null}
+          {isOffice && canRefund(record.status, refundable) ? (
+            <Button type="button" variant="outline" onClick={() => setDialog("refund")}>
+              Refund
+            </Button>
+          ) : null}
           {isCustomer && payable ? (
             <Button
               type="button"
@@ -199,13 +253,41 @@ export function InvoiceDetailPage() {
       </Card>
       {isOffice && record.status === "DRAFT" ? <DraftEditor invoiceId={record.id} /> : null}
       {isOffice && payable ? <PaymentForm invoiceId={record.id} balance={balance} /> : null}
-      {isOffice && (record.status === "DRAFT" || (payable && record.payments.length === 0)) ? <VoidForm invoiceId={record.id} /> : null}
+      {isOffice && (record.status === "DRAFT" || (payable && record.payments.length === 0 && record.creditNotes.length === 0)) ? (
+        <VoidForm invoiceId={record.id} />
+      ) : null}
+      {isOffice ? (
+        <>
+          <AdjustmentDialog kind="credit" invoice={record} open={dialog === "credit"} onOpenChange={(open) => setDialog(open ? "credit" : null)} />
+          <AdjustmentDialog kind="refund" invoice={record} open={dialog === "refund"} onOpenChange={(open) => setDialog(open ? "refund" : null)} />
+        </>
+      ) : null}
       {isCustomer ? (
         <Link className={recordLinkClassName} to={`/requests/${record.workOrder.request.id}`}>
           Back to the request
         </Link>
       ) : null}
     </div>
+  );
+}
+
+function AdjustmentList({ title, rows, money }: { title: string; rows: Adjustment[]; money: (value: string) => string }) {
+  if (rows.length === 0) {
+    return null;
+  }
+  return (
+    <section className="flex flex-col gap-1" aria-label={title}>
+      <h3 className="text-sm font-semibold">{title}</h3>
+      <ul className="flex flex-col gap-1 text-sm">
+        {rows.map((row) => (
+          <li key={row.id}>
+            <span className="font-medium">{row.number}</span> · −{money(row.amount)} ·{" "}
+            {new Date(row.createdAt).toLocaleDateString(undefined, { dateStyle: "medium" })} · {row.reason}
+            <span className="text-muted-foreground"> · {row.createdBy.name}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
