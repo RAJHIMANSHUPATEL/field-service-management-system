@@ -25,8 +25,32 @@ export type Warehouse = {
 
 export type Catalog = "skills" | "service-areas" | "parts" | "warehouses";
 
+export type Organization = {
+  id: string;
+  name: string;
+  gstState: string | null;
+  gstStateName: string | null;
+  taxRatePercent: string;
+  paymentTermsDays: number;
+};
+export type GstState = { code: string; abbreviation: string; name: string };
+
+export async function getOrganization() {
+  return (await api<{ data: Organization }>("/api/v1/organization")).data;
+}
+
+export async function listGstStates() {
+  return (await api<{ data: GstState[] }>("/api/v1/organization/gst-states")).data;
+}
+
+export async function updateOrganization(input: { gstState: string }) {
+  return (await api<{ data: Organization }>("/api/v1/organization", { method: "PATCH", body: JSON.stringify(input) })).data;
+}
+
 export const masterDataKeys = {
   catalog: (catalog: Catalog) => ["master-data", catalog] as const,
+  organization: ["master-data", "organization"] as const,
+  gstStates: ["master-data", "gst-states"] as const,
 };
 
 export async function listCatalog<T>(catalog: Catalog) {

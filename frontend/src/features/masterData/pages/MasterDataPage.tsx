@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 import type { z } from "zod";
 import { selectClassName } from "@/components/content";
@@ -20,8 +20,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useTechnicians } from "@/features/technicians/hooks/useTechnicians";
 import { toastError } from "@/lib/toastError";
 import type { Catalog, Part, ServiceArea, Skill, Warehouse } from "../api/masterData.api";
-import { useCatalog, useCreateCatalogItem, useToggleCatalogItem } from "../hooks/useMasterData";
-import { partSchema, serviceAreaSchema, skillSchema, warehouseSchema } from "../schemas/masterData.schema";
+import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
+import {
+  useCatalog,
+  useCreateCatalogItem,
+  useGstStates,
+  useOrganization,
+  useToggleCatalogItem,
+  useUpdateOrganization,
+} from "../hooks/useMasterData";
+import { companySchema, partSchema, serviceAreaSchema, skillSchema, warehouseSchema } from "../schemas/masterData.schema";
 
 type FieldSpec = {
   name: string;
@@ -187,6 +195,86 @@ function CatalogCard<T extends { id: string; isActive: boolean }>({
   );
 }
 
+// The organisation's GST state decides CGST + SGST (job in the same state) or IGST (another state).
+function CompanyCard() {
+  const currentUser = useCurrentUser();
+  const organization = useOrganization();
+  const states = useGstStates();
+  const update = useUpdateOrganization();
+  const [choice, setChoice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const isAdmin = currentUser.data?.role === "ADMIN";
+  const saved = organization.data?.gstState ?? "";
+  const selected = choice ?? saved;
+
+  function save(event: FormEvent) {
+    event.preventDefault();
+    const parsed = companySchema.safeParse({ gstState: selected });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Choose a state");
+      return;
+    }
+    setError(null);
+    update.mutate(parsed.data, {
+      onSuccess: (result) => {
+        setChoice(null);
+        toast.success(`GST state set to ${result.gstStateName ?? result.gstState}`);
+      },
+      onError: (failure) => toastError(failure, "Could not save the GST state"),
+    });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Company</CardTitle>
+        <CardDescription>
+          {organization.data?.name ?? "Your organisation"}. Invoices for jobs in the GST state below carry CGST and SGST; jobs in
+          any other state carry IGST.
+        </CardDescription>
+        {organization.data && !organization.data.gstState ? (
+          <CardAction>
+            <Badge variant="destructive">GST state not set</Badge>
+          </CardAction>
+        ) : null}
+      </CardHeader>
+      <CardContent>
+        {organization.isPending ? (
+          <Skeleton className="h-9 w-72" />
+        ) : (
+          <form className="flex flex-wrap items-end gap-3" onSubmit={save}>
+            <Field className="w-72">
+              <FieldLabel htmlFor="company-gst-state">GST state</FieldLabel>
+              <select
+                id="company-gst-state"
+                className={selectClassName}
+                value={selected}
+                disabled={!isAdmin || update.isPending}
+                onChange={(event) => setChoice(event.target.value)}
+              >
+                <option value="">Not set</option>
+                {(states.data ?? []).map((state) => (
+                  <option key={state.code} value={state.code}>
+                    {state.code} · {state.name}
+                  </option>
+                ))}
+              </select>
+              {error ? <FieldError>{error}</FieldError> : null}
+            </Field>
+            {isAdmin ? (
+              <Button type="submit" disabled={update.isPending || selected === saved}>
+                {update.isPending ? "Saving..." : "Save"}
+              </Button>
+            ) : (
+              <p className="text-sm text-muted-foreground">Only an admin can change this.</p>
+            )}
+          </form>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function MasterDataPage() {
   const technicians = useTechnicians();
   const technicianOptions = [
@@ -196,6 +284,7 @@ export function MasterDataPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <CompanyCard />
       <CatalogCard<Skill>
         catalog="skills"
         title="Skills"
