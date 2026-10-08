@@ -9,7 +9,9 @@ base="${url%/*}"
 scratch="field_service_restore_drill"
 start=$(date +%s)
 dump_line="$(DATABASE_URL="$url" "$here/scripts/backup.sh" "$here/backups")"
-dump="$(echo "$dump_line" | sed -E 's/^database: ([^ ]+).*/\1/')"
+dump="$(echo "$dump_line" | sed -nE 's/^database: ([^ ]+).*/\1/p')"
+[ -f "$dump" ] || { echo "DRILL FAILED: no dump file"; exit 1; }
+echo "$dump_line" | grep '^objects:' || true
 psql "$base/postgres" -qAtc "DROP DATABASE IF EXISTS $scratch" >/dev/null
 psql "$base/postgres" -qAtc "CREATE DATABASE $scratch" >/dev/null
 "$here/scripts/restore.sh" "$dump" "$base/$scratch" >/dev/null
