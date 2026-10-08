@@ -49,6 +49,7 @@ export function InvoiceDetailPage() {
             <Badge variant={record.status === "OVERDUE" ? "destructive" : record.status === "PAID" ? "default" : "secondary"}>
               {invoiceStatusLabels[record.status]}
             </Badge>
+            {payable && Number(record.amountPaid) > 0 ? <Badge variant="outline">Partially paid</Badge> : null}
             <Badge variant="outline">{coverageLabels[record.coverageSource]}</Badge>
           </div>
           <CardTitle>{record.number ?? "Draft invoice"}</CardTitle>
