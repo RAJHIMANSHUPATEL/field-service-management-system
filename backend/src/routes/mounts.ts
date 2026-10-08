@@ -22,11 +22,13 @@ import { notificationRouter } from "../modules/notifications/notification.routes
 import { maintenanceRouter } from "../modules/maintenance/maintenance.routes.js";
 import { analyticsRouter } from "../modules/analytics/analytics.routes.js";
 import { warehouseRouter } from "../modules/warehouses/warehouse.routes.js";
+import { organizationRouter } from "../modules/organization/organization.routes.js";
 
 // Every API router and where it is mounted. The server and the OpenAPI document both read this,
 // so the documentation cannot miss a route.
 export const mounts: [string, Router][] = [
   ["/api/v1/auth", authRouter],
+  ["/api/v1/organization", organizationRouter],
   ["/api/v1/sync", syncRouter],
   ["/api/v1/customers", customerRouter],
   ["/api/v1/assets", assetRouter],

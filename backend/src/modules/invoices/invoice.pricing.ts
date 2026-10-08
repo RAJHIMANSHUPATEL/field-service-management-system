@@ -25,7 +25,11 @@ export type PricingInput = {
   coverage: Coverage;
   discount: DecimalValue;
   taxRatePercent: DecimalValue;
+  // Intra-state: the site is in the organisation's GST state (CGST + SGST). Inter-state: IGST.
+  supply: Supply;
 };
+
+export type Supply = "INTRA_STATE" | "INTER_STATE";
 
 export type PricedLine = {
   kind: "SERVICE_CHARGE" | "LABOUR" | "PART" | "ADDITIONAL";
@@ -54,8 +58,9 @@ export function billableHours(minutes: number) {
 
 export class PricingError extends Error {}
 
-// Pure invoice arithmetic: lines, coverage per line, discount, then CGST and SGST halves of the
-// tax rate on what is left (intra-state supply).
+// Pure invoice arithmetic: lines, coverage per line, discount, then tax at the rate on what is
+// left. Intra-state supply splits it into equal CGST and SGST halves; inter-state supply charges
+// the same amount as IGST, so the total never depends on the supply type.
 export function priceInvoice(input: PricingInput) {
   const lines: PricedLine[] = [];
   const push = (line: Omit<PricedLine, "position">) => lines.push({ ...line, position: lines.length });
@@ -126,11 +131,17 @@ export function priceInvoice(input: PricingInput) {
   }
   const taxableAmount = money(billable.sub(discount));
   const taxRatePercent = new Decimal(input.taxRatePercent);
-  const cgst = percentOf(taxableAmount, taxRatePercent.div(2).toNumber());
-  const sgst = cgst;
-  const taxTotal = money(cgst.add(sgst));
+  // The tax is always two rounded halves (the original CGST/SGST rounding), so IGST equals
+  // CGST + SGST to the paisa and switching supply type never moves the total.
+  const half = percentOf(taxableAmount, taxRatePercent.div(2).toNumber());
+  const taxTotal = money(half.add(half));
+  const intra = input.supply === "INTRA_STATE";
+  const zero = new Decimal(0);
+  const cgst = intra ? half : zero;
+  const sgst = intra ? half : zero;
+  const igst = intra ? zero : taxTotal;
   const total = money(taxableAmount.add(taxTotal));
-  return { lines, subtotal, coveredTotal, discount, taxableAmount, taxRatePercent, cgst, sgst, taxTotal, total };
+  return { lines, subtotal, coveredTotal, discount, taxableAmount, taxRatePercent, cgst, sgst, igst, taxTotal, total };
 }
 
 // Warranty first: a job on equipment still under warranty costs the customer nothing.
