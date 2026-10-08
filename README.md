@@ -386,3 +386,8 @@ technician's accept or decline, still a slice of phase 4. Stages 6–18 complete
 | 10 — Contracts and maintenance | Complete (stage 16) |
 | 11 — Analytics | Complete (stage 17) |
 | 12 — Hardening and mobile readiness | Complete (stage 18); deployment documented for local use only, not deployed |
+
+A demo dataset for walkthroughs (an Indian facility-services company with 35 customers, 11
+technicians and three months of jobs, invoices and contracts) is loaded with
+`cd backend && npm run db:seed:demo`. Logins and details are in [`docs/demo.md`](./docs/demo.md)
+(stage 19).

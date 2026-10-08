@@ -22,5 +22,6 @@ Each stage is one slice of the product that can be signed in to and used. The de
 | 16 — Contracts and preventive maintenance | Complete | [stage16.md](./stage16.md) |
 | 17 — Analytics | Complete | [stage17.md](./stage17.md) |
 | 18 — Hardening and mobile readiness (deployment documented locally only) | Complete | [stage18.md](./stage18.md) |
+| 19 — Demo dataset: deterministic Indian demo seed | Complete | [stage19.md](./stage19.md) |
 
 All twelve delivery phases are covered. The next stage starts when we pick it.
