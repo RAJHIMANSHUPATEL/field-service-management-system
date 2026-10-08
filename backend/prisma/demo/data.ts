@@ -13,6 +13,9 @@ export const staff = {
   ],
 } as const;
 
+// GST registration of the head office (Bengaluru). Accepts a code, abbreviation or name.
+export const gstState = "KA";
+
 export type City = "Bengaluru" | "Mumbai" | "Pune" | "Hyderabad";
 export const states: Record<City, string> = {
   Bengaluru: "Karnataka",

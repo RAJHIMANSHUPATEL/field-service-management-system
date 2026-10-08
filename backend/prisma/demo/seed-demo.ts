@@ -191,6 +191,8 @@ async function setup() {
   const admin = await prisma.user.findFirstOrThrow({ where: { email: data.staff.admin.email } });
   world.adminId = admin.id;
   const as = admin.id;
+  // Head office in Bengaluru: Karnataka jobs are intra-state (CGST + SGST), the rest IGST.
+  await api("PATCH", "/organization", { as, body: { gstState: data.gstState } });
 
   for (const person of data.staff.ops) {
     await api("POST", "/users/invitations", { as, body: { email: person.email, name: person.name, role: "OPS" } });
@@ -1117,6 +1119,8 @@ async function printCounts() {
     visitChanges: await prisma.visitChange.count({ where }),
     invoices: await group(prisma.invoice.groupBy({ by: ["status"], where, _count: { _all: true } }) as never),
     partiallyPaid: await prisma.invoice.count({ where: { ...where, status: { in: ["ISSUED", "OVERDUE"] }, amountPaid: { gt: 0 } } }),
+    intraStateInvoices: await prisma.invoice.count({ where: { ...where, cgst: { gt: 0 } } }),
+    interStateInvoices: await prisma.invoice.count({ where: { ...where, igst: { gt: 0 } } }),
     payments: await prisma.payment.count({ where }),
     contracts: await group(prisma.serviceContract.groupBy({ by: ["status"], where, _count: { _all: true } }) as never),
     contractVisits: await prisma.contractVisit.count({ where }),
