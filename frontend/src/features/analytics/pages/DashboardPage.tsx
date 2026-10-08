@@ -54,7 +54,11 @@ export function DashboardPage() {
         <Stat
           label="Pending invoices"
           value={data.pendingInvoices.count}
-          detail={`${formatMoney(data.pendingInvoices.outstanding, data.pendingInvoices.currency)} outstanding · ${data.pendingInvoices.overdue} overdue · ${data.pendingInvoices.drafts} drafts`}
+          detail={`${formatMoney(data.pendingInvoices.outstanding, data.pendingInvoices.currency)} outstanding · ${data.pendingInvoices.overdue} overdue · ${data.pendingInvoices.drafts} drafts${
+            data.pendingInvoices.refundDueCount > 0
+              ? ` · ${formatMoney(data.pendingInvoices.refundDue, data.pendingInvoices.currency)} refund due`
+              : ""
+          }`}
           to="/invoices"
         />
       </div>

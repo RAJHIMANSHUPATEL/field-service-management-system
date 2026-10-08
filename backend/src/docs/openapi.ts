@@ -87,7 +87,7 @@ export function openapiDocument() {
       ],
       ...(schemas.body ? { requestBody: { required: true, content: { "application/json": { schema: jsonSchema(schemas.body) } } } } : {}),
       responses: {
-        [op.method === "post" && /\/(?:$|feedback$)/.test(op.path) ? "201" : "200"]: {
+        [schemas.created || (op.method === "post" && /\/(?:$|feedback$)/.test(op.path)) ? "201" : "200"]: {
           ...(schemas.produces
             ? { description: `Success: a ${schemas.produces} file.`, content: { [schemas.produces]: { schema: { type: "string", format: "binary" } } } }
             : {

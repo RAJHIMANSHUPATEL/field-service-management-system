@@ -222,6 +222,34 @@ test("request, triage, assign, schedule, accept, visit, complete, invoice, pay",
   await expect(ops.page.getByText("Paid", { exact: true }).first()).toBeVisible();
   await expect(ops.page.getByRole("list", { name: "Payments" })).toContainText("online");
 
+  // Ops credits part of the paid invoice (refund due), then records the refund.
+  await ops.page.getByRole("button", { name: "Issue credit note" }).click();
+  const creditDialog = ops.page.getByRole("dialog", { name: "Issue credit note" });
+  await expect(creditDialog.getByTestId("credit-limit")).toHaveText("Creditable: ₹1,711.00");
+  await creditDialog.getByLabel("Amount").fill("1711.01");
+  await creditDialog.getByLabel("Reason").fill("Filter was covered by the supplier");
+  await creditDialog.getByRole("button", { name: "Issue credit note" }).click();
+  await expect(creditDialog.getByText("At most ₹1,711.00")).toBeVisible();
+  await creditDialog.getByLabel("Amount").fill("450.00");
+  await creditDialog.getByRole("button", { name: "Issue credit note" }).click();
+  await expect(creditDialog).toBeHidden();
+  await expect(ops.page.getByRole("region", { name: "Credit notes" })).toContainText("Filter was covered by the supplier");
+  await expect(ops.page.getByTestId("invoice-refund-due")).toHaveText("₹450.00");
+  await ops.page.getByRole("button", { name: "Refund", exact: true }).click();
+  const refundDialog = ops.page.getByRole("dialog", { name: "Refund" });
+  await expect(refundDialog.getByLabel("Amount")).toHaveValue("450.00");
+  await refundDialog.getByLabel("Reason").fill("Refund of the filter credit");
+  await refundDialog.getByRole("button", { name: "Record refund" }).click();
+  await expect(refundDialog).toBeHidden();
+  await expect(ops.page.getByRole("region", { name: "Refunds" })).toContainText("Refund of the filter credit");
+  await expect(ops.page.getByTestId("invoice-refund-due")).toHaveCount(0);
+  await expect(ops.page.getByTestId("invoice-balance")).toHaveText("₹0.00");
+  await customer.page.reload();
+  await expect(customer.page.getByRole("region", { name: "Credit notes" })).toContainText("₹450.00");
+  await expect(customer.page.getByRole("region", { name: "Refunds" })).toContainText("₹450.00");
+  await expect(customer.page.getByRole("button", { name: "Issue credit note" })).toHaveCount(0);
+  await expect(customer.page.getByRole("button", { name: "Refund", exact: true })).toHaveCount(0);
+
   // Notifications: the customer's bell carries each step, ending with the payment receipt.
   await customer.page.getByRole("button", { name: /^Notifications, \d+ unread$/ }).click();
   const customerMenu = customer.page.getByRole("menu");

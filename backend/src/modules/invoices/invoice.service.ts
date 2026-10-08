@@ -6,7 +6,8 @@ import { pageMeta } from "../../lib/pagination.js";
 import { prisma } from "../../lib/prisma.js";
 import { gstStateByCode, resolveGstState } from "../../lib/gstStates.js";
 import { chooseCoverage, priceInvoice, PricingError, type DecimalValue, type Supply } from "./invoice.pricing.js";
-import type { AddLineInput, ListInvoicesQuery, RecordPaymentInput, UpdateInvoiceInput } from "./invoice.schema.js";
+import { creditStatuses, refundStatuses, settlement, settlementOf, statusAfter, type Ledger } from "./invoice.balance.js";
+import type { AddLineInput, AdjustmentInput, ListInvoicesQuery, RecordPaymentInput, UpdateInvoiceInput } from "./invoice.schema.js";
 import { canInvoice, editableStatuses, type InvoiceAction } from "./invoice.transitions.js";
 import { invoiceEvent, notify } from "../notifications/notification.events.js";
 
@@ -30,7 +31,20 @@ const invoiceInclude = {
     orderBy: { paidAt: "asc" as const },
     select: { id: true, amount: true, method: true, reference: true, provider: true, paidAt: true, recordedBy: { select: { id: true, name: true } } },
   },
+  creditNotes: {
+    orderBy: [{ createdAt: "asc" as const }, { id: "asc" as const }],
+    select: { id: true, number: true, amount: true, currency: true, reason: true, createdAt: true, createdBy: { select: { id: true, name: true } } },
+  },
+  refunds: {
+    orderBy: [{ createdAt: "asc" as const }, { id: "asc" as const }],
+    select: { id: true, number: true, amount: true, currency: true, reason: true, createdAt: true, createdBy: { select: { id: true, name: true } } },
+  },
 };
+
+// Every invoice the API returns carries its settlement (balance, refund due, creditable, refundable).
+function withSettlement<T extends Ledger>(invoice: T) {
+  return { ...invoice, settlement: settlement(invoice) };
+}
 
 // Everything the price depends on, read at the time of pricing.
 async function pricingSource(tx: Tx, workOrderId: string) {
@@ -195,12 +209,12 @@ export async function listInvoices(actor: AuthUser, query: ListInvoicesQuery) {
     }),
     prisma.invoice.count({ where }),
   ]);
-  return { data: rows, meta: pageMeta(total, query.page, query.limit) };
+  return { data: rows.map(withSettlement), meta: pageMeta(total, query.page, query.limit) };
 }
 
 export async function getInvoice(id: string, actor: AuthUser) {
   await markOverdue(actor.organizationId);
-  return { data: await requireInvoice(id, actor) };
+  return { data: withSettlement(await requireInvoice(id, actor)) };
 }
 
 // Statuses with a downloadable PDF: anything that has been issued. A draft is not an invoice yet.
@@ -222,7 +236,7 @@ export async function invoiceForPdf(id: string, actor: AuthUser) {
       asset: { select: { model: true } },
     },
   });
-  return { ...invoice, ...context };
+  return { ...withSettlement(invoice), ...context };
 }
 
 export async function invoiceForWorkOrder(workOrderId: string, actor: AuthUser) {
@@ -314,10 +328,9 @@ async function applyPayment(
   payment: { amount: Prisma.Decimal; method: RecordPaymentInput["method"] | "ONLINE"; reference?: string; provider?: string; paidAt: Date },
 ) {
   await prisma.$transaction(async (tx) => {
-    const [locked] = await tx.$queryRaw<{ status: string; total: string; amountPaid: string }[]>`
-      SELECT "status", "total"::text, "amountPaid"::text FROM "Invoice" WHERE "id" = ${invoiceId} FOR UPDATE`;
-    assertCan("pay", locked!.status as never);
-    const balance = new Decimal(locked!.total).sub(locked!.amountPaid);
+    const locked = await lockInvoice(tx, invoiceId);
+    assertCan("pay", locked.status);
+    const { balance } = settlementOf(locked);
     if (payment.amount.gt(balance)) {
       throw new AppError("PAYMENT_EXCEEDS_BALANCE", 409, "The payment is more than the balance due", { balance: balance.toFixed(2) });
     }
@@ -333,8 +346,8 @@ async function applyPayment(
         recordedById: actor.id,
       },
     });
-    const amountPaid = new Decimal(locked!.amountPaid).add(payment.amount);
-    const settled = amountPaid.eq(locked!.total);
+    const amountPaid = new Decimal(locked.amountPaid).add(payment.amount);
+    const settled = settlementOf({ ...locked, amountPaid }).owed.lte(0);
     await tx.invoice.update({
       where: { id: invoiceId },
       data: { amountPaid, ...(settled ? { status: "PAID", paidAt: payment.paidAt } : {}) },
@@ -362,7 +375,7 @@ export async function payOnline(id: string, actor: AuthUser) {
     throw new AppError("FORBIDDEN", 403, "You do not have access to this resource");
   }
   assertCan("pay", invoice.status);
-  const balance = new Decimal(invoice.total).sub(invoice.amountPaid);
+  const { balance } = settlementOf(invoice);
   const result = await charge({ invoiceId: invoice.id, amount: balance.toFixed(2), currency: invoice.currency });
   await applyPayment(invoice.id, actor, {
     amount: balance,
@@ -380,8 +393,11 @@ export async function voidInvoice(id: string, actor: AuthUser, reason: string) {
   if (invoice.payments.length > 0) {
     throw new AppError("INVALID_TRANSITION", 409, "An invoice with payments cannot be voided");
   }
+  if (invoice.creditNotes.length > 0) {
+    throw new AppError("INVALID_TRANSITION", 409, "An invoice with credit notes cannot be voided");
+  }
   const moved = await prisma.invoice.updateMany({
-    where: { id: invoice.id, status: invoice.status, amountPaid: 0 },
+    where: { id: invoice.id, status: invoice.status, amountPaid: 0, creditedTotal: 0 },
     data: { status: "VOID", voidedAt: new Date(), notes: [invoice.notes, `Voided: ${reason}`].filter(Boolean).join("\n") },
   });
   if (moved.count !== 1) {
@@ -391,10 +407,99 @@ export async function voidInvoice(id: string, actor: AuthUser, reason: string) {
 }
 
 // Issued invoices past their due date become OVERDUE. Runs before reads and on a timer.
+// Only invoices that still owe something: the same balance as settlementOf, in SQL.
 export async function markOverdue(organizationId?: string, now = new Date()) {
-  const result = await prisma.invoice.updateMany({
-    where: { ...(organizationId ? { organizationId } : {}), status: "ISSUED", dueAt: { lt: now } },
-    data: { status: "OVERDUE" },
+  return prisma.$executeRaw`
+    UPDATE "Invoice" SET "status" = 'OVERDUE', "updatedAt" = NOW()
+    WHERE "status" = 'ISSUED' AND "dueAt" < ${now}
+      AND ("total" - "creditedTotal") - ("amountPaid" - "refundedTotal") > 0
+      ${organizationId ? Prisma.sql`AND "organizationId" = ${organizationId}` : Prisma.empty}`;
+}
+
+type Locked = Ledger & { dueAt: Date | null; currency: string };
+
+// Reads the invoice's money columns with a row lock, so concurrent payments, credits and refunds on
+// one invoice run one after another and each sees the previous one's result.
+async function lockInvoice(tx: Tx, invoiceId: string): Promise<Locked> {
+  const [row] = await tx.$queryRaw<(Omit<Locked, "status"> & { status: string })[]>`
+    SELECT "status", "total"::text, "creditedTotal"::text, "amountPaid"::text, "refundedTotal"::text, "dueAt", "currency"
+    FROM "Invoice" WHERE "id" = ${invoiceId} FOR UPDATE`;
+  return { ...row!, status: row!.status as Locked["status"] };
+}
+
+async function nextNumber(tx: Tx, organizationId: string, kind: "creditNoteSequence" | "refundSequence", now: Date) {
+  const organization = await tx.organization.update({ where: { id: organizationId }, data: { [kind]: { increment: 1 } } });
+  const prefix = kind === "creditNoteSequence" ? "CN" : "RF";
+  return `${prefix}-${now.getUTCFullYear()}-${String(organization[kind]).padStart(5, "0")}`;
+}
+
+// A credit note lowers what the customer owes, up to what is left of the total after earlier
+// credits. The invoice's lines and total never change. Settling the balance marks it PAID; a credit
+// on an invoice already paid leaves a refund due.
+export async function issueCreditNote(id: string, actor: AuthUser, input: AdjustmentInput) {
+  const invoice = await requireInvoice(id, actor);
+  const amount = new Decimal(input.amount);
+  await prisma.$transaction(async (tx) => {
+    const locked = await lockInvoice(tx, invoice.id);
+    if (!creditStatuses.includes(locked.status)) {
+      throw new AppError("INVALID_TRANSITION", 409, "Only an issued, overdue or paid invoice can be credited");
+    }
+    const { creditable } = settlementOf(locked);
+    if (amount.gt(creditable)) {
+      throw new AppError("CREDIT_EXCEEDS_REMAINING", 409, "The credit is more than what is left of the invoice total", {
+        creditable: creditable.toFixed(2),
+      });
+    }
+    const now = new Date();
+    await tx.creditNote.create({
+      data: {
+        organizationId: actor.organizationId,
+        invoiceId: invoice.id,
+        number: await nextNumber(tx, actor.organizationId, "creditNoteSequence", now),
+        amount,
+        currency: locked.currency,
+        reason: input.reason,
+        createdById: actor.id,
+      },
+    });
+    const creditedTotal = new Decimal(locked.creditedTotal).add(amount);
+    const next = statusAfter(locked.status, settlementOf({ ...locked, creditedTotal }).owed, locked.dueAt, now);
+    await tx.invoice.update({ where: { id: invoice.id }, data: { creditedTotal, ...next } });
   });
-  return result.count;
+  return getInvoice(invoice.id, actor);
+}
+
+// A refund pays money back against the invoice's payments, up to what was paid less earlier refunds.
+// Payments are kept. If the customer owes again, a PAID invoice goes back to ISSUED or OVERDUE.
+export async function issueRefund(id: string, actor: AuthUser, input: AdjustmentInput) {
+  const invoice = await requireInvoice(id, actor);
+  const amount = new Decimal(input.amount);
+  await prisma.$transaction(async (tx) => {
+    const locked = await lockInvoice(tx, invoice.id);
+    if (!refundStatuses.includes(locked.status)) {
+      throw new AppError("INVALID_TRANSITION", 409, "Only an issued, overdue or paid invoice can be refunded");
+    }
+    const { refundable } = settlementOf(locked);
+    if (amount.gt(refundable)) {
+      throw new AppError("REFUND_EXCEEDS_PAID", 409, "The refund is more than what was paid less earlier refunds", {
+        refundable: refundable.toFixed(2),
+      });
+    }
+    const now = new Date();
+    await tx.refund.create({
+      data: {
+        organizationId: actor.organizationId,
+        invoiceId: invoice.id,
+        number: await nextNumber(tx, actor.organizationId, "refundSequence", now),
+        amount,
+        currency: locked.currency,
+        reason: input.reason,
+        createdById: actor.id,
+      },
+    });
+    const refundedTotal = new Decimal(locked.refundedTotal).add(amount);
+    const next = statusAfter(locked.status, settlementOf({ ...locked, refundedTotal }).owed, locked.dueAt, now);
+    await tx.invoice.update({ where: { id: invoice.id }, data: { refundedTotal, ...next } });
+  });
+  return getInvoice(invoice.id, actor);
 }

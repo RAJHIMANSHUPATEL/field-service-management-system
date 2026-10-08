@@ -31,7 +31,7 @@ import { cancelContractSchema, createContractSchema, listContractsQuerySchema } 
 import { createAddressSchema, createContactSchema, createCustomerSchema, listCustomersQuerySchema, updateAddressSchema, updateContactSchema, updateCustomerSchema } from "../modules/customers/customer.schema.js";
 import { createFeedbackSchema, listFeedbackQuerySchema } from "../modules/feedback/feedback.schema.js";
 import { addVisitPartSchema, adjustmentSchema, movementQuerySchema, receiptSchema, returnVisitPartSchema, stockQuerySchema, transferSchema } from "../modules/inventory/inventory.schema.js";
-import { addLineSchema, listInvoicesQuerySchema, recordPaymentSchema, updateInvoiceSchema, voidInvoiceSchema } from "../modules/invoices/invoice.schema.js";
+import { addLineSchema, creditNoteSchema, listInvoicesQuerySchema, recordPaymentSchema, refundSchema, updateInvoiceSchema, voidInvoiceSchema } from "../modules/invoices/invoice.schema.js";
 import { createPlanSchema, listPlansQuerySchema, updatePlanSchema } from "../modules/maintenance/maintenance.schema.js";
 import { listDeliveriesQuerySchema, updateRuleSchema } from "../modules/notifications/notification.schema.js";
 import { listPartRequestsQuerySchema, resolvePartRequestSchema } from "../modules/partRequests/partRequest.schema.js";
@@ -49,7 +49,8 @@ import { addNoteSchema, assignWorkOrderSchema, candidatesQuerySchema, declineWor
 
 // produces: a binary success body instead of JSON. conflict: a GET that can answer 409 (a document
 // that is not available in the record's current state).
-type Schemas = { body?: z.ZodType; query?: z.ZodType; produces?: string; conflict?: boolean };
+// created: answers 201 rather than 200.
+type Schemas = { body?: z.ZodType; query?: z.ZodType; produces?: string; conflict?: boolean; created?: boolean };
 
 // Request schemas by controller function: the same Zod schemas the controllers parse with.
 export const requestSchemas = new Map<unknown, Schemas>([
@@ -85,6 +86,8 @@ export const requestSchemas = new Map<unknown, Schemas>([
   [inventoryController.addVisitPart, { body: addVisitPartSchema }],
   [inventoryController.returnVisitPart, { body: returnVisitPartSchema }],
   [invoiceController.pdf, { produces: "application/pdf", conflict: true }],
+  [invoiceController.creditNote, { body: creditNoteSchema, created: true }],
+  [invoiceController.refund, { body: refundSchema, created: true }],
   [invoiceController.list, { query: listInvoicesQuerySchema }],
   [invoiceController.update, { body: updateInvoiceSchema }],
   [invoiceController.addLine, { body: addLineSchema }],

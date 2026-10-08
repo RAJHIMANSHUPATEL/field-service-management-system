@@ -576,3 +576,239 @@ describe("invoice PDF", () => {
     expect(after).toEqual(before);
   });
 });
+
+const year = new Date().getUTCFullYear();
+
+describe("credit notes and refunds", () => {
+  async function issued(ops: string, job: { invoiceId: string }) {
+    const response = await request(app).post(api(`/invoices/${job.invoiceId}/issue`)).set(auth(ops));
+    expect(response.body.data).toMatchObject({ status: "ISSUED", total: "2183" });
+    return job.invoiceId;
+  }
+  const credit = (id: string, token: string, body: object) => request(app).post(api(`/invoices/${id}/credit-notes`)).set(auth(token)).send(body);
+  const refund = (id: string, token: string, body: object) => request(app).post(api(`/invoices/${id}/refunds`)).set(auth(token)).send(body);
+  const pay = (id: string, token: string, amount: string) => request(app).post(api(`/invoices/${id}/payments`)).set(auth(token)).send({ amount, method: "UPI" });
+
+  it("credits an issued invoice without touching its lines, numbers the notes, and marks it PAID when nothing is owed", async () => {
+    const { context, ops, completedJob } = await billingSetup();
+    const id = await issued(ops, await completedJob());
+    const before = await prisma.invoice.findUniqueOrThrow({ where: { id }, include: { lines: true } });
+
+    const first = await credit(id, ops, { amount: "183.00", reason: "Goodwill for the late visit" });
+    expect(first.status).toBe(201);
+    expect(first.body.data).toMatchObject({ status: "ISSUED", total: "2183", creditedTotal: "183" });
+    expect(first.body.data.creditNotes).toEqual([
+      expect.objectContaining({ number: `CN-${year}-00001`, amount: "183", currency: "INR", reason: "Goodwill for the late visit", createdBy: expect.objectContaining({ name: expect.any(String) }) }),
+    ]);
+    expect(first.body.data.settlement).toEqual({ netTotal: "2000.00", netPaid: "0.00", balance: "2000.00", refundDue: "0.00", creditable: "2000.00", refundable: "0.00" });
+
+    // Payments are capped by the balance after credits.
+    expect((await pay(id, ops, "1000.00")).body.data.settlement.balance).toBe("1000.00");
+    const over = await pay(id, ops, "1000.01");
+    expect(over.status).toBe(409);
+    expect(over.body.error).toMatchObject({ code: "PAYMENT_EXCEEDS_BALANCE", details: { balance: "1000.00" } });
+
+    const second = await credit(id, context.adminToken, { amount: "1000.00", reason: "Part returned unused" });
+    expect(second.status).toBe(201);
+    expect(second.body.data).toMatchObject({ status: "PAID", creditedTotal: "1183", amountPaid: "1000" });
+    expect(second.body.data.paidAt).toEqual(expect.any(String));
+    expect(second.body.data.creditNotes.map((note: { number: string }) => note.number)).toEqual([`CN-${year}-00001`, `CN-${year}-00002`]);
+    expect(second.body.data.settlement).toMatchObject({ balance: "0.00", refundDue: "0.00", creditable: "1000.00", refundable: "1000.00" });
+
+    // The issued figures and lines are as they were.
+    const after = await prisma.invoice.findUniqueOrThrow({ where: { id }, include: { lines: true } });
+    expect(after.lines).toEqual(before.lines);
+    expect([after.subtotal, after.taxTotal, after.total].map(String)).toEqual([before.subtotal, before.taxTotal, before.total].map(String));
+
+    const audit = await prisma.auditEvent.findMany({ where: { action: "invoices.credit-notes" } });
+    expect(audit.map((event) => [event.entityType, event.entityId, event.status])).toEqual([
+      ["invoices", id, 201],
+      ["invoices", id, 201],
+    ]);
+
+    const pdf = await request(app)
+      .get(api(`/invoices/${id}/pdf`))
+      .set(auth(context.ownerToken))
+      .buffer(true)
+      .parse((res, done) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk: Buffer) => chunks.push(chunk));
+        res.on("end", () => done(null, Buffer.concat(chunks)));
+      });
+    const text = await pdfText(pdf.body as Buffer);
+    for (const fragment of ["Total INR 2,183.00", "Credit notes -INR 1,183.00", "Paid INR 1,000.00", "Balance INR 0.00", `CN-${year}-00001`, "Goodwill for the late visit", "-INR 183.00"]) {
+      expect(text).toContain(fragment);
+    }
+    expect(text).not.toContain("Refund due");
+  });
+
+  it("leaves a refund due after crediting a paid invoice, and refunds it without deleting the payment", async () => {
+    const { ops, completedJob } = await billingSetup();
+    const id = await issued(ops, await completedJob());
+    expect((await pay(id, ops, "2183.00")).body.data.status).toBe("PAID");
+
+    const credited = await credit(id, ops, { amount: "500.00", reason: "Labour charged twice" });
+    expect(credited.body.data).toMatchObject({ status: "PAID" });
+    expect(credited.body.data.settlement).toMatchObject({ balance: "0.00", refundDue: "500.00", creditable: "1683.00", refundable: "2183.00" });
+    const dashboard = await request(app).get(api("/analytics/dashboard")).set(auth(ops));
+    expect(dashboard.body.data.pendingInvoices).toMatchObject({ outstanding: "0.00", refundDue: "500.00", refundDueCount: 1 });
+
+    const refunded = await refund(id, ops, { amount: "500.00", reason: "Labour charged twice" });
+    expect(refunded.status).toBe(201);
+    expect(refunded.body.data).toMatchObject({ status: "PAID", amountPaid: "2183", refundedTotal: "500" });
+    expect(refunded.body.data.refunds).toEqual([expect.objectContaining({ number: `RF-${year}-00001`, amount: "500", reason: "Labour charged twice" })]);
+    expect(refunded.body.data.payments).toEqual([expect.objectContaining({ amount: "2183", method: "UPI" })]);
+    expect(refunded.body.data.settlement).toMatchObject({ balance: "0.00", refundDue: "0.00", refundable: "1683.00" });
+    expect(await prisma.payment.count({ where: { invoiceId: id } })).toBe(1);
+
+    // Refunding past what is owed back reopens the invoice: the customer owes again.
+    const reopened = await refund(id, ops, { amount: "83.00", reason: "Refunded too much by mistake" });
+    expect(reopened.body.data).toMatchObject({ status: "ISSUED", paidAt: null, refundedTotal: "583" });
+    expect(reopened.body.data.refunds.map((row: { number: string }) => row.number)).toEqual([`RF-${year}-00001`, `RF-${year}-00002`]);
+    expect(reopened.body.data.settlement).toMatchObject({ balance: "83.00", refundDue: "0.00" });
+    expect((await request(app).get(api("/analytics/dashboard")).set(auth(ops))).body.data.pendingInvoices).toMatchObject({ count: 1, outstanding: "83.00", refundDue: "0.00" });
+    expect((await pay(id, ops, "83.00")).body.data).toMatchObject({ status: "PAID", amountPaid: "2266" });
+
+    const audit = await prisma.auditEvent.count({ where: { action: "invoices.refunds", entityId: id, status: 201 } });
+    expect(audit).toBe(2);
+  });
+
+  it("sends a refunded invoice past its due date to OVERDUE, and the overdue job skips invoices settled by credits", async () => {
+    const { ops, completedJob } = await billingSetup();
+    const late = await issued(ops, await completedJob());
+    await pay(late, ops, "2183.00");
+    await prisma.invoice.update({ where: { id: late }, data: { dueAt: new Date(Date.now() - 60_000) } });
+    const reopened = await refund(late, ops, { amount: "100.00", reason: "Wrong part price" });
+    expect(reopened.body.data).toMatchObject({ status: "OVERDUE" });
+    expect(reopened.body.data.settlement.balance).toBe("100.00");
+
+    // Fully credited with no payments: PAID, nothing to chase, even past the due date.
+    const waived = await issued(ops, await completedJob());
+    expect((await credit(waived, ops, { amount: "2183.00", reason: "Waived" })).body.data).toMatchObject({ status: "PAID" });
+    // An ISSUED row whose credits cover the total (forced here) is not marked overdue either.
+    const covered = await issued(ops, await completedJob());
+    await prisma.invoice.update({ where: { id: covered }, data: { creditedTotal: "2183.00", dueAt: new Date(Date.now() - 60_000) } });
+    await prisma.invoice.update({ where: { id: waived }, data: { dueAt: new Date(Date.now() - 60_000) } });
+    const partly = await issued(ops, await completedJob());
+    await credit(partly, ops, { amount: "2000.00", reason: "Mostly waived" });
+    await prisma.invoice.update({ where: { id: partly }, data: { dueAt: new Date(Date.now() - 60_000) } });
+
+    expect((await request(app).post(api("/invoices/mark-overdue")).set(auth(ops))).body.data).toEqual({ marked: 1 });
+    const statuses = await prisma.invoice.findMany({ where: { id: { in: [waived, covered, partly] } }, select: { id: true, status: true } });
+    expect(Object.fromEntries(statuses.map((row) => [row.id, row.status]))).toEqual({ [waived]: "PAID", [covered]: "ISSUED", [partly]: "OVERDUE" });
+  });
+
+  it("rejects malformed amounts with 400, and credits or refunds over the limits with 409", async () => {
+    const { ops, completedJob } = await billingSetup();
+    const id = await issued(ops, await completedJob());
+    for (const amount of ["0", "0.00", "-5.00", "10.123", "abc", "", 100, null]) {
+      for (const send of [credit, refund]) {
+        const response = await send(id, ops, { amount, reason: "Test" });
+        expect(response.status, `amount ${JSON.stringify(amount)}`).toBe(400);
+        expect(response.body.error.code).toBe("VALIDATION_ERROR");
+      }
+    }
+    expect((await credit(id, ops, { amount: "10.00" })).status).toBe(400);
+    expect((await refund(id, ops, { amount: "10.00", reason: "  " })).status).toBe(400);
+
+    // Nothing paid yet: any refund is over the limit.
+    const unpaid = await refund(id, ops, { amount: "0.01", reason: "Nothing to refund" });
+    expect(unpaid.status).toBe(409);
+    expect(unpaid.body.error).toMatchObject({ code: "REFUND_EXCEEDS_PAID", details: { refundable: "0.00" } });
+
+    const tooMuch = await credit(id, ops, { amount: "2183.01", reason: "More than the total" });
+    expect(tooMuch.status).toBe(409);
+    expect(tooMuch.body.error).toMatchObject({ code: "CREDIT_EXCEEDS_REMAINING", details: { creditable: "2183.00" } });
+    expect((await credit(id, ops, { amount: "183.00", reason: "Goodwill" })).status).toBe(201);
+    const afterEarlier = await credit(id, ops, { amount: "2000.01", reason: "More than what is left" });
+    expect(afterEarlier.body.error).toMatchObject({ code: "CREDIT_EXCEEDS_REMAINING", details: { creditable: "2000.00" } });
+
+    await pay(id, ops, "1000.00");
+    expect((await refund(id, ops, { amount: "400.00", reason: "Part" })).status).toBe(201);
+    const overRefund = await refund(id, ops, { amount: "600.01", reason: "More than was paid" });
+    expect(overRefund.status).toBe(409);
+    expect(overRefund.body.error).toMatchObject({ code: "REFUND_EXCEEDS_PAID", details: { refundable: "600.00" } });
+    expect((await refund(id, ops, { amount: "600.00", reason: "The rest" })).body.data).toMatchObject({ refundedTotal: "1000", amountPaid: "1000" });
+
+    // Exactly the remainder is allowed: nothing left to pay, nothing to refund.
+    const all = await credit(id, ops, { amount: "2000.00", reason: "Job cancelled" });
+    expect(all.body.data).toMatchObject({ status: "PAID", creditedTotal: "2183" });
+    expect(all.body.data.settlement).toMatchObject({ netTotal: "0.00", balance: "0.00", refundDue: "0.00", creditable: "0.00", refundable: "0.00" });
+    expect(await prisma.creditNote.count()).toBe(2);
+    expect(await prisma.refund.count()).toBe(2);
+  });
+
+  it("refuses drafts and void invoices with 409 INVALID_TRANSITION, and keeps void for invoices without payments or credits", async () => {
+    const { ops, completedJob } = await billingSetup();
+    const draft = await completedJob();
+    for (const send of [credit, refund]) {
+      const response = await send(draft.invoiceId, ops, { amount: "10.00", reason: "Draft" });
+      expect(response.status).toBe(409);
+      expect(response.body.error.code).toBe("INVALID_TRANSITION");
+    }
+    const voided = await issued(ops, await completedJob());
+    await request(app).post(api(`/invoices/${voided}/void`)).set(auth(ops)).send({ reason: "Raised twice" });
+    for (const send of [credit, refund]) {
+      const response = await send(voided, ops, { amount: "10.00", reason: "Void" });
+      expect(response.status).toBe(409);
+      expect(response.body.error.code).toBe("INVALID_TRANSITION");
+    }
+    const credited = await issued(ops, await completedJob());
+    await credit(credited, ops, { amount: "100.00", reason: "Goodwill" });
+    const noVoid = await request(app).post(api(`/invoices/${credited}/void`)).set(auth(ops)).send({ reason: "Changed my mind" });
+    expect(noVoid.status).toBe(409);
+    expect(noVoid.body.error).toMatchObject({ code: "INVALID_TRANSITION", message: "An invoice with credit notes cannot be voided" });
+    const paidThenRefunded = await issued(ops, await completedJob());
+    await pay(paidThenRefunded, ops, "100.00");
+    await refund(paidThenRefunded, ops, { amount: "100.00", reason: "Returned" });
+    expect((await request(app).post(api(`/invoices/${paidThenRefunded}/void`)).set(auth(ops)).send({ reason: "x" })).status).toBe(409);
+    expect(await prisma.creditNote.count()).toBe(1);
+  });
+
+  it("lets only admin and ops credit or refund, shows them to the customer, and hides other organisations' invoices", async () => {
+    const { context, ops, tara, completedJob } = await billingSetup();
+    const id = await issued(ops, await completedJob());
+    await pay(id, ops, "1000.00");
+    for (const token of [context.ownerToken, tara]) {
+      for (const send of [credit, refund]) {
+        const response = await send(id, token, { amount: "10.00", reason: "Not allowed" });
+        expect(response.status).toBe(403);
+        expect(response.body.error.code).toBe("FORBIDDEN");
+      }
+    }
+    const passwordHash = await hashedPassword();
+    const outsiderOrg = await prisma.organization.create({ data: { name: "Other", gstState: "29" } });
+    await prisma.user.create({ data: { organizationId: outsiderOrg.id, email: "x@other.example", name: "X", role: "ADMIN", passwordHash } });
+    const outsider = await login("x@other.example");
+    for (const send of [credit, refund]) {
+      const response = await send(id, outsider, { amount: "10.00", reason: "Other org" });
+      expect(response.status).toBe(404);
+      expect(response.body.error.code).toBe("INVOICE_NOT_FOUND");
+    }
+    expect(await prisma.creditNote.count()).toBe(0);
+    expect(await prisma.refund.count()).toBe(0);
+
+    expect((await credit(id, context.adminToken, { amount: "50.00", reason: "Admin credit" })).status).toBe(201);
+    expect((await refund(id, ops, { amount: "25.00", reason: "Ops refund" })).status).toBe(201);
+    const view = await request(app).get(api(`/invoices/${id}`)).set(auth(context.ownerToken));
+    expect(view.body.data.creditNotes).toEqual([expect.objectContaining({ amount: "50", reason: "Admin credit" })]);
+    expect(view.body.data.refunds).toEqual([expect.objectContaining({ amount: "25", reason: "Ops refund" })]);
+    expect(view.body.data.settlement).toMatchObject({ balance: "1158.00" });
+    const list = await request(app).get(api("/invoices")).set(auth(context.ownerToken));
+    expect(list.body.data[0].settlement).toMatchObject({ balance: "1158.00" });
+  });
+
+  it("never lets concurrent credits or refunds pass the limits", async () => {
+    const { ops, completedJob } = await billingSetup();
+    const id = await issued(ops, await completedJob());
+    await pay(id, ops, "2183.00");
+    const credits = await Promise.all(Array.from({ length: 5 }, (_, index) => credit(id, ops, { amount: "1000.00", reason: `Race ${index}` })));
+    expect(credits.map((response) => response.status).sort()).toEqual([201, 201, 409, 409, 409]);
+    const refunds = await Promise.all(Array.from({ length: 5 }, (_, index) => refund(id, ops, { amount: "1000.00", reason: `Race ${index}` })));
+    expect(refunds.map((response) => response.status).sort()).toEqual([201, 201, 409, 409, 409]);
+    const invoice = await prisma.invoice.findUniqueOrThrow({ where: { id }, include: { creditNotes: true, refunds: true } });
+    expect([invoice.creditedTotal.toFixed(2), invoice.refundedTotal.toFixed(2)]).toEqual(["2000.00", "2000.00"]);
+    expect(invoice.creditNotes.map((note) => note.number).sort()).toEqual([`CN-${year}-00001`, `CN-${year}-00002`]);
+    expect(invoice.refunds.map((row) => row.number).sort()).toEqual([`RF-${year}-00001`, `RF-${year}-00002`]);
+  });
+});

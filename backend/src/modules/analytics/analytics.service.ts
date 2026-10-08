@@ -1,6 +1,7 @@
 import { Prisma } from "../../generated/prisma/client.js";
 import type { AuthUser } from "../../types/authUser.js";
 import { prisma } from "../../lib/prisma.js";
+import { settlementOf } from "../invoices/invoice.balance.js";
 import { activeStatuses, DELAY_MINUTES, technicianMetrics, type CompletedJob } from "./analytics.formulas.js";
 
 const Decimal = Prisma.Decimal;
@@ -43,13 +44,18 @@ export async function dashboard(actor: AuthUser, now = new Date()) {
       where: { organizationId, status: { not: "CANCELLED" }, scheduledStart: { gte: dayStart, lt: new Date(dayStart.getTime() + 86_400_000) } },
     }),
     prisma.invoice.findMany({
-      where: { organizationId, status: { in: ["ISSUED", "OVERDUE"] } },
-      select: { status: true, total: true, amountPaid: true, currency: true },
+      where: { organizationId, status: { in: ["ISSUED", "OVERDUE", "PAID"] } },
+      select: { status: true, total: true, creditedTotal: true, amountPaid: true, refundedTotal: true, currency: true },
     }),
     prisma.invoice.count({ where: { organizationId, status: "DRAFT" } }),
   ]);
   const counts = Object.fromEntries(byStatus.map((row) => [row.status, row._count._all])) as Record<string, number>;
-  const outstanding = invoices.reduce((sum, row) => sum.add(new Decimal(row.total).sub(row.amountPaid)), new Decimal(0));
+  // Balances after credit notes and refunds (invoice.balance.ts). Paid invoices are read only for
+  // money the customer is owed back after a credit.
+  const pending = invoices.filter((row) => row.status !== "PAID");
+  const figures = invoices.map((row) => settlementOf(row));
+  const outstanding = figures.reduce((sum, row) => sum.add(row.balance), new Decimal(0));
+  const refundDue = figures.reduce((sum, row) => sum.add(row.refundDue), new Decimal(0));
   return {
     data: {
       generatedAt: now.toISOString(),
@@ -81,10 +87,12 @@ export async function dashboard(actor: AuthUser, now = new Date()) {
         })),
       },
       pendingInvoices: {
-        count: invoices.length,
-        overdue: invoices.filter((row) => row.status === "OVERDUE").length,
+        count: pending.length,
+        overdue: pending.filter((row) => row.status === "OVERDUE").length,
         drafts,
         outstanding: outstanding.toFixed(2),
+        refundDue: refundDue.toFixed(2),
+        refundDueCount: figures.filter((row) => row.refundDue.gt(0)).length,
         currency: invoices[0]?.currency ?? "INR",
       },
       visitsToday: today,

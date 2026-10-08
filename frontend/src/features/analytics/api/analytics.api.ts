@@ -14,7 +14,7 @@ export type Dashboard = {
     awaitingTriage: number;
     items: { workOrderId: string; createdAt: string; priority: string; customer: string; equipment: string }[];
   };
-  pendingInvoices: { count: number; overdue: number; drafts: number; outstanding: string; currency: string };
+  pendingInvoices: { count: number; overdue: number; drafts: number; outstanding: string; refundDue: string; refundDueCount: number; currency: string };
   visitsToday: number;
   completedJobs: number;
 };

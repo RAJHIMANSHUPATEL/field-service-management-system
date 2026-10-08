@@ -23,9 +23,18 @@ export const recordPaymentSchema = z.object({
   paidAt: z.iso.datetime().optional(),
 });
 
+// A credit note or a refund: a positive amount with at most two decimals, and why.
+const adjustmentSchema = z.object({
+  amount: amount.refine((value) => Number(value) > 0, "The amount must be more than zero"),
+  reason: z.string().trim().min(1, "Give a reason").max(500),
+});
+export const creditNoteSchema = adjustmentSchema;
+export const refundSchema = adjustmentSchema;
+
 export const voidInvoiceSchema = z.object({ reason: z.string().trim().min(1).max(500) });
 
 export type ListInvoicesQuery = z.infer<typeof listInvoicesQuerySchema>;
 export type UpdateInvoiceInput = z.infer<typeof updateInvoiceSchema>;
 export type AddLineInput = z.infer<typeof addLineSchema>;
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
+export type AdjustmentInput = z.infer<typeof adjustmentSchema>;

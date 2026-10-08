@@ -33,6 +33,28 @@ export type Payment = {
   recordedBy: { id: string; name: string };
 };
 
+// A credit note (CN-…) or a refund (RF-…).
+export type Adjustment = {
+  id: string;
+  number: string;
+  amount: string;
+  currency: string;
+  reason: string;
+  createdAt: string;
+  createdBy: { id: string; name: string };
+};
+
+// Computed by the API from one definition (backend invoice.balance.ts):
+// owed = (total - credits) - (payments - refunds); balance = owed when positive, refundDue when negative.
+export type Settlement = {
+  netTotal: string;
+  netPaid: string;
+  balance: string;
+  refundDue: string;
+  creditable: string;
+  refundable: string;
+};
+
 export type Invoice = {
   id: string;
   number: string | null;
@@ -50,6 +72,8 @@ export type Invoice = {
   taxTotal: string;
   total: string;
   amountPaid: string;
+  creditedTotal: string;
+  refundedTotal: string;
   coverageSource: "NONE" | "WARRANTY" | "CONTRACT";
   notes: string | null;
   issuedAt: string | null;
@@ -67,9 +91,12 @@ export type Invoice = {
   };
   lines: InvoiceLine[];
   payments: Payment[];
+  creditNotes: Adjustment[];
+  refunds: Adjustment[];
+  settlement: Settlement;
 };
 
-export type InvoiceSummary = Pick<Invoice, "id" | "number" | "status" | "total" | "amountPaid" | "currency" | "dueAt" | "createdAt" | "customer"> & {
+export type InvoiceSummary = Pick<Invoice, "id" | "number" | "status" | "total" | "amountPaid" | "currency" | "dueAt" | "createdAt" | "customer" | "settlement"> & {
   workOrder: { id: string; asset: { equipmentType: string } };
 };
 
@@ -102,6 +129,8 @@ export const invoiceActions = {
   recordPayment: (id: string, input: { amount: string; method: string; reference?: string }) => post(`/${id}/payments`, input),
   payOnline: (id: string) => post(`/${id}/pay`),
   void: (id: string, reason: string) => post(`/${id}/void`, { reason }),
+  creditNote: (id: string, input: { amount: string; reason: string }) => post(`/${id}/credit-notes`, input),
+  refund: (id: string, input: { amount: string; reason: string }) => post(`/${id}/refunds`, input),
 };
 
 // Downloads the invoice PDF through the authenticated client (a bare link would carry no token).
