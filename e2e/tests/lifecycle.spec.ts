@@ -79,6 +79,9 @@ test("request, triage, assign, schedule, accept, visit, complete, invoice, pay",
   await ops.page.getByLabel("Go to week").fill(moved.local.slice(0, 10));
   await expect(ops.page.getByRole("link", { name: /Tara Technician/ }).first()).toBeVisible();
   await ops.page.goto(workOrderUrl);
+  // Wait for the page's data: leaving while its session refresh is in flight drops the rotated
+  // refresh cookie, and the next load is then rejected as token reuse (seen on CI runners).
+  await expect(ops.page.getByRole("list", { name: "Visit history" })).toBeVisible();
 
   // Ops stocks Tara's van from the main store.
   await ops.page.goto("/inventory");

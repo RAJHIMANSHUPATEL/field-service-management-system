@@ -92,6 +92,7 @@ test("a new admin sets up a whole company from nothing", async ({ browser }) => 
   await expect(page.getByText("Until 2027-12-31")).toBeVisible();
   await page.screenshot({ path: `${screensDir}/admin-company-setup-assets.png`, fullPage: true });
   await page.goto("/master");
+  await expect(page.getByText("Refrigerant handling")).toBeVisible();
   await page.screenshot({ path: `${screensDir}/admin-master-data.png`, fullPage: true });
   expect(problems).toEqual([]);
   await page.context().close();

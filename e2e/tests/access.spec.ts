@@ -24,6 +24,10 @@ test("admin invites a user, the invitee joins, resets the password, and the audi
   const anon = await browser.newPage();
   await anon.goto("/login");
   await anon.getByText("Forgot password?").click();
+  // The URL changes before the reset form replaces the sign-in form; wait for the new form so the
+  // email is not typed into the outgoing sign-in field (seen on CI runners).
+  await expect(anon.getByText("We will email you a link to choose a new password.")).toBeVisible();
+  await expect(anon.getByLabel("Password")).toHaveCount(0);
   await anon.getByLabel("Email").fill(email);
   await anon.getByRole("button", { name: "Send reset link" }).click();
   await expect(anon.getByText("Check your email")).toBeVisible();
