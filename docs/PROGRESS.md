@@ -31,3 +31,4 @@ Read this file and `docs/stages/README.md` before starting any work. Never redo 
 | 0 (CI) | feat/phase0-ci-workflow (stage 6: GitHub Actions mirrors check-strict.sh) | 42327e8 | All phases 0-12 complete. Strict checks: /workspace/check-strict.sh |
 | Demo | feat/demo-seed + fix/invoice-breadcrumb (stage 19: deterministic Indian demo seed, npm run db:seed:demo; docs/demo.md) | e894ed9 | All phases 0-12 complete; demo dataset available. Strict checks: /workspace/check-strict.sh |
 | Auth | fix/refresh-grace-window (10 s refresh grace window, sealed successor; decision in docs/security.md) | c216139 | All phases 0-12 complete; demo dataset available. Strict checks: /workspace/check-strict.sh |
+| Billing | feat/billing-igst (stage 20: IGST for inter-state supply, org GST state; ADR 0004 amended) | ab7eb2a | All phases 0-12 complete; demo dataset available. Strict checks: /workspace/check-strict.sh |
