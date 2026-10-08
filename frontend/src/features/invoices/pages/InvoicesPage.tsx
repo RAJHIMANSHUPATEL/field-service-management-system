@@ -51,6 +51,11 @@ export function InvoicesPage() {
                     <Badge variant={row.status === "OVERDUE" ? "destructive" : row.status === "PAID" ? "default" : "secondary"}>
                       {invoiceStatusLabels[row.status]}
                     </Badge>
+                    {(row.status === "ISSUED" || row.status === "OVERDUE") && Number(row.amountPaid) > 0 ? (
+                      <Badge variant="outline" className="ml-1">
+                        Partially paid
+                      </Badge>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               ))}
