@@ -1,9 +1,10 @@
 import request from "supertest";
+import { extractText } from "unpdf";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "../../lib/prisma.js";
 import { app } from "../../server.js";
 import { resetDatabase } from "../../test/resetDatabase.js";
-import { auth, hashedPassword, login, scheduledJob, seedStaff, setup } from "../../test/jobFixtures.js";
+import { auth, hashedPassword, login, password, scheduledJob, seedStaff, setup } from "../../test/jobFixtures.js";
 import { billableHours, chooseCoverage, noCoverage, priceInvoice } from "./invoice.pricing.js";
 import { canInvoice } from "./invoice.transitions.js";
 
@@ -405,5 +406,173 @@ describe("GST supply type", () => {
     await moveSite(draft, "Karnataka");
     expect((await request(app).post(api(`/visits/${job.visitId}/complete`)).set(auth(tara))).status).toBe(200);
     expect((await request(app).post(api(`/invoices/${draft.invoiceId}/issue`)).set(auth(ops))).status).toBe(200);
+  });
+});
+
+// Fetches the invoice PDF as raw bytes (supertest does not buffer binary bodies by default).
+function invoicePdf(invoiceId: string, token: string) {
+  return request(app)
+    .get(api(`/invoices/${invoiceId}/pdf`))
+    .set(auth(token))
+    .buffer(true)
+    .parse((res, done) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (chunk: Buffer) => chunks.push(chunk));
+      res.on("end", () => done(null, Buffer.concat(chunks)));
+    });
+}
+
+// The PDF's text, whitespace collapsed, so assertions read like the printed page.
+async function pdfText(body: Buffer) {
+  const { text } = await extractText(new Uint8Array(body), { mergePages: true });
+  return text.replace(/\s+/g, " ");
+}
+
+describe("invoice PDF", () => {
+  it("lets admin, ops and the owning customer download issued, partly paid, paid, overdue and void invoices", async () => {
+    const { context, ops, completedJob } = await billingSetup();
+    const issued = await completedJob();
+    await request(app).post(api(`/invoices/${issued.invoiceId}/issue`)).set(auth(ops));
+    await request(app).post(api(`/invoices/${issued.invoiceId}/payments`)).set(auth(ops)).send({ amount: "500.00", method: "CASH" });
+    for (const token of [context.adminToken, ops, context.ownerToken]) {
+      const pdf = await invoicePdf(issued.invoiceId, token);
+      expect(pdf.status).toBe(200);
+      expect(pdf.headers["content-type"]).toContain("application/pdf");
+      expect(pdf.headers["content-disposition"]).toBe('inline; filename="invoice-INV-2026-00001.pdf"');
+      expect((pdf.body as Buffer).subarray(0, 5).toString()).toBe("%PDF-");
+    }
+
+    const paid = await completedJob();
+    await request(app).post(api(`/invoices/${paid.invoiceId}/issue`)).set(auth(ops));
+    await request(app).post(api(`/invoices/${paid.invoiceId}/payments`)).set(auth(ops)).send({ amount: "2183.00", method: "UPI" });
+    const overdue = await completedJob();
+    await request(app).post(api(`/invoices/${overdue.invoiceId}/issue`)).set(auth(ops));
+    await prisma.invoice.update({ where: { id: overdue.invoiceId }, data: { dueAt: new Date(Date.now() - 60_000) } });
+    const voided = await completedJob();
+    await request(app).post(api(`/invoices/${voided.invoiceId}/issue`)).set(auth(ops));
+    await request(app).post(api(`/invoices/${voided.invoiceId}/void`)).set(auth(ops)).send({ reason: "Raised twice" });
+
+    const expected: [string, string][] = [
+      [paid.invoiceId, "Status Paid"],
+      [overdue.invoiceId, "Status Overdue"],
+      [voided.invoiceId, "Status Void"],
+    ];
+    for (const [invoiceId, status] of expected) {
+      const pdf = await invoicePdf(invoiceId, context.ownerToken);
+      expect(pdf.status).toBe(200);
+      expect(await pdfText(pdf.body as Buffer)).toContain(status);
+    }
+    const voidText = await pdfText((await invoicePdf(voided.invoiceId, ops)).body as Buffer);
+    expect(voidText).toContain("Tax invoice (void)");
+    expect(voidText).toContain("VOID");
+    expect(voidText).toContain("This invoice is void and is not payable.");
+    expect(voidText).toMatch(/Balance INR 0\.00/);
+  });
+
+  it("refuses technicians with 403, another organisation with 404, and another customer as reading the invoice does", async () => {
+    const { context, ops, tara, completedJob } = await billingSetup();
+    const job = await completedJob();
+    await request(app).post(api(`/invoices/${job.invoiceId}/issue`)).set(auth(ops));
+
+    const technician = await request(app).get(api(`/invoices/${job.invoiceId}/pdf`)).set(auth(tara));
+    expect(technician.status).toBe(403);
+    expect(technician.body.error.code).toBe("FORBIDDEN");
+
+    const passwordHash = await hashedPassword();
+    const outsiderOrg = await prisma.organization.create({ data: { name: "Other", gstState: "29" } });
+    await prisma.user.create({ data: { organizationId: outsiderOrg.id, email: "x@other.example", name: "X", role: "ADMIN", passwordHash } });
+    const outsider = await login("x@other.example");
+    const foreign = await request(app).get(api(`/invoices/${job.invoiceId}/pdf`)).set(auth(outsider));
+    expect(foreign.status).toBe(404);
+    expect(foreign.body.error.code).toBe("INVOICE_NOT_FOUND");
+    expect((await request(app).get(api("/invoices/missing/pdf")).set(auth(ops))).status).toBe(404);
+
+    // A contact of another customer in the same organisation gets what GET /invoices/:id gives them.
+    const neighbour = await request(app).post(api("/customers")).set(auth(context.adminToken)).send({ name: "Neighbour Co" });
+    await request(app)
+      .post(api(`/customers/${neighbour.body.data.id as string}/contacts`))
+      .set(auth(context.adminToken))
+      .send({ name: "Neighbour", email: "neighbour@example.com", password });
+    const stranger = await login("neighbour@example.com");
+    const view = await request(app).get(api(`/invoices/${job.invoiceId}`)).set(auth(stranger));
+    const pdf = await request(app).get(api(`/invoices/${job.invoiceId}/pdf`)).set(auth(stranger));
+    expect(view.status).toBe(403);
+    expect(pdf.status).toBe(view.status);
+    expect(pdf.body.error.code).toBe(view.body.error.code);
+  });
+
+  it("answers 409 INVOICE_NOT_ISSUED for a draft, which stays hidden (404) from the customer", async () => {
+    const { context, ops, completedJob } = await billingSetup();
+    const job = await completedJob();
+    const draft = await request(app).get(api(`/invoices/${job.invoiceId}/pdf`)).set(auth(ops));
+    expect(draft.status).toBe(409);
+    expect(draft.body.error).toMatchObject({ code: "INVOICE_NOT_ISSUED" });
+    expect((await request(app).get(api(`/invoices/${job.invoiceId}/pdf`)).set(auth(context.adminToken))).status).toBe(409);
+    expect((await request(app).get(api(`/invoices/${job.invoiceId}/pdf`)).set(auth(context.ownerToken))).status).toBe(404);
+    // Downloading writes nothing to the audit log: it is a read.
+    expect(await prisma.auditEvent.count({ where: { action: { contains: "pdf" } } })).toBe(0);
+  });
+
+  it("prints the number, status, customer, site, SAC lines, coverage, discount, taxes, payments and balance", async () => {
+    const { context, ops, completedJob } = await billingSetup();
+    const job = await completedJob();
+    await request(app).patch(api(`/invoices/${job.invoiceId}`)).set(auth(ops)).send({ discount: "100.00" });
+    const issued = await request(app).post(api(`/invoices/${job.invoiceId}/issue`)).set(auth(ops));
+    expect(issued.body.data).toMatchObject({ cgst: "157.5", sgst: "157.5", igst: "0", total: "2065" });
+    await request(app).post(api(`/invoices/${job.invoiceId}/payments`)).set(auth(ops)).send({ amount: "1000.00", method: "UPI", reference: "UPI-7781" });
+
+    const text = await pdfText((await invoicePdf(job.invoiceId, context.ownerToken)).body as Buffer);
+    for (const fragment of [
+      "Tax invoice",
+      "Plan Co",
+      "GST state: 29 Karnataka",
+      "INV-2026-00001",
+      "Issued · Partially paid",
+      "Owner Co",
+      "Site: 10 Main, Bengaluru, Karnataka 78702",
+      "Supply: Intra-state (CGST + SGST)",
+      "Coverage: Not covered",
+      "Service charge · Repair 998719 1 500.00 500.00",
+      "Labour (0.5 h) 998719 0.5 1,000.00 500.00",
+      "Capacitor (CAP-35) — 1 850.00 850.00",
+      "Subtotal INR 1,850.00",
+      "Discount -INR 100.00",
+      "Taxable amount INR 1,750.00",
+      "CGST 9% INR 157.50",
+      "SGST 9% INR 157.50",
+      "Total INR 2,065.00",
+      "UPI · UPI-7781",
+      "INR 1,000.00",
+      "Paid INR 1,000.00",
+      "Balance INR 1,065.00",
+    ]) {
+      expect(text).toContain(fragment);
+    }
+    // Zero tax components are left out, as on the invoice page.
+    expect(text).not.toContain("IGST");
+  });
+
+  it("prints the stored figures, never repricing, after the site moves state and prices change", async () => {
+    const { ops, completedJob, moveSite } = await billingSetup();
+    const job = await completedJob();
+    await request(app).post(api(`/invoices/${job.invoiceId}/issue`)).set(auth(ops));
+    const before = await prisma.invoice.findUniqueOrThrow({ where: { id: job.invoiceId }, include: { lines: true } });
+
+    await moveSite(job, "Maharashtra");
+    const serviceTypes = await request(app).get(api("/service-types")).set(auth(ops));
+    await request(app).patch(api(`/service-types/${serviceTypes.body.data[0].id as string}`)).set(auth(ops)).send({ serviceCharge: "900.00" });
+
+    const pdf = await invoicePdf(job.invoiceId, ops);
+    expect(pdf.status).toBe(200);
+    const text = await pdfText(pdf.body as Buffer);
+    expect(text).toContain("CGST 9% INR 166.50");
+    expect(text).toContain("SGST 9% INR 166.50");
+    expect(text).toContain("Total INR 2,183.00");
+    expect(text).toContain("Supply: Intra-state (CGST + SGST)");
+    expect(text).not.toContain("IGST");
+    expect(text).not.toContain("900.00");
+    // The download leaves the stored invoice untouched.
+    const after = await prisma.invoice.findUniqueOrThrow({ where: { id: job.invoiceId }, include: { lines: true } });
+    expect(after).toEqual(before);
   });
 });

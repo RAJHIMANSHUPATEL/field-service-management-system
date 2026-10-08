@@ -17,10 +17,18 @@ in code but not in the document, so the two cannot drift.
 | 404 | `NOT_FOUND` | Missing **or in another organization** (never revealed) |
 | 409 | `INVALID_TRANSITION` | State change not allowed from the current status |
 | 409 | `IDEMPOTENCY_IN_PROGRESS` | Same key still running; retry shortly |
+| 409 | `INVOICE_NOT_ISSUED` | `GET /invoices/:id/pdf` on a draft: the PDF exists once the invoice is issued (customers get `404`, as drafts are hidden from them) |
 | 409 | `ORG_GST_STATE_REQUIRED` | An invoice cannot be priced (job completion, draft edit, issue) until an admin sets the organisation's GST state |
 | 422 | `SITE_STATE_UNRECOGNISED` | The job site address's state is not an Indian state or UT; `details` has `addressId` and `state` |
 | 422 | `IDEMPOTENCY_KEY_REUSED` | Same key with a different body |
 | 429 | `RATE_LIMITED` | Honour `Retry-After` (seconds) |
+
+## PDF downloads
+`GET /work-orders/:id/report` (service report) and `GET /invoices/:id/pdf` (invoice) answer
+`200 application/pdf` with `Content-Disposition: inline; filename="..."` instead of JSON; errors are
+still JSON. The invoice PDF is built from the stored invoice (never repriced) for `ISSUED`,
+`OVERDUE`, `PAID` and `VOID`; "partially paid" is `ISSUED` or `OVERDUE` with payments. Amounts print
+as `INR 2,183.00` (the built-in PDF fonts have no rupee sign). Downloads are reads, so they are not audited.
 
 ## Pagination
 `?page=1&limit=20` (limit max 100) on list endpoints, newest first. Filters are query parameters

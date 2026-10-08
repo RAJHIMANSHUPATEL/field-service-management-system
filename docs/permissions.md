@@ -21,6 +21,7 @@ Every query is scoped to the caller's organization. A record in another organiza
 | Invoices | Read, adjust draft, issue, record payment, void | Read, adjust draft, issue, record payment, void | — | Read own issued, pay online |
 | Contracts | Read, create, cancel | Read, create, cancel | — | Read own |
 | Service report PDF | Read | Read | Read own job | Read own job |
+| Invoice PDF (issued, overdue, paid, void) | Read | Read | — | Read own (another customer's: `403`, as for the invoice) |
 | Technician time off | Read, add, delete | Read, add, delete | Read own | — |
 | Users and invitations | Read, invite, revoke | — | — | — |
 | Organisation settings (GST state) | Read, update | Read | — | — |
