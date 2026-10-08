@@ -54,8 +54,8 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -76,8 +76,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -113,8 +113,8 @@ jobs:
       NOTIFICATION_QUEUE: bullmq
       SCREENS_DIR: ${{ github.workspace }}/e2e/screens
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -145,7 +145,7 @@ jobs:
           export PATH="/usr/lib/postgresql/17/bin:$PATH"
           printf 'DATABASE_URL="%s"\n' "$DATABASE_URL" > backend/.env
           PGPASSWORD=postgres scripts/restore-drill.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: e2e-results
