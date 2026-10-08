@@ -59,7 +59,7 @@ so all of them receive the one successor.
 Tests in `src/modules/auth/auth.test.ts` ("refresh grace window") cover the retry by cookie and by
 body, the last millisecond of the window and the first one after it, a successor that was rotated
 or logged out, a forced concurrent race, and the sealed storage. Time is controlled with fake
-`Date`, not sleeps.
+`Date`, not sleeps. The e2e `session-refresh.spec.ts` drops a real refresh response in the browser, reloads, and checks the user stays signed in (it fails with `REFRESH_GRACE_WINDOW_MS=0`).
 
 ## Known gaps (accepted for now)
 - No MFA and no account lockout beyond rate limiting.
