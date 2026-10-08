@@ -8,6 +8,7 @@
 // (DEMO_SEED) and an anchor date (DEMO_ANCHOR, default today in IST) give the same dataset.
 // Idempotent: the demo organization is deleted and rebuilt on every run.
 import "dotenv/config";
+import { appendFileSync } from "node:fs";
 import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 import { installClock, onClockChange, realNow, setClock, simulatedNow } from "./clock.js";
@@ -1017,15 +1018,24 @@ function playMaintenanceRuns() {
     if (weekday(day) !== 1 && day !== dayOf(NOW)) continue;
     later(at(day, 7, 0), `maintenance run day ${day}`, async () => {
       const generated = (await api("POST", "/maintenance-plans/run", { as: world.ops[0]!.userId })).data as { requestId: string; workOrderId: string }[];
-      for (const row of generated) {
-        const workOrder = await prisma.workOrder.findUniqueOrThrow({ where: { id: row.workOrderId }, select: { maintenancePlanId: true } });
-        const info = planAssets.get(workOrder.maintenancePlanId!);
+      // The run returns plans in database order, which differs between runs; walk them in the
+      // order the plans were created here so the random stream is consumed the same way each time.
+      const planOrder = [...planAssets.keys()];
+      const rows = await Promise.all(
+        generated.map(async (row) => ({
+          ...row,
+          planId: (await prisma.workOrder.findUniqueOrThrow({ where: { id: row.workOrderId }, select: { maintenancePlanId: true } })).maintenancePlanId!,
+        })),
+      );
+      rows.sort((a, b) => planOrder.indexOf(a.planId) - planOrder.indexOf(b.planId));
+      for (const row of rows) {
+        const info = planAssets.get(row.planId);
         if (!info) continue;
         const job = newJob(`pm-${row.workOrderId.slice(-5)}`, info.customer, info.assetIndex);
         job.typeKey = info.typeKey;
         job.requestId = row.requestId;
         job.workOrderId = row.workOrderId;
-        const assignAt = officeHours(simulatedNow() + rng.int(2, 6) * HOUR);
+        const assignAt = officeHours(at(day, 7, 0) + rng.int(2, 6) * HOUR);
         const slot = findSlot(eligible(info.customer, info.typeKey), day + rng.int(1, 5), { minStart: assignAt + 3 * HOUR });
         if (!slot) continue;
         const ops = opsFor(info.customer.city);
@@ -1075,6 +1085,7 @@ try {
       throw new Error(`While playing "${event.label}" at ${iso(event.at)}: ${(error as Error).message}`);
     }
     done += 1;
+    if (process.env.DEMO_TRACE) appendFileSync(process.env.DEMO_TRACE, `${done}\t${event.label}\t${iso(event.at)}\t${simulatedNow() - event.at}\t${rng.snapshot()}\n`);
     if (done % 500 === 0) say(`  …${done} actions, at ${istDate(event.at)}`);
   }
 
@@ -1101,7 +1112,7 @@ async function printCounts() {
   const organization = await prisma.organization.findFirstOrThrow({ where: { name: data.organizationName } });
   const where = { organizationId: organization.id };
   const group = async (rows: Promise<{ status: string; _count: { _all: number } }[]>) =>
-    Object.fromEntries((await rows).map((row) => [row.status, row._count._all]));
+    Object.fromEntries((await rows).map((row) => [row.status, row._count._all] as const).sort(([a], [b]) => a.localeCompare(b)));
   const counts = {
     users: await prisma.user.count({ where }),
     customers: await prisma.customer.count({ where }),
