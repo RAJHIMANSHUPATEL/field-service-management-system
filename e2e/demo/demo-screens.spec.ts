@@ -31,6 +31,7 @@ async function shot(page: Page, path: string, name: string, ready?: (page: Page)
   if (path) await page.goto(path);
   await page.waitForLoadState("networkidle");
   if (ready) await ready(page);
+  await expect(page.getByText("Page not found")).toHaveCount(0);
   await page.screenshot({ path: `${dir}/${name}.png`, fullPage });
 }
 
@@ -46,7 +47,10 @@ test("ops and admin screens", async ({ browser }) => {
   await shot(page, "/requests", "ops-requests");
   await shot(page, "/invoices", "ops-invoices", async (p) => expect(p.getByRole("row").nth(5)).toBeVisible());
   await page.getByRole("row", { name: /Partially paid|Overdue|Issued/ }).first().getByRole("link").click();
-  await shot(page, "", "ops-invoice-detail", async (p) => expect(p.getByText(/CGST/i).first()).toBeVisible());
+  await shot(page, "", "ops-invoice-detail", async (p) => {
+    await expect(p.getByText(/CGST/i).first()).toBeVisible();
+    await expect(p.getByRole("navigation", { name: "breadcrumb" })).toContainText("Invoice");
+  });
   await shot(page, "/analytics", "ops-technician-performance", async (p) => expect(p.getByRole("table").first()).toBeVisible());
   await shot(page, "/contracts", "ops-contracts");
   await shot(page, "/inventory", "ops-inventory");

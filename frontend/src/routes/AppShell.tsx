@@ -231,6 +231,12 @@ function crumbsForPath(pathname: string): { label: string; to?: string }[] {
   if (pathname === "/work-orders") {
     return [{ label: "Dashboard", to: "/" }, { label: "Work orders" }];
   }
+  if (pathname.startsWith("/invoices/")) {
+    return [
+      { label: "Invoices", to: "/invoices" },
+      { label: "Invoice" },
+    ];
+  }
   if (pathname === "/equipment") {
     return [{ label: "Equipment" }];
   }
