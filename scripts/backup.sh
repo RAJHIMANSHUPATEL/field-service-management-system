@@ -15,6 +15,9 @@ file="$out/db-$stamp.dump"
 pg_dump --format=custom --no-owner --no-privileges --dbname="${DATABASE_URL%%\?*}" --file="$file"
 echo "database: $file ($(du -h "$file" | cut -f1))"
 if command -v aws >/dev/null 2>&1 && [ -n "${S3_BUCKET:-}" ]; then
+  AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-${S3_ACCESS_KEY:-}}" \
+  AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-${S3_SECRET_KEY:-}}" \
+  AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-${S3_REGION:-us-east-1}}" \
   aws --endpoint-url "${S3_ENDPOINT:-http://localhost:9000}" s3 sync "s3://$S3_BUCKET" "$out/objects-$stamp" --only-show-errors
   echo "objects: $out/objects-$stamp"
 fi
