@@ -48,7 +48,7 @@ test("ops and admin screens", async ({ browser }) => {
   await shot(page, "/invoices", "ops-invoices", async (p) => expect(p.getByRole("row").nth(5)).toBeVisible());
   await page.getByRole("row", { name: /Partially paid|Overdue|Issued/ }).first().getByRole("link").click();
   await shot(page, "", "ops-invoice-detail", async (p) => {
-    await expect(p.getByText(/CGST/i).first()).toBeVisible();
+    await expect(p.getByText(/CGST|IGST/).first()).toBeVisible();
     await expect(p.getByRole("navigation", { name: "breadcrumb" })).toContainText("Invoice");
   });
   await shot(page, "/analytics", "ops-technician-performance", async (p) => expect(p.getByRole("table").first()).toBeVisible());
