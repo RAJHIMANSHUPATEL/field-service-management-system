@@ -25,7 +25,7 @@ const methodLabels: Record<string, string> = { CASH: "Cash", UPI: "UPI", CARD: "
 const coverageLabels: Record<string, string> = { NONE: "Not covered", WARRANTY: "Covered by warranty", CONTRACT: "Covered by contract" };
 
 function statusLine(invoice: Stored) {
-  const paid = Number(invoice.amountPaid.toString());
+  const paid = Number(invoice.settlement.netPaid);
   const partial = (invoice.status === "ISSUED" || invoice.status === "OVERDUE") && paid > 0;
   return `${statusLabels[invoice.status] ?? invoice.status}${partial ? " · Partially paid" : ""}`;
 }
@@ -179,8 +179,12 @@ export async function invoicePdf(id: string, actor: AuthUser) {
     ...(!isZero(invoice.sgst) ? ([[`SGST ${halfRate}%`, rupees(invoice.sgst)]] as [string, string][]) : []),
     ...(!isZero(invoice.igst) ? ([[`IGST ${halfRate * 2}%`, rupees(invoice.igst)]] as [string, string][]) : []),
     ["Total", rupees(invoice.total), true],
+    ...(!isZero(invoice.creditedTotal) ? ([["Credit notes", `-${rupees(invoice.creditedTotal)}`]] as [string, string][]) : []),
     ["Paid", rupees(invoice.amountPaid)],
-    ["Balance", rupees(isVoid ? 0 : Number(invoice.total.toString()) - Number(invoice.amountPaid.toString())), true],
+    ...(!isZero(invoice.refundedTotal) ? ([["Refunded", `-${rupees(invoice.refundedTotal)}`]] as [string, string][]) : []),
+    // One balance definition for the API, this PDF and the invoice page (invoice.balance.ts).
+    ["Balance", rupees(invoice.settlement.balance), true],
+    ...(!isZero(invoice.settlement.refundDue) ? ([["Refund due", rupees(invoice.settlement.refundDue), true]] as [string, string, boolean][]) : []),
   ];
   ensure(totals.length * 15 + 20);
   document.y += 10;
@@ -211,6 +215,24 @@ export async function invoicePdf(id: string, actor: AuthUser) {
     document.text(rupees(payment.amount), left + width * 0.75, y, { width: width * 0.25, align: "right" });
     document.y = y + 14;
   }
+
+  // Credit notes and refunds: number, date, reason, amount.
+  const adjustments = (title: string, rows: { number: string; createdAt: Date; reason: string; amount: Amount }[]) => {
+    if (rows.length === 0) return;
+    heading(title);
+    for (const row of rows) {
+      const reasonHeight = document.heightOfString(row.reason, { width: width * 0.4 });
+      ensure(Math.max(14, reasonHeight) + 2);
+      const y = document.y;
+      document.text(day(row.createdAt), left, y, { width: width * 0.2 });
+      document.text(row.number, left + width * 0.2, y, { width: width * 0.15 });
+      document.text(row.reason, left + width * 0.35, y, { width: width * 0.4 });
+      document.text(`-${rupees(row.amount)}`, left + width * 0.75, y, { width: width * 0.25, align: "right" });
+      document.y = y + Math.max(14, reasonHeight + 2);
+    }
+  };
+  adjustments("Credit notes", invoice.creditNotes);
+  adjustments("Refunds", invoice.refunds);
 
   if (invoice.notes) {
     heading("Notes");
