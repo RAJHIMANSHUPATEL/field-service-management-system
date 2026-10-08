@@ -10,8 +10,14 @@ type Amount = { toString(): string } | string | number;
 const grouping = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const inr = (value: Amount) => grouping.format(Number(value.toString()));
 const rupees = (value: Amount) => `INR ${inr(value)}`;
-const day = (value: Date | null) =>
-  value ? value.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }) : "—";
+// Dates on the Indian calendar day, as "04 Sep 2026" (ICU's en-IN short month for September is "Sept").
+const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const istParts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "numeric", day: "2-digit" });
+const day = (value: Date | null) => {
+  if (!value) return "—";
+  const parts = Object.fromEntries(istParts.formatToParts(value).map((part) => [part.type, part.value]));
+  return `${parts.day} ${months[Number(parts.month) - 1]} ${parts.year}`;
+};
 const isZero = (value: Amount) => Number(value.toString()) === 0;
 
 const statusLabels: Record<string, string> = { ISSUED: "Issued", OVERDUE: "Overdue", PAID: "Paid", VOID: "Void" };
@@ -53,12 +59,15 @@ export async function invoicePdf(id: string, actor: AuthUser) {
   };
   // A diagonal VOID across every page, behind nothing important and impossible to miss.
   const voidMark = () => {
+    const { x, y } = document;
     document.save();
     document.rotate(-30, { origin: [document.page.width / 2, document.page.height / 2] });
     document.font("Helvetica-Bold").fontSize(120).fillColor("#d32f2f").fillOpacity(0.15);
     document.text("VOID", 0, document.page.height / 2 - 60, { width: document.page.width, align: "center", lineBreak: false });
     document.restore();
     document.fillOpacity(1).fillColor("#000");
+    document.x = x;
+    document.y = y;
   };
   if (isVoid) voidMark();
 
@@ -106,7 +115,8 @@ export async function invoicePdf(id: string, actor: AuthUser) {
   const a = column(left, width * 0.48, "Bill to", [invoice.customer.name, `Site: ${site}`]);
   const b = column(left + width * 0.52, width * 0.48, "Job", [
     `${invoice.workOrder.serviceType.name}`,
-    `${invoice.workOrder.asset.equipmentType} ${invoice.asset.model} · S/N ${invoice.workOrder.asset.serialNumber}`,
+    `${invoice.workOrder.asset.equipmentType} ${invoice.asset.model}`,
+    `Serial number: ${invoice.workOrder.asset.serialNumber}`,
     `Supply: ${supply}`,
     `Coverage: ${coverageLabels[invoice.coverageSource] ?? invoice.coverageSource}${invoice.contract ? ` (${invoice.contract.name})` : ""}`,
   ]);
@@ -132,7 +142,7 @@ export async function invoicePdf(id: string, actor: AuthUser) {
   headerRow();
   document.font("Helvetica").fontSize(9.5);
   for (const line of invoice.lines) {
-    const height = Math.max(14, document.heightOfString(line.description, { width: columns[0]!.w - 4 })) + 6;
+    const height = Math.max(14, document.heightOfString(line.description, { width: columns[0]!.w - 12 })) + 6;
     if (document.y + height > bottom()) {
       document.addPage();
       if (isVoid) voidMark();
@@ -150,7 +160,7 @@ export async function invoicePdf(id: string, actor: AuthUser) {
     ];
     cells.forEach((text, index) => {
       const col = columns[index]!;
-      document.text(text, col.x + 2, y, { width: col.w - 4, align: col.align });
+      document.text(text, col.x + 2, y, { width: col.w - (index === 0 ? 12 : 4), align: col.align });
     });
     document.y = y + height;
     document.moveTo(left, document.y - 3).lineTo(right, document.y - 3).lineWidth(0.3).strokeColor("#e0e0e0").stroke().strokeColor("#000");
