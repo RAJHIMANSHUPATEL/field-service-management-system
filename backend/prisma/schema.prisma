@@ -80,6 +80,9 @@ model Organization {
   visitParts        VisitPart[]
   partRequests      PartRequest[]
   taxRatePercent    Decimal            @default(18) @db.Decimal(5, 2)
+  /// Two-digit GST state code of the organisation's registration (e.g. "29" Karnataka). Required
+  /// before an invoice can be priced: it decides CGST+SGST (same state as the site) or IGST.
+  gstState          String?
   paymentTermsDays  Int                @default(15)
   invoiceSequence   Int                @default(0)
   contracts         ServiceContract[]
@@ -853,6 +856,8 @@ model Invoice {
   taxRatePercent Decimal          @db.Decimal(5, 2)
   cgst           Decimal          @db.Decimal(12, 2)
   sgst           Decimal          @db.Decimal(12, 2)
+  /// Full tax on an inter-state supply (site in another state than the organisation); else 0.
+  igst           Decimal          @default(0) @db.Decimal(12, 2)
   taxTotal       Decimal          @db.Decimal(12, 2)
   total          Decimal          @db.Decimal(12, 2)
   amountPaid     Decimal          @default(0) @db.Decimal(12, 2)
