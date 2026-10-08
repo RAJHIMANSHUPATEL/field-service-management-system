@@ -1,12 +1,37 @@
 name: CI
 
+# Mirrors /workspace/check-strict.sh: backend lint/build/test, frontend lint/build,
+# migrate + seed, Playwright e2e, and the backup/restore drill.
 on:
   push:
+    branches: [develop, main, "feat/**", "fix/**", "docs/**"]
   pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # CI-only values for throwaway service containers; nothing here is a real secret.
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/field_service?schema=public
+  JWT_ACCESS_SECRET: ci-access-secret-not-a-real-secret
+  JWT_REFRESH_SECRET: ci-refresh-secret-not-a-real-secret
+  CORS_ORIGIN: http://localhost:5173
+  APP_URL: http://localhost:5173
+  REDIS_URL: redis://localhost:6379
+  S3_ENDPOINT: http://localhost:9000
+  S3_REGION: us-east-1
+  S3_BUCKET: field-service
+  S3_ACCESS_KEY: testing
+  S3_SECRET_KEY: testing
+  MAIL_PROVIDER: log
+  SMS_PROVIDER: log
 
 jobs:
   backend:
+    name: Backend lint, build, test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17
@@ -14,16 +39,17 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: field_service
-        ports:
-          - 5432:5432
+        ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s
-          --health-retries 10
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/field_service?schema=public
-      JWT_ACCESS_SECRET: ci-access-secret
-      JWT_REFRESH_SECRET: ci-refresh-secret
+          --health-retries 20
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+      s3:
+        image: motoserver/moto:5.2.3
+        ports: ["9000:5000"]
     defaults:
       run:
         working-directory: backend
@@ -38,10 +64,14 @@ jobs:
       - run: npm run db:generate
       - run: npm run lint
       - run: npm run build
+      - name: Wait for S3 emulator
+        run: for i in $(seq 1 30); do curl -s -o /dev/null http://localhost:9000/ && exit 0; sleep 2; done; exit 1
       - run: npm test
 
   frontend:
+    name: Frontend lint, build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
@@ -57,7 +87,9 @@ jobs:
       - run: npm run build
 
   e2e:
+    name: Migrate, seed, Playwright e2e, restore drill
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [backend, frontend]
     services:
       postgres:
@@ -66,26 +98,60 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: field_service
-        ports:
-          - 5432:5432
+        ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s
-          --health-retries 10
+          --health-retries 20
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+      s3:
+        image: motoserver/moto:5.2.3
+        ports: ["9000:5000"]
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/field_service?schema=public
-      JWT_ACCESS_SECRET: ci-access-secret
-      JWT_REFRESH_SECRET: ci-refresh-secret
+      NOTIFICATION_QUEUE: bullmq
+      SCREENS_DIR: ${{ github.workspace }}/e2e/screens
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm ci && npm run db:generate && npm run db:migrate && npm run db:seed
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+            e2e/package-lock.json
+      - name: Backend install, migrate, seed
         working-directory: backend
-      - run: npm ci
+        run: npm ci && npm run db:generate && npm run db:migrate && npm run db:seed
+      - name: Frontend install
         working-directory: frontend
-      - run: npm ci && npx playwright install --with-deps chromium
+        run: npm ci
+      - name: Playwright install
         working-directory: e2e
-      - run: npx playwright test
+        run: npm ci && npx playwright install --with-deps chromium
+      - name: Wait for S3 emulator
+        run: for i in $(seq 1 30); do curl -s -o /dev/null http://localhost:9000/ && exit 0; sleep 2; done; exit 1
+      - name: Playwright e2e
         working-directory: e2e
+        run: mkdir -p "$SCREENS_DIR" && npx playwright test
+      - name: Backup and restore drill
+        run: |
+          # pg_dump must match the server's major version (17); the runner ships 16.
+          sudo apt-get install -y -qq postgresql-common >/dev/null
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y >/dev/null
+          sudo apt-get install -y -qq postgresql-client-17 >/dev/null
+          export PATH="/usr/lib/postgresql/17/bin:$PATH"
+          printf 'DATABASE_URL="%s"\n' "$DATABASE_URL" > backend/.env
+          PGPASSWORD=postgres scripts/restore-drill.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results
+          path: |
+            e2e/screens
+            e2e/test-results
+            e2e/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
