@@ -79,7 +79,7 @@ Counts from a run on 8 Oct 2026 (they move slightly with the anchor day):
 | Work orders | ~190: open, assigned, accepted, in progress, awaiting parts, follow-up required, completed |
 | Visits | ~200 including cancelled, unsuccessful, en route, arrived, in progress; ~210 visit changes (reschedules, reassignments, declines) |
 | Part requests | ~15, open and fulfilled |
-| Invoices | ~127: draft, issued, partially paid, overdue, paid and void, with CGST/SGST at 18% |
+| Invoices | ~130: draft, issued, partially paid, overdue, paid and void, at 18% GST: CGST + SGST for Bengaluru (Karnataka, the GST state) and IGST for Mumbai, Pune and Hyderabad |
 | Payments | ~50 (UPI, bank transfer, card, cash, online) |
 | AMC contracts / contract visits / maintenance plans | 9 (one cancelled) / ~43 / 23 |
 | Feedback | ~70 ratings, most with comments |
