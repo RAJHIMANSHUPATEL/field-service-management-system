@@ -373,7 +373,7 @@ technician's accept or decline, still a slice of phase 4. Stages 6–18 complete
 
 | Phase | State |
 |---|---|
-| 0 — Foundations | Complete except CI workflow on GitHub (stage 6; push needs a token with `workflow` scope) |
+| 0 — Foundations | Complete (stage 6); GitHub Actions CI runs the full check set on every push |
 | 1 — Identity and access | Complete (stage 7) |
 | 2 — Master data | Complete (stage 8) |
 | 3 — Request to work order | Complete (stage 9) |

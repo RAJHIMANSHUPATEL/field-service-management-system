@@ -28,3 +28,4 @@ Read this file and `docs/stages/README.md` before starting any work. Never redo 
 | 10 | feat/phase10-maintenance (stage 16) | e7bb153 | Phase 11: operations dashboard and technician performance |
 | 11 | feat/phase11-analytics (stage 17) | 8f44487 | Phase 12: hardening, API docs, rate limits, idempotency, backup drill |
 | 12 | feat/phase12-hardening (stage 18; deployment documented locally only, not deployed) | 1bd807e | All phases merged. User-only: push feat/phase0-ci with a workflow-scoped token. Strict checks: /workspace/check-strict.sh |
+| 0 (CI) | feat/phase0-ci-workflow (stage 6: GitHub Actions mirrors check-strict.sh) | 42327e8 | All phases 0-12 complete. Strict checks: /workspace/check-strict.sh |
