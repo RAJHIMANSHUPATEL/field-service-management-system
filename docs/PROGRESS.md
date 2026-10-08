@@ -32,4 +32,4 @@ Read this file and `docs/stages/README.md` before starting any work. Never redo 
 | Demo | feat/demo-seed + fix/invoice-breadcrumb (stage 19: deterministic Indian demo seed, npm run db:seed:demo; docs/demo.md) | e894ed9 | All phases 0-12 complete; demo dataset available. Strict checks: /workspace/check-strict.sh |
 | Auth | fix/refresh-grace-window (10 s refresh grace window, sealed successor; decision in docs/security.md) | c216139 | All phases 0-12 complete; demo dataset available. Strict checks: /workspace/check-strict.sh |
 | Billing | feat/billing-igst (stage 20: IGST for inter-state supply, org GST state; ADR 0004 amended) | ab7eb2a | All phases 0-12 complete; demo dataset available. Strict checks: /workspace/check-strict.sh |
-| Stage 21 | invoice PDF download | d4a9e17 | Pick the next stage |
+| Billing | feat/invoice-pdf (stage 21: downloadable invoice PDF, GET /invoices/:id/pdf, 409 INVOICE_NOT_ISSUED) | d4a9e17 | All phases 0-12 complete; demo dataset available. Strict checks: /workspace/check-strict.sh |
