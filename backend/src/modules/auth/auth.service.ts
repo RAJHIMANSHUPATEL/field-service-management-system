@@ -6,6 +6,7 @@ import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import type { AuthUser } from "../../types/authUser.js";
 import { appUrl, sendMail } from "../../lib/mailer.js";
+import { openToken, sealToken } from "./sealedToken.js";
 import type {
   AcceptInvitationInput,
   ConfirmPasswordResetInput,
@@ -15,6 +16,22 @@ import type {
 
 const ACCESS_TOKEN_TTL = "15m";
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+// How long a just-rotated refresh token may be presented again and get the same successor back,
+// for a refresh whose response was lost (page reloaded mid-request). Outside it, any presentation
+// of a rotated token is reuse and revokes the family. 0 turns the window off.
+export const REFRESH_GRACE_WINDOW_MS = graceWindowFromEnv(process.env.REFRESH_GRACE_WINDOW_MS);
+
+function graceWindowFromEnv(raw: string | undefined): number {
+  if (raw === undefined || raw === "") {
+    return 10_000;
+  }
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0 || value > 60_000) {
+    throw new Error("REFRESH_GRACE_WINDOW_MS must be a whole number of milliseconds from 0 to 60000");
+  }
+  return value;
+}
 
 type SessionUser = {
   id: string;
@@ -121,39 +138,142 @@ export async function login(input: LoginInput): Promise<AuthSession> {
   };
 }
 
+// Thrown inside the rotation transaction when another request rotated the same token first.
+class RotationRaceLost extends Error {}
+
 export async function refresh(refreshToken: string): Promise<AuthSession> {
-  const existing = await prisma.refreshToken.findUnique({
-    where: { tokenHash: hashToken(refreshToken) },
-    include: { user: { include: { organization: true } } },
-  });
-  if (!existing) {
-    throw new AppError("REFRESH_TOKEN_INVALID", 401, "Refresh token is invalid");
-  }
-
-  if (existing.revokedAt) {
-    await prisma.refreshToken.updateMany({
-      where: { familyId: existing.familyId, revokedAt: null },
-      data: { revokedAt: new Date() },
+  const tokenHash = hashToken(refreshToken);
+  // Two passes at most: a request that loses a concurrent rotation re-reads the token and is then
+  // answered from the grace window like any other retry.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const existing = await prisma.refreshToken.findUnique({
+      where: { tokenHash },
+      include: { user: { include: { organization: true } } },
     });
-    throw new AppError("REFRESH_TOKEN_REUSED", 401, "Refresh token has already been used");
-  }
+    if (!existing) {
+      throw new AppError("REFRESH_TOKEN_INVALID", 401, "Refresh token is invalid");
+    }
 
-  if (existing.expiresAt.getTime() <= Date.now()) {
-    throw new AppError("REFRESH_TOKEN_INVALID", 401, "Refresh token is invalid");
-  }
+    if (existing.revokedAt) {
+      const replay = await graceReplay(existing);
+      if (replay) {
+        return replay;
+      }
+      await revokeFamily(existing.familyId);
+      throw new AppError("REFRESH_TOKEN_REUSED", 401, "Refresh token has already been used");
+    }
 
-  await prisma.refreshToken.update({
-    where: { id: existing.id },
-    data: { revokedAt: new Date() },
+    if (existing.expiresAt.getTime() <= Date.now()) {
+      throw new AppError("REFRESH_TOKEN_INVALID", 401, "Refresh token is invalid");
+    }
+
+    try {
+      return await rotate(existing);
+    } catch (error) {
+      if (!(error instanceof RotationRaceLost)) {
+        throw error;
+      }
+    }
+  }
+  throw new AppError("REFRESH_TOKEN_INVALID", 401, "Refresh token is invalid");
+}
+
+type StoredRefreshToken = {
+  id: string;
+  userId: string;
+  familyId: string;
+  graceUntil: Date | null;
+  successorId: string | null;
+  successorSecret: string | null;
+  user: Parameters<typeof toSessionUser>[0];
+};
+
+async function rotate(existing: StoredRefreshToken): Promise<AuthSession> {
+  const now = new Date();
+  const nextRefreshToken = randomBytes(32).toString("base64url");
+  await prisma.$transaction(async (tx) => {
+    const successor = await tx.refreshToken.create({
+      data: {
+        userId: existing.userId,
+        tokenHash: hashToken(nextRefreshToken),
+        familyId: existing.familyId,
+        expiresAt: new Date(now.getTime() + REFRESH_TOKEN_TTL_MS),
+      },
+    });
+    // Conditional on the token still being live: a concurrent rotation blocks on the row lock,
+    // then matches nothing and rolls back its own successor.
+    const rotated = await tx.refreshToken.updateMany({
+      where: { id: existing.id, revokedAt: null },
+      data: {
+        revokedAt: now,
+        ...(REFRESH_GRACE_WINDOW_MS > 0
+          ? {
+              graceUntil: new Date(now.getTime() + REFRESH_GRACE_WINDOW_MS),
+              successorId: successor.id,
+              successorSecret: sealToken(nextRefreshToken, existing.id),
+            }
+          : {}),
+      },
+    });
+    if (rotated.count !== 1) {
+      throw new RotationRaceLost();
+    }
+    // Earlier rotations in this family are past their window by now: drop their sealed tokens.
+    await tx.refreshToken.updateMany({
+      where: { familyId: existing.familyId, id: { not: existing.id }, graceUntil: { lte: now } },
+      data: { graceUntil: null, successorId: null, successorSecret: null },
+    });
   });
-  const sessionUser = toSessionUser(existing.user);
-  const nextRefreshToken = await issueRefreshToken(existing.userId, existing.familyId);
 
+  const sessionUser = toSessionUser(existing.user);
   return {
     accessToken: signAccessToken(sessionUser),
     refreshToken: nextRefreshToken,
     user: sessionUser,
   };
+}
+
+// A rotated token presented again inside its window gets the successor it was rotated into, with
+// a fresh access token for the same user (access tokens are not stored). Only while that successor
+// is still live: if it has been rotated in turn, logged out, revoked with its family or by a
+// password reset, or has expired, this returns null and the caller treats the request as reuse.
+async function graceReplay(existing: StoredRefreshToken): Promise<AuthSession | null> {
+  if (!existing.graceUntil || !existing.successorId || !existing.successorSecret) {
+    return null;
+  }
+  if (existing.graceUntil.getTime() <= Date.now()) {
+    return null;
+  }
+  const successor = await prisma.refreshToken.findUnique({ where: { id: existing.successorId } });
+  if (
+    !successor ||
+    successor.revokedAt ||
+    successor.familyId !== existing.familyId ||
+    successor.expiresAt.getTime() <= Date.now()
+  ) {
+    return null;
+  }
+  const successorToken = openToken(existing.successorSecret, existing.id);
+  if (!successorToken || hashToken(successorToken) !== successor.tokenHash) {
+    return null;
+  }
+  const sessionUser = toSessionUser(existing.user);
+  return {
+    accessToken: signAccessToken(sessionUser),
+    refreshToken: successorToken,
+    user: sessionUser,
+  };
+}
+
+async function revokeFamily(familyId: string) {
+  const now = new Date();
+  await prisma.$transaction([
+    prisma.refreshToken.updateMany({ where: { familyId, revokedAt: null }, data: { revokedAt: now } }),
+    prisma.refreshToken.updateMany({
+      where: { familyId, successorSecret: { not: null } },
+      data: { graceUntil: null, successorId: null, successorSecret: null },
+    }),
+  ]);
 }
 
 export async function logout(refreshToken: string | undefined) {
