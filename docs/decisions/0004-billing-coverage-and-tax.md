@@ -1,6 +1,6 @@
 # 0004 — Who pays, and how tax is computed
 
-Status: accepted (Phase 8); amended 2026-10-08 for inter-state supply (IGST)
+Status: accepted (Phase 8); amended 2026-10-08 for inter-state supply (IGST), and again for credit notes and refunds
 
 Coverage is decided when the invoice is priced, from the job's completion date: warranty on the asset first (fully covered), else the active service contract covering the asset (per-category percentages), else nothing. Coverage is stored per invoice line (`coveredAmount`), so the customer and office see exactly what was absorbed and by whom.
 
@@ -53,4 +53,62 @@ a draft does not reprice it; the issued invoice is what counts. From `ISSUED` on
 an invoice is never repriced: edits and re-issue answer 409, and address, contract or warranty changes
 do not touch it.
 
-Out of scope: credit notes, an invoice PDF, the customer's GSTIN, and reverse charge.
+## Credit notes and refunds
+
+An issued invoice is never repriced, so a correction after issue is a separate record, never an edit
+of the lines or the total:
+
+- **Credit note** (`POST /invoices/:id/credit-notes`, `{ amount, reason }`): lowers what the customer
+  owes. Numbered per organisation `CN-<year>-<00001>` (its own counter, like invoice numbers).
+- **Refund** (`POST /invoices/:id/refunds`, `{ amount, reason }`): records money paid back to the
+  customer. Numbered `RF-<year>-<00001>`. Payments are never deleted or changed. A refund is against
+  the invoice's payments as a whole (it does not name one payment) and moves no money: there is no
+  payment gateway, so the office pays the money back outside the app and records it here.
+
+**Statuses.** Both are allowed on `ISSUED`, `OVERDUE` and `PAID` invoices. The product spec also
+names PARTIALLY_PAID, but the app has no such status: a partly paid invoice is `ISSUED` or `OVERDUE`
+with payments, so it is covered. `DRAFT` (adjust the draft instead) and `VOID` answer
+`409 INVALID_TRANSITION`. A void invoice never has payments, so it has nothing to refund. Void stays
+limited to invoices with no payments, and is now also refused once a credit note exists: a void
+invoice with live credit notes against it would be ambiguous.
+
+**One balance definition** (`backend/src/modules/invoices/invoice.balance.ts`). The invoice stores
+running totals next to `total`: `amountPaid` (payments), `creditedTotal` and `refundedTotal`.
+
+    owed = (total − credits) − (payments − refunds)
+    balance    = owed if owed > 0, else 0     what the customer still has to pay
+    refund due = −owed if owed < 0, else 0    what the office owes back
+    creditable = total − credits              (issued, overdue or paid invoices; else 0)
+    refundable = payments − refunds           (issued, overdue or paid invoices; else 0)
+
+A void invoice owes nothing (balance 0). The API returns these as `settlement` on every invoice. The
+invoice page, the PDF, payment limits, online payment, the overdue sweep (in SQL) and the dashboard's
+outstanding figure all use this definition. This also fixed an earlier mismatch: a void invoice showed
+balance 0 in the PDF but the full total on the page. Both now show 0.
+
+**Limits** are checked under a row lock (`SELECT … FOR UPDATE` on the invoice, in the same transaction
+that writes the record, the running total and the status). Concurrent credits, refunds and payments on
+one invoice therefore run one after another, and none can pass a limit. CHECK constraints back this up
+in the database (positive amounts, `0 ≤ creditedTotal ≤ total`, `0 ≤ refundedTotal ≤ amountPaid`).
+- A credit above `creditable` → `409 CREDIT_EXCEEDS_REMAINING` (`details.creditable`).
+- A refund above `refundable`, including any refund when nothing has been paid →
+  `409 REFUND_EXCEEDS_PAID` (`details.refundable`).
+- Zero, negative, non-numeric or 3-decimal amounts, or a missing reason → `400 VALIDATION_ERROR`.
+- Only admin and ops can create them (customers and technicians `403`). Another organisation's invoice
+  is `404`. Customers see both lists on their invoice. Each one writes an AuditEvent
+  (`invoices.credit-notes` / `invoices.refunds`, entity = the invoice).
+
+**Status effects.**
+- A credit that brings `owed` to zero or below marks an `ISSUED`/`OVERDUE` invoice `PAID` (`paidAt`
+  set). Nothing is left to collect.
+- Credits are capped by the total, not by the balance. Crediting an invoice that is already paid is
+  allowed and leaves a **refund due** (negative owed). The invoice stays `PAID`, and the page, the PDF
+  and the dashboard show the refund due until a refund records it. Capping credits at the balance was
+  rejected because then a paid invoice could never be credited.
+- A refund that makes `owed` positive again (more refunded than was owed back, for example a reversed
+  bank transfer) sends a `PAID` invoice back to `ISSUED`, or to `OVERDUE` if its due date has passed,
+  and clears `paidAt`. The office can then collect the balance as usual.
+- The overdue sweep only marks invoices that still owe something.
+
+Out of scope: the customer's GSTIN, reverse charge, a payment gateway for refunds, and refunds tied to
+a single payment.

@@ -57,6 +57,8 @@ const SLOTS = [9 * 60 + 30, 12 * 60, 14 * 60 + 30, 17 * 60];
 const VISIT_MINUTES = 120;
 
 const rng = new Rng(Number(process.env.DEMO_SEED ?? 20261008));
+// Credit notes and refunds draw from their own stream, so adding them left every other record as it was.
+const adjust = new Rng((Number(process.env.DEMO_SEED ?? 20261008) ^ 0x5eed_c4ed) >>> 0);
 
 // ---------------------------------------------------------------- in-process API
 const app = createApp();
@@ -165,7 +167,7 @@ const onHand = (warehouseId: string, sku: string) => world.stock.get(stockKey(wa
 const addStock = (warehouseId: string, sku: string, delta: number) =>
   world.stock.set(stockKey(warehouseId, sku), onHand(warehouseId, sku) + delta);
 const opsFor = (city: string) => (world.ops.find((row) => row.cities.includes(city)) ?? world.ops[0]!).userId;
-const counters = { photos: 0, signatures: 0, feedback: 0, payments: 0 };
+const counters = { photos: 0, signatures: 0, feedback: 0, payments: 0, creditNotes: 0, refunds: 0 };
 
 // ---------------------------------------------------------------- setup
 async function setup() {
@@ -650,7 +652,16 @@ function playBilling(job: Job, completedAt: number) {
       });
       return;
     }
-    if (plan === "issue") return;
+    if (plan === "issue") {
+      // A supplier warranty claim on the part, passed on before the customer pays.
+      if (adjust.chance(0.3) && total >= 1000) {
+        const amount = Math.max(100, Math.round((total * 0.15) / 50) * 50);
+        later(officeHours(issueAt + adjust.int(2, 8) * DAY), `${job.label} credit note`, () =>
+          creditNote(invoiceId, ops, amount, adjust.pick(["Part replaced under the supplier's warranty.", "Labour charged for 2 h; the visit took 1 h.", "Goodwill for the delayed first visit."])),
+        );
+      }
+      return;
+    }
     if (plan === "customer_online") {
       later(issueAt + rng.int(4, 120) * HOUR, `${job.label} online payment`, async () => {
         await api("POST", `/invoices/${invoiceId}/pay`, { as: job.customer.contactUserId });
@@ -668,13 +679,45 @@ function playBilling(job: Job, completedAt: number) {
       await api("POST", `/invoices/${invoiceId}/payments`, { as: ops, body: { amount: money(amount), method, ...(reference ? { reference } : {}) } });
       counters.payments += 1;
       if (plan === "partial_then_full") {
-        later(officeHours(firstAt + rng.int(5, 12) * DAY), `${job.label} balance`, async () => {
+        const balanceAt = officeHours(firstAt + rng.int(5, 12) * DAY);
+        later(balanceAt, `${job.label} balance`, async () => {
           await api("POST", `/invoices/${invoiceId}/payments`, { as: ops, body: { amount: money(total - amount), method: "BANK_TRANSFER", reference: `NEFT/KVRS${rng.int(100000, 999999)}` } });
           counters.payments += 1;
+          // The bank reverses the second transfer: refunded, and the invoice is owed again.
+          if (adjust.chance(0.35)) {
+            later(officeHours(balanceAt + adjust.int(1, 5) * DAY), `${job.label} refund`, () => refund(invoiceId, ops, total - amount, "NEFT transfer returned by the customer's bank."));
+          }
         });
+      }
+      // Paid in full, then credited for a fault on our side and refunded a few days later. A credit
+      // in the last few days may still be waiting for its refund (shown as refund due).
+      if (plan === "pay" && adjust.chance(0.15) && total >= 1000) {
+        const credit = Math.max(100, Math.round((total * 0.1) / 50) * 50);
+        const creditAt = officeHours(firstAt + adjust.int(1, 6) * DAY);
+        const reason = adjust.pick(["Repeat visit for the same fault: labour credited.", "Overcharged for the part: price corrected.", "Goodwill for a missed appointment."]);
+        later(creditAt, `${job.label} credit note after payment`, async () => {
+          await creditNote(invoiceId, ops, credit, reason);
+          later(officeHours(creditAt + adjust.int(1, 4) * DAY), `${job.label} refund of credit`, () => refund(invoiceId, ops, credit, `Refund of credit note: ${reason}`));
+        });
+      }
+      // Part paid; the rest written off as goodwill, which settles the invoice.
+      if (plan === "partial" && amount < total && adjust.chance(0.3)) {
+        later(officeHours(firstAt + adjust.int(3, 9) * DAY), `${job.label} balance credited`, () =>
+          creditNote(invoiceId, ops, total - amount, "Remaining balance waived after the repeat visit."),
+        );
       }
     });
   });
+}
+
+async function creditNote(invoiceId: string, ops: string, amount: number, reason: string) {
+  await api("POST", `/invoices/${invoiceId}/credit-notes`, { as: ops, body: { amount: money(amount), reason } });
+  counters.creditNotes += 1;
+}
+
+async function refund(invoiceId: string, ops: string, amount: number, reason: string) {
+  await api("POST", `/invoices/${invoiceId}/refunds`, { as: ops, body: { amount: money(amount), reason } });
+  counters.refunds += 1;
 }
 
 function playFeedback(job: Job, completedAt: number) {
@@ -1133,6 +1176,14 @@ async function printCounts() {
     intraStateInvoices: await prisma.invoice.count({ where: { ...where, cgst: { gt: 0 } } }),
     interStateInvoices: await prisma.invoice.count({ where: { ...where, igst: { gt: 0 } } }),
     payments: await prisma.payment.count({ where }),
+    creditNotes: await prisma.creditNote.count({ where }),
+    refunds: await prisma.refund.count({ where }),
+    refundDue: Number(
+      (
+        await prisma.$queryRaw<{ count: bigint }[]>`SELECT COUNT(*) AS count FROM "Invoice" WHERE "organizationId" = ${organization.id}
+          AND "status" <> 'VOID' AND ("total" - "creditedTotal") - ("amountPaid" - "refundedTotal") < 0`
+      )[0]!.count,
+    ),
     contracts: await group(prisma.serviceContract.groupBy({ by: ["status"], where, _count: { _all: true } }) as never),
     contractVisits: await prisma.contractVisit.count({ where }),
     maintenancePlans: await prisma.maintenancePlan.count({ where }),

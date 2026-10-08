@@ -19,6 +19,7 @@ Every query is scoped to the caller's organization. A record in another organiza
 | Part requests | Read, fulfil, cancel | Read, fulfil, cancel | Raise when ending a visit | — |
 | Visit parts | — | — | Reserve, use, release, return on own visit | — |
 | Invoices | Read, adjust draft, issue, record payment, void | Read, adjust draft, issue, record payment, void | — | Read own issued, pay online |
+| Credit notes and refunds | Read, create | Read, create | — | Read own (on the invoice) |
 | Contracts | Read, create, cancel | Read, create, cancel | — | Read own |
 | Service report PDF | Read | Read | Read own job | Read own job |
 | Invoice PDF (issued, overdue, paid, void) | Read | Read | — | Read own (another customer's: `403`, as for the invoice) |

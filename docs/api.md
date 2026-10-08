@@ -17,11 +17,23 @@ in code but not in the document, so the two cannot drift.
 | 404 | `NOT_FOUND` | Missing **or in another organization** (never revealed) |
 | 409 | `INVALID_TRANSITION` | State change not allowed from the current status |
 | 409 | `IDEMPOTENCY_IN_PROGRESS` | Same key still running; retry shortly |
+| 409 | `CREDIT_EXCEEDS_REMAINING` | `POST /invoices/:id/credit-notes` above what is left of the total after earlier credits; `details.creditable` |
+| 409 | `REFUND_EXCEEDS_PAID` | `POST /invoices/:id/refunds` above payments minus earlier refunds (any refund when nothing is paid); `details.refundable` |
 | 409 | `INVOICE_NOT_ISSUED` | `GET /invoices/:id/pdf` on a draft: the PDF exists once the invoice is issued (customers get `404`, as drafts are hidden from them) |
 | 409 | `ORG_GST_STATE_REQUIRED` | An invoice cannot be priced (job completion, draft edit, issue) until an admin sets the organisation's GST state |
 | 422 | `SITE_STATE_UNRECOGNISED` | The job site address's state is not an Indian state or UT; `details` has `addressId` and `state` |
 | 422 | `IDEMPOTENCY_KEY_REUSED` | Same key with a different body |
 | 429 | `RATE_LIMITED` | Honour `Retry-After` (seconds) |
+
+## Invoice balance, credit notes and refunds
+Every invoice response carries `settlement`: `netTotal` (total − credits), `netPaid` (payments −
+refunds), `balance` (still to pay), `refundDue` (owed back to the customer), `creditable` and
+`refundable`, as two-decimal strings. `owed = (total − credits) − (payments − refunds)`. The balance
+is `owed` when positive and the refund due is `−owed` when negative. A void invoice owes nothing.
+`POST /invoices/:id/credit-notes` and `POST /invoices/:id/refunds` take `{ "amount": "250.00",
+"reason": "..." }` (admin and ops, on `ISSUED`, `OVERDUE` or `PAID` invoices). Each answers `201` with the
+updated invoice, including `creditNotes` / `refunds` (`CN-2026-00001`, `RF-2026-00001`). A draft or
+void invoice is `409 INVALID_TRANSITION`. See ADR 0004 for the status effects.
 
 ## PDF downloads
 `GET /work-orders/:id/report` (service report) and `GET /invoices/:id/pdf` (invoice) answer
