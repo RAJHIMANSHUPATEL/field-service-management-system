@@ -16,11 +16,12 @@ async function main() {
   const existingOrganization = await prisma.organization.findFirst({
     where: { name: organizationName },
   });
-  const organization =
-    existingOrganization ??
-    (await prisma.organization.create({
-      data: { name: organizationName },
-    }));
+  // GST state 29 (Karnataka): the seeded site is in Bengaluru, so its invoices are intra-state.
+  const organization = existingOrganization
+    ? await prisma.organization.update({ where: { id: existingOrganization.id }, data: { gstState: "29" } })
+    : await prisma.organization.create({
+        data: { name: organizationName, gstState: "29" },
+      });
 
   const passwordHash = await argon2.hash(password);
 
@@ -81,19 +82,12 @@ async function main() {
   const existingAddress = await prisma.address.findFirst({
     where: { customerId: customer.id, label: "Main building" },
   });
-  const address =
-    existingAddress ??
-    (await prisma.address.create({
-      data: {
-        customerId: customer.id,
-        label: "Main building",
-        line1: "100 Market Street",
-        city: "Austin",
-        state: "TX",
-        postalCode: "78701",
-        isPrimary: true,
-      },
-    }));
+  const site = { line1: "100 MG Road", city: "Bengaluru", state: "Karnataka", postalCode: "560001" };
+  const address = existingAddress
+    ? await prisma.address.update({ where: { id: existingAddress.id }, data: site })
+    : await prisma.address.create({
+        data: { customerId: customer.id, label: "Main building", ...site, isPrimary: true },
+      });
 
   const serialNumber = "AC-1001";
   const existingAsset = await prisma.asset.findFirst({
@@ -204,9 +198,9 @@ async function main() {
     });
   }
   const area = await prisma.serviceArea.upsert({
-    where: { organizationId_name: { organizationId: organization.id, name: "Austin central" } },
+    where: { organizationId_name: { organizationId: organization.id, name: "Bengaluru central" } },
     update: {},
-    create: { organizationId: organization.id, name: "Austin central", postalCodes: ["78701", "78702", "78703"] },
+    create: { organizationId: organization.id, name: "Bengaluru central", postalCodes: ["560001", "560002", "560025"] },
   });
   for (const part of [
     { sku: "CAP-35", name: "Run capacitor 35uF", unitPrice: "1250.00" },

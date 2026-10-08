@@ -4,7 +4,8 @@ import { AppError } from "../../lib/errors.js";
 import { charge } from "../../lib/payments.js";
 import { pageMeta } from "../../lib/pagination.js";
 import { prisma } from "../../lib/prisma.js";
-import { chooseCoverage, priceInvoice, PricingError, type DecimalValue } from "./invoice.pricing.js";
+import { gstStateByCode, resolveGstState } from "../../lib/gstStates.js";
+import { chooseCoverage, priceInvoice, PricingError, type DecimalValue, type Supply } from "./invoice.pricing.js";
 import type { AddLineInput, ListInvoicesQuery, RecordPaymentInput, UpdateInvoiceInput } from "./invoice.schema.js";
 import { canInvoice, editableStatuses, type InvoiceAction } from "./invoice.transitions.js";
 import { invoiceEvent, notify } from "../notifications/notification.events.js";
@@ -37,6 +38,7 @@ async function pricingSource(tx: Tx, workOrderId: string) {
     where: { id: workOrderId },
     include: {
       organization: true,
+      address: true,
       serviceType: true,
       asset: { include: { contractAssets: { include: { contract: true } } } },
       contractVisit: true,
@@ -70,7 +72,33 @@ async function pricingSource(tx: Tx, workOrderId: string) {
       .filter((row) => row.status === "CONSUMED")
       .map((row) => ({ visitPartId: row.id, sku: row.part.sku, name: row.part.name, quantity: row.quantity, unitPrice: row.unitPrice })),
   );
-  return { workOrder, coverage, labourMinutes, parts };
+  return { workOrder, coverage, labourMinutes, parts, supply: placeOfSupply(workOrder.organization, workOrder.address) };
+}
+
+// Intra- or inter-state, from the organisation's GST state and the job site's state. Both must be
+// known: pricing refuses rather than guess, because the wrong split is a compliance error.
+function placeOfSupply(
+  organization: { gstState: string | null },
+  address: { id: string; state: string },
+): Supply {
+  const home = gstStateByCode(organization.gstState);
+  if (!home) {
+    throw new AppError(
+      "ORG_GST_STATE_REQUIRED",
+      409,
+      "Set the organisation's GST state (Admin → Master data → Company) before invoices can be priced",
+    );
+  }
+  const site = resolveGstState(address.state);
+  if (!site) {
+    throw new AppError(
+      "SITE_STATE_UNRECOGNISED",
+      422,
+      "The job site's state is not a recognised Indian state or union territory; correct the customer address",
+      { addressId: address.id, state: address.state },
+    );
+  }
+  return site.code === home.code ? "INTRA_STATE" : "INTER_STATE";
 }
 
 async function writePrice(
@@ -91,6 +119,7 @@ async function writePrice(
       coverage: source.coverage,
       discount: options.discount,
       taxRatePercent: source.workOrder.organization.taxRatePercent,
+      supply: source.supply,
     });
   } catch (error) {
     if (error instanceof PricingError) {
@@ -188,9 +217,7 @@ async function reprice(invoiceId: string, actor: AuthUser, change: { discount?: 
     throw new AppError("INVALID_TRANSITION", 409, "Only a draft invoice can change");
   }
   await prisma.$transaction(async (tx) => {
-    const additional = invoice.lines
-      .filter((line) => line.kind === "ADDITIONAL")
-      .map((line) => ({ description: line.description, amount: line.amount }));
+    const additional = additionalLines(invoice);
     if (change.addLine) {
       additional.push({ description: change.addLine.description, amount: new Decimal(change.addLine.amount) });
     }
@@ -216,16 +243,30 @@ export function addLine(id: string, actor: AuthUser, input: AddLineInput) {
   return reprice(id, actor, { addLine: input });
 }
 
+function additionalLines(invoice: { lines: { kind: string; description: string; amount: Prisma.Decimal }[] }) {
+  return invoice.lines
+    .filter((line) => line.kind === "ADDITIONAL")
+    .map((line) => ({ description: line.description, amount: line.amount }));
+}
+
 export async function issueInvoice(id: string, actor: AuthUser) {
   const invoice = await requireInvoice(id, actor);
   assertCan("issue", invoice.status);
   await prisma.$transaction(async (tx) => {
+    // Drafts are priced from source data, and the last pricing happens here: a site address,
+    // coverage or GST state corrected since the draft was written is reflected in what is issued.
+    // After this the invoice is frozen.
+    const priced = await writePrice(tx, await pricingSource(tx, invoice.workOrderId), {
+      invoiceId: invoice.id,
+      discount: invoice.discount,
+      additional: additionalLines(invoice),
+    });
     const organization = await tx.organization.update({
       where: { id: actor.organizationId },
       data: { invoiceSequence: { increment: 1 } },
     });
     const now = new Date();
-    const free = new Decimal(invoice.total).eq(0);
+    const free = new Decimal(priced.total).eq(0);
     const moved = await tx.invoice.updateMany({
       where: { id: invoice.id, status: "DRAFT" },
       data: {

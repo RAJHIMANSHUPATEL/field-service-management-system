@@ -3,7 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { authKeys } from "@/features/auth/api/auth.api";
 import {
   createCatalogItem,
+  getOrganization,
   listCatalog,
+  listGstStates,
+  updateOrganization,
   masterDataKeys,
   registerOrganization,
   updateCatalogItem,
@@ -39,5 +42,21 @@ export function useRegisterOrganization() {
       queryClient.setQueryData(authKeys.me, user);
       navigate("/master");
     },
+  });
+}
+
+export function useOrganization() {
+  return useQuery({ queryKey: masterDataKeys.organization, queryFn: getOrganization });
+}
+
+export function useGstStates() {
+  return useQuery({ queryKey: masterDataKeys.gstStates, queryFn: listGstStates, staleTime: Infinity });
+}
+
+export function useUpdateOrganization() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateOrganization,
+    onSuccess: (organization) => queryClient.setQueryData(masterDataKeys.organization, organization),
   });
 }

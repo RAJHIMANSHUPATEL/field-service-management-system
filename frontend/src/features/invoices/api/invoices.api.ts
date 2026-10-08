@@ -43,6 +43,8 @@ export type Invoice = {
   taxRatePercent: string;
   cgst: string;
   sgst: string;
+  // Inter-state supply: the whole tax is IGST and CGST/SGST are 0; intra-state: IGST is 0.
+  igst: string;
   taxTotal: string;
   total: string;
   amountPaid: string;

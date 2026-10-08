@@ -39,8 +39,8 @@ export async function setup() {
   const address = await request(app).post(`/api/v1/customers/${customerId}/addresses`).set(auth(adminToken)).send({
     label: "Site",
     line1: "10 Main",
-    city: "Austin",
-    state: "TX",
+    city: "Bengaluru",
+    state: "Karnataka",
     postalCode: "78702",
   });
   const serviceType = await request(app)
@@ -122,7 +122,7 @@ export async function hashedPassword() {
 export async function seedStaff() {
   const passwordHash = await hashedPassword();
 
-  const organization = await prisma.organization.create({ data: { name: "Plan Co" } });
+  const organization = await prisma.organization.create({ data: { name: "Plan Co", gstState: "29" } });
   await prisma.user.create({
     data: {
       organizationId: organization.id,

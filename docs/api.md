@@ -17,6 +17,8 @@ in code but not in the document, so the two cannot drift.
 | 404 | `NOT_FOUND` | Missing **or in another organization** (never revealed) |
 | 409 | `INVALID_TRANSITION` | State change not allowed from the current status |
 | 409 | `IDEMPOTENCY_IN_PROGRESS` | Same key still running; retry shortly |
+| 409 | `ORG_GST_STATE_REQUIRED` | An invoice cannot be priced (job completion, draft edit, issue) until an admin sets the organisation's GST state |
+| 422 | `SITE_STATE_UNRECOGNISED` | The job site address's state is not an Indian state or UT; `details` has `addressId` and `state` |
 | 422 | `IDEMPOTENCY_KEY_REUSED` | Same key with a different body |
 | 429 | `RATE_LIMITED` | Honour `Retry-After` (seconds) |
 

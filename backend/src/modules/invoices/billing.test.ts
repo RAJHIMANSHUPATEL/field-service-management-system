@@ -34,6 +34,7 @@ describe("invoice arithmetic", () => {
     coverage: noCoverage,
     discount: "0",
     taxRatePercent: "18",
+    supply: "INTRA_STATE" as const,
   };
 
   it("matches the requirements example: 500 + 850 + 500, 18% tax, 2183 total", () => {
@@ -60,6 +61,20 @@ describe("invoice arithmetic", () => {
     expect(priced.taxableAmount.toFixed(2)).toBe("400.00");
     expect(priced.total.toFixed(2)).toBe("472.00");
     expect(() => priceInvoice({ ...base, discount: "1850.01" })).toThrow();
+  });
+
+  it("charges the same tax as IGST on an inter-state supply, keeping the total", () => {
+    const intra = priceInvoice(base);
+    const inter = priceInvoice({ ...base, supply: "INTER_STATE" });
+    expect(intra.igst.toFixed(2)).toBe("0.00");
+    expect([inter.cgst.toFixed(2), inter.sgst.toFixed(2), inter.igst.toFixed(2)]).toEqual(["0.00", "0.00", "333.00"]);
+    expect(inter.taxTotal.toFixed(2)).toBe(intra.taxTotal.toFixed(2));
+    expect(inter.total.toFixed(2)).toBe(intra.total.toFixed(2));
+    // IGST is the two rounded halves, not 18% rounded once: 9% of 1.03 is 0.09, so 0.18 (not 0.19).
+    const tiny = { ...base, serviceCharge: "1.03", labourRatePerHour: "0", parts: [] };
+    expect(priceInvoice(tiny).cgst.toFixed(2)).toBe("0.09");
+    expect(priceInvoice({ ...tiny, supply: "INTER_STATE" }).igst.toFixed(2)).toBe("0.18");
+    expect(priceInvoice({ ...tiny, supply: "INTER_STATE" }).total.toFixed(2)).toBe(priceInvoice(tiny).total.toFixed(2));
   });
 
   it("bills labour in half hours rounded up, at least one", () => {
@@ -119,10 +134,16 @@ async function billingSetup() {
     expect(done.status).toBe(200);
     expect(done.body.data.invoice).toMatchObject({ status: "DRAFT" });
     const workOrder = await prisma.workOrder.findUniqueOrThrow({ where: { id: job.workOrderId } });
-    return { ...job, invoiceId: done.body.data.invoice.id as string, assetId: workOrder.assetId, customerId: workOrder.customerId };
+    return { ...job, invoiceId: done.body.data.invoice.id as string, assetId: workOrder.assetId, customerId: workOrder.customerId, addressId: workOrder.addressId };
   }
 
-  return { context, ops, tara, completedJob };
+  // The job site's state, changed the way the office does it: through the address endpoint.
+  async function moveSite(job: { customerId: string; addressId: string }, state: string) {
+    const moved = await request(app).patch(api(`/customers/${job.customerId}/addresses/${job.addressId}`)).set(auth(ops)).send({ state });
+    expect(moved.status).toBe(200);
+  }
+
+  return { context, ops, tara, completedJob, moveSite };
 }
 
 describe("billing", () => {
@@ -273,5 +294,116 @@ describe("billing", () => {
     const early = await request(app).get(api(`/work-orders/${open.workOrderId}/report`)).set(auth(context.opsToken));
     expect(early.status).toBe(409);
     expect(early.body.error.code).toBe("REPORT_NOT_READY");
+  });
+});
+
+const taxOf = (invoice: Record<string, unknown>) => ({ cgst: invoice.cgst, sgst: invoice.sgst, igst: invoice.igst, taxTotal: invoice.taxTotal, total: invoice.total });
+
+describe("GST supply type", () => {
+  it("charges CGST and SGST when the site is in the organisation's state", async () => {
+    const { ops, completedJob } = await billingSetup();
+    const job = await completedJob();
+    const issued = await request(app).post(api(`/invoices/${job.invoiceId}/issue`)).set(auth(ops));
+    expect(taxOf(issued.body.data)).toEqual({ cgst: "166.5", sgst: "166.5", igst: "0", taxTotal: "333", total: "2183" });
+  });
+
+  it("charges IGST when the site is in another state, with the same total", async () => {
+    const { ops, completedJob, moveSite } = await billingSetup();
+    const first = await completedJob();
+    await moveSite(first, "Maharashtra");
+    const job = await completedJob();
+    const draft = await request(app).get(api(`/invoices/${job.invoiceId}`)).set(auth(ops));
+    expect(taxOf(draft.body.data)).toEqual({ cgst: "0", sgst: "0", igst: "333", taxTotal: "333", total: "2183" });
+    const issued = await request(app).post(api(`/invoices/${job.invoiceId}/issue`)).set(auth(ops));
+    expect(issued.body.data).toMatchObject({ status: "ISSUED", taxRatePercent: "18", cgst: "0", sgst: "0", igst: "333", total: "2183" });
+  });
+
+  it("flips a draft when the site state changes before issue, and freezes it once issued", async () => {
+    const { ops, completedJob, moveSite } = await billingSetup();
+    const job = await completedJob();
+    expect(taxOf((await request(app).get(api(`/invoices/${job.invoiceId}`)).set(auth(ops))).body.data)).toMatchObject({ cgst: "166.5", igst: "0" });
+
+    // The site's state is corrected to Maharashtra ("MH") after the draft was written. Reads do not
+    // reprice; issuing prices the draft one last time, so the issued invoice is inter-state.
+    await moveSite(job, "MH");
+    expect(taxOf((await request(app).get(api(`/invoices/${job.invoiceId}`)).set(auth(ops))).body.data)).toMatchObject({ cgst: "166.5", igst: "0" });
+    const issued = await request(app).post(api(`/invoices/${job.invoiceId}/issue`)).set(auth(ops));
+    expect(issued.status).toBe(200);
+    expect(taxOf(issued.body.data)).toEqual({ cgst: "0", sgst: "0", igst: "333", taxTotal: "333", total: "2183" });
+
+    // Editing a draft reprices it immediately too: a second job flips back when the site returns.
+    const second = await completedJob();
+    expect(taxOf((await request(app).get(api(`/invoices/${second.invoiceId}`)).set(auth(ops))).body.data)).toMatchObject({ igst: "333" });
+    await moveSite(second, "karnataka");
+    const edited = await request(app).patch(api(`/invoices/${second.invoiceId}`)).set(auth(ops)).send({ discount: "100.00" });
+    expect(taxOf(edited.body.data)).toEqual({ cgst: "157.5", sgst: "157.5", igst: "0", taxTotal: "315", total: "2065" });
+
+    // The issued invoice keeps its inter-state tax although the site is back in Karnataka.
+    const after = await request(app).get(api(`/invoices/${job.invoiceId}`)).set(auth(ops));
+    expect(taxOf(after.body.data)).toEqual({ cgst: "0", sgst: "0", igst: "333", taxTotal: "333", total: "2183" });
+  });
+
+  it("never reprices issued, paid, overdue or void invoices", async () => {
+    const { ops, completedJob, moveSite } = await billingSetup();
+    const jobs = { issued: await completedJob(), paid: await completedJob(), overdue: await completedJob(), void: await completedJob() };
+    for (const job of Object.values(jobs)) {
+      expect((await request(app).post(api(`/invoices/${job.invoiceId}/issue`)).set(auth(ops))).status).toBe(200);
+    }
+    await request(app).post(api(`/invoices/${jobs.paid.invoiceId}/payments`)).set(auth(ops)).send({ amount: "2183.00", method: "UPI" });
+    await prisma.invoice.update({ where: { id: jobs.overdue.invoiceId }, data: { dueAt: new Date(Date.now() - 60_000) } });
+    await request(app).post(api(`/invoices/${jobs.void.invoiceId}/void`)).set(auth(ops)).send({ reason: "Duplicate" });
+    type InvoiceBody = Record<string, unknown> & { status: string; lines: unknown[] };
+    const read = async (invoiceId: string): Promise<InvoiceBody> => (await request(app).get(api(`/invoices/${invoiceId}`)).set(auth(ops))).body.data;
+    const before: Record<string, InvoiceBody> = Object.fromEntries(await Promise.all(Object.entries(jobs).map(async ([name, job]) => [name, await read(job.invoiceId)])));
+    expect(Object.values(before).map((invoice) => invoice.status)).toEqual(["ISSUED", "PAID", "OVERDUE", "VOID"]);
+
+    await moveSite(jobs.issued, "Telangana");
+    for (const [name, job] of Object.entries(jobs)) {
+      expect((await request(app).patch(api(`/invoices/${job.invoiceId}`)).set(auth(ops)).send({ notes: "x" })).status).toBe(409);
+      expect((await request(app).post(api(`/invoices/${job.invoiceId}/lines`)).set(auth(ops)).send({ description: "x", amount: "1.00" })).status).toBe(409);
+      expect((await request(app).post(api(`/invoices/${job.invoiceId}/issue`)).set(auth(ops))).status).toBe(409);
+      const now = await read(job.invoiceId);
+      expect({ ...taxOf(now), status: now.status, lines: now.lines.length }).toEqual({ ...taxOf(before[name]!), status: before[name]!.status, lines: before[name]!.lines.length });
+      expect(taxOf(now)).toMatchObject({ cgst: "166.5", sgst: "166.5", igst: "0" });
+    }
+  });
+
+  it("refuses to price without the organisation's GST state or a recognised site state", async () => {
+    const { ops, tara, completedJob, moveSite, context } = await billingSetup();
+    const draft = await completedJob();
+    const organization = await prisma.organization.findFirstOrThrow({ where: { name: "Plan Co" } });
+
+    // Without a GST state nothing can be priced: completion (which writes the draft), edits, issue.
+    await prisma.organization.update({ where: { id: organization.id }, data: { gstState: null } });
+    const job = await scheduledJob(context, "tara", "2026-11-05T09:00:00.000Z");
+    for (const step of ["en-route", "arrive", "start"]) {
+      await request(app).post(api(`/visits/${job.visitId}/${step}`)).set(auth(tara));
+    }
+    await request(app).patch(api(`/visits/${job.visitId}/report`)).set(auth(tara)).send({ workPerformed: "Serviced" });
+    await request(app).post(api(`/visits/${job.visitId}/signature`)).set(auth(tara)).send(signature);
+    const blocked = await request(app).post(api(`/visits/${job.visitId}/complete`)).set(auth(tara));
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.error.code).toBe("ORG_GST_STATE_REQUIRED");
+    expect((await prisma.serviceVisit.findUniqueOrThrow({ where: { id: job.visitId } })).status).toBe("IN_PROGRESS");
+    expect(await prisma.invoice.count({ where: { workOrderId: job.workOrderId } })).toBe(0);
+    const edit = await request(app).patch(api(`/invoices/${draft.invoiceId}`)).set(auth(ops)).send({ notes: "x" });
+    expect(edit.body.error.code).toBe("ORG_GST_STATE_REQUIRED");
+    const issue = await request(app).post(api(`/invoices/${draft.invoiceId}/issue`)).set(auth(ops));
+    expect([issue.status, issue.body.error.code]).toEqual([409, "ORG_GST_STATE_REQUIRED"]);
+
+    // A site state that is not an Indian state or UT is not guessed at.
+    await prisma.organization.update({ where: { id: organization.id }, data: { gstState: "29" } });
+    await moveSite(draft, "Texas");
+    const unknown = await request(app).post(api(`/invoices/${draft.invoiceId}/issue`)).set(auth(ops));
+    expect(unknown.status).toBe(422);
+    expect(unknown.body.error).toMatchObject({ code: "SITE_STATE_UNRECOGNISED", details: { addressId: draft.addressId, state: "Texas" } });
+    const stillBlocked = await request(app).post(api(`/visits/${job.visitId}/complete`)).set(auth(tara));
+    expect(stillBlocked.body.error.code).toBe("SITE_STATE_UNRECOGNISED");
+    expect((await request(app).get(api(`/invoices/${draft.invoiceId}`)).set(auth(ops))).body.data.status).toBe("DRAFT");
+
+    // Once corrected, the job completes and the draft issues.
+    await moveSite(draft, "Karnataka");
+    expect((await request(app).post(api(`/visits/${job.visitId}/complete`)).set(auth(tara))).status).toBe(200);
+    expect((await request(app).post(api(`/invoices/${draft.invoiceId}/issue`)).set(auth(ops))).status).toBe(200);
   });
 });

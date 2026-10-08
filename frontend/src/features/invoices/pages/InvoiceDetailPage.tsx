@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { recordLinkClassName, selectClassName } from "@/components/content";
@@ -40,6 +40,12 @@ export function InvoiceDetailPage() {
   const balance = (Number(record.total) - Number(record.amountPaid)).toFixed(2);
   const payable = record.status === "ISSUED" || record.status === "OVERDUE";
   const halfRate = (Number(record.taxRatePercent) / 2).toString();
+  // Only the components that apply: CGST and SGST within the state, IGST across states.
+  const taxRows = [
+    { label: "CGST", rate: halfRate, amount: record.cgst },
+    { label: "SGST", rate: halfRate, amount: record.sgst },
+    { label: "IGST", rate: Number(record.taxRatePercent).toString(), amount: record.igst },
+  ].filter((row) => Number(row.amount) !== 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -99,10 +105,16 @@ export function InvoiceDetailPage() {
                 <dd className="text-right">−{money(record.discount)}</dd>
               </>
             ) : null}
-            <dt>CGST {halfRate}%</dt>
-            <dd className="text-right">{money(record.cgst)}</dd>
-            <dt>SGST {halfRate}%</dt>
-            <dd className="text-right">{money(record.sgst)}</dd>
+            {taxRows.map((row) => (
+              <Fragment key={row.label}>
+                <dt>
+                  {row.label} {row.rate}%
+                </dt>
+                <dd className="text-right" data-testid={`invoice-${row.label.toLowerCase()}`}>
+                  {money(row.amount)}
+                </dd>
+              </Fragment>
+            ))}
             <dt className="font-semibold">Total</dt>
             <dd className="text-right font-semibold" data-testid="invoice-total">
               {money(record.total)}

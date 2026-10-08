@@ -4,6 +4,10 @@ export class Rng {
   constructor(seed: number) {
     this.state = seed >>> 0;
   }
+  // For tracing replays: two runs that diverge show where the random stream first differs.
+  snapshot() {
+    return this.state;
+  }
   next() {
     this.state = (this.state + 0x6d2b79f5) >>> 0;
     let t = this.state;

@@ -16,6 +16,8 @@ import * as serviceAreaController from "../modules/serviceAreas/serviceArea.cont
 import * as serviceRequestController from "../modules/serviceRequests/serviceRequest.controller.js";
 import * as serviceTypeController from "../modules/serviceTypes/serviceType.controller.js";
 import * as skillController from "../modules/skills/skill.controller.js";
+import * as organizationController from "../modules/organization/organization.controller.js";
+import { updateOrganizationSchema } from "../modules/organization/organization.schema.js";
 import * as technicianController from "../modules/technicians/technician.controller.js";
 import * as userController from "../modules/users/user.controller.js";
 import * as visitController from "../modules/visits/visit.controller.js";
@@ -106,6 +108,7 @@ export const requestSchemas = new Map<unknown, Schemas>([
   [serviceTypeController.list, { query: pageQuerySchema }],
   [serviceTypeController.create, { body: createServiceTypeSchema }],
   [serviceTypeController.update, { body: updateServiceTypeSchema }],
+  [organizationController.update, { body: updateOrganizationSchema }],
   [skillController.list, { query: listSkillsQuerySchema }],
   [skillController.create, { body: createSkillSchema }],
   [skillController.update, { body: updateSkillSchema }],

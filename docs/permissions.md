@@ -23,6 +23,7 @@ Every query is scoped to the caller's organization. A record in another organiza
 | Service report PDF | Read | Read | Read own job | Read own job |
 | Technician time off | Read, add, delete | Read, add, delete | Read own | — |
 | Users and invitations | Read, invite, revoke | — | — | — |
+| Organisation settings (GST state) | Read, update | Read | — | — |
 | Audit events | Read | — | — | — |
 
 Public endpoints: register a new organization (its first admin), login, refresh, logout, password reset request and confirm, accept invitation.

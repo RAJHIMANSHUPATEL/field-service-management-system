@@ -47,3 +47,7 @@ export const registerSchema = z.object({
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
+
+export const companySchema = z.object({
+  gstState: z.string().regex(/^\d{2}$/, "Choose the state the company is GST-registered in"),
+});
