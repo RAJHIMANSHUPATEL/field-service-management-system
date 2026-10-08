@@ -17,3 +17,5 @@ invoiceRouter.post("/:id/issue", requireAuth, office, invoiceController.issue);
 invoiceRouter.post("/:id/payments", requireAuth, office, invoiceController.recordPayment);
 invoiceRouter.post("/:id/pay", requireAuth, requireRole("CUSTOMER"), invoiceController.pay);
 invoiceRouter.post("/:id/void", requireAuth, office, invoiceController.voidInvoice);
+invoiceRouter.post("/:id/credit-notes", requireAuth, office, invoiceController.creditNote);
+invoiceRouter.post("/:id/refunds", requireAuth, office, invoiceController.refund);

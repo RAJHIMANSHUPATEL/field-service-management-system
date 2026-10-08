@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { addLineSchema, listInvoicesQuerySchema, recordPaymentSchema, updateInvoiceSchema, voidInvoiceSchema } from "./invoice.schema.js";
+import { addLineSchema, creditNoteSchema, listInvoicesQuerySchema, recordPaymentSchema, refundSchema, updateInvoiceSchema, voidInvoiceSchema } from "./invoice.schema.js";
 import { invoicePdf } from "./invoice.pdf.js";
 import * as invoiceService from "./invoice.service.js";
 
@@ -52,4 +52,14 @@ export async function pdf(req: Request, res: Response) {
   const { pdf: body, number } = await invoicePdf(id(req), actor(req));
   res.status(200).type("application/pdf").setHeader("Content-Disposition", `inline; filename="invoice-${number}.pdf"`);
   res.end(body);
+}
+
+export async function creditNote(req: Request, res: Response) {
+  const input = creditNoteSchema.parse(req.body);
+  res.status(201).json(await invoiceService.issueCreditNote(id(req), actor(req), input));
+}
+
+export async function refund(req: Request, res: Response) {
+  const input = refundSchema.parse(req.body);
+  res.status(201).json(await invoiceService.issueRefund(id(req), actor(req), input));
 }
