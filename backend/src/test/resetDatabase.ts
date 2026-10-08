@@ -10,6 +10,8 @@ export async function resetDatabase() {
   await prisma.passwordResetToken.deleteMany();
   await prisma.visitChange.deleteMany();
   await prisma.visitPhoto.deleteMany();
+  await prisma.creditNote.deleteMany();
+  await prisma.refund.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.invoiceLine.deleteMany();
   await prisma.invoice.deleteMany();
