@@ -15,7 +15,8 @@ npm run db:seed:demo
 ```
 
 The run takes about 75 seconds and prints record counts at the end. Set `DEMO_VERBOSE=1` to see
-the API's own logs.
+the API's own logs, and `DEMO_TRACE=/tmp/trace.tsv` to log every replayed action with its time
+and the RNG state (two runs with the same `DEMO_ANCHOR` produce identical traces).
 
 - **Separate organization.** Everything lives in **Kaveri Facility Services Pvt Ltd**. The base
   seed's organization and users are left alone.
