@@ -39,7 +39,7 @@ queued request until it succeeds.
 Browsers use the httpOnly refresh cookie. Native clients send `X-Client: mobile` on
 `/auth/login` and `/auth/refresh`; the response then also includes `data.refreshToken`. Store it in
 secure storage (Keychain / Keystore) and send `{ "refreshToken" }` in the body of `/auth/refresh`
-and `/auth/logout`. Refresh tokens rotate on every refresh; reuse of an old one revokes the family.
+and `/auth/logout`. Refresh tokens rotate on every refresh; reuse of an old one revokes the family, except that a retry within 10 s of the rotation (a lost response) gets the same new token back. See [security.md](./security.md#refresh-token-reuse-and-the-grace-window-decided-2026-10-08).
 Access tokens are short-lived bearer tokens (`Authorization: Bearer`).
 
 ## Technician delta sync
