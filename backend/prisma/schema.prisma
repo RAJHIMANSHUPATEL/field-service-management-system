@@ -126,15 +126,23 @@ model User {
 }
 
 model RefreshToken {
-  id        String    @id @default(cuid())
-  userId    String
-  tokenHash String    @unique
-  familyId  String
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  user      User      @relation(fields: [userId], references: [id])
+  id              String    @id @default(cuid())
+  userId          String
+  tokenHash       String    @unique
+  familyId        String
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  /// Set when this token is rotated: until this instant a retry of this token returns the same
+  /// successor instead of counting as reuse (a refresh response lost to a reload).
+  graceUntil      DateTime?
+  /// The token this one was rotated into. Plain id, no foreign key; only read during the window.
+  successorId     String?
+  /// The successor's raw token sealed with AES-256-GCM (key derived from JWT_REFRESH_SECRET,
+  /// bound to this row's id). Cleared once the window has passed or the family is revoked.
+  successorSecret String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([familyId])
