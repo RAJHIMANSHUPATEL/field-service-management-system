@@ -239,10 +239,97 @@ async function main() {
     });
   }
 
+  if (technicianRecord && seededServiceType) {
+    await seedLayoutWeek(organization.id, technicianRecord.id, seededServiceType.id);
+  }
+
   console.log(`Seeded ${organization.name}`);
   console.log(`Password for every seeded user: ${password}`);
   for (const user of users) {
     console.log(`${user.role} ${user.email}`);
+  }
+}
+
+// The layout spec checks the schedule's week grid with real cards in it, so the current week
+// (Monday to Sunday) always has visits for Tara, with long customer and equipment names. Idempotent:
+// a day that already has a sample visit is left alone. ASSIGNED work orders never fire the late
+// reminder sweep, and the slots sit outside the future slots other specs book.
+const layoutCustomerName = "Sri Venkateshwara Co-operative Housing Society Residents' Welfare Association";
+const layoutDescription = "Layout sample: weekly preventive check of the plant room";
+
+async function seedLayoutWeek(organizationId: string, technicianId: string, serviceTypeId: string) {
+  const customer =
+    (await prisma.customer.findFirst({ where: { organizationId, name: layoutCustomerName } })) ??
+    (await prisma.customer.create({
+      data: { organizationId, name: layoutCustomerName, phone: "555-0150", email: "office@svchs.example.com" },
+    }));
+  const address =
+    (await prisma.address.findFirst({ where: { customerId: customer.id, label: "Clubhouse" } })) ??
+    (await prisma.address.create({
+      data: {
+        customerId: customer.id,
+        label: "Clubhouse",
+        line1: "12 Residency Road",
+        city: "Bengaluru",
+        state: "Karnataka",
+        postalCode: "560025",
+        isPrimary: true,
+      },
+    }));
+  const asset =
+    (await prisma.asset.findFirst({ where: { organizationId, serialNumber: "VRF-LAYOUT-01" } })) ??
+    (await prisma.asset.create({
+      data: {
+        organizationId,
+        customerId: customer.id,
+        addressId: address.id,
+        equipmentType: "Variable refrigerant flow air-conditioning system",
+        model: "MultiZone 12",
+        serialNumber: "VRF-LAYOUT-01",
+        installedAt: new Date("2025-01-15T00:00:00.000Z"),
+      },
+    }));
+
+  const now = new Date();
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - ((now.getUTCDay() + 6) % 7)));
+  for (let day = 0; day < 7; day += 1) {
+    const date = new Date(monday.getTime() + day * 86_400_000);
+    // 06:30 and 09:30 UTC: the same calendar day in UTC (CI) and in India.
+    for (const hour of [6.5, 9.5]) {
+      const scheduledStart = new Date(date.getTime() + hour * 3_600_000);
+      const existing = await prisma.serviceVisit.findFirst({
+        where: { organizationId, technicianId, scheduledStart, workOrder: { description: layoutDescription } },
+      });
+      if (existing) continue;
+      const request = await prisma.serviceRequest.create({
+        data: {
+          organizationId,
+          customerId: customer.id,
+          assetId: asset.id,
+          addressId: address.id,
+          serviceTypeId,
+          description: layoutDescription,
+          preferredStart: date,
+          preferredEnd: date,
+          status: "ACCEPTED",
+        },
+      });
+      await prisma.workOrder.create({
+        data: {
+          organizationId,
+          requestId: request.id,
+          customerId: customer.id,
+          assetId: asset.id,
+          addressId: address.id,
+          serviceTypeId,
+          technicianId,
+          priority: "NORMAL",
+          description: layoutDescription,
+          status: "ASSIGNED",
+          visits: { create: { organizationId, technicianId, scheduledStart } },
+        },
+      });
+    }
   }
 }
 
