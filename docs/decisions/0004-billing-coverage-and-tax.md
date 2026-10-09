@@ -112,3 +112,28 @@ in the database (positive amounts, `0 ≤ creditedTotal ≤ total`, `0 ≤ refun
 
 Out of scope: the customer's GSTIN, reverse charge, a payment gateway for refunds, and refunds tied to
 a single payment.
+
+## Customer online pay while the provider is the mock (stage 24)
+
+**Context.** `lib/payments.ts` has only a mock provider that approves every charge. Showing customers a
+Pay button that "succeeds" without moving money is misleading outside a demo.
+
+**Decision.**
+- Online pay is on only when `PAYMENT_PROVIDER` names a real provider: an allowlist,
+  `REAL_PAYMENT_PROVIDERS = ["razorpay", "stripe"]` (trimmed, case-insensitive). Unset, empty, `mock`
+  and unknown names (typos) keep it off. Neither gateway is implemented, so with one of those names Pay
+  is offered but `charge()` still answers `503 PAYMENT_PROVIDER_UNAVAILABLE` until its branch is written.
+  An allowlist was chosen over "any name other than mock" so a typo never turns on a Pay button.
+- `GET /invoices/payment-options` returns `{ onlinePay }` (admin, ops, customers). The customer invoice
+  page shows Pay only when it is true, and otherwise tells the customer to pay the office.
+- `POST /invoices/:id/pay` enforces it on the server: after the access checks (404 / 403, so the
+  answer never reveals another organisation's invoice) and before the status check, it answers
+  `503 PAYMENT_PROVIDER_UNAVAILABLE`, the same code the provider uses, so clients handle one code.
+- `charge()` is unchanged: the mock still approves every charge.
+- The demo seed replays history that includes online payments. It calls `allowMockOnlinePay(true)` in
+  its own process, and its payments keep going through the HTTP route (audit, notifications, the same
+  clock reads), so the dataset is identical. The switch is in-process only: no environment variable or
+  request can turn it on. Rejected alternatives: calling the service from the seed (skips the audit
+  middleware and changes the replay), or an env flag (could be left on in production).
+- Office payments (cash, UPI, card, bank transfer) are unchanged.
+

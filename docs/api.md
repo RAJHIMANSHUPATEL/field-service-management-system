@@ -20,10 +20,22 @@ in code but not in the document, so the two cannot drift.
 | 409 | `CREDIT_EXCEEDS_REMAINING` | `POST /invoices/:id/credit-notes` above what is left of the total after earlier credits; `details.creditable` |
 | 409 | `REFUND_EXCEEDS_PAID` | `POST /invoices/:id/refunds` above payments minus earlier refunds (any refund when nothing is paid); `details.refundable` |
 | 409 | `INVOICE_NOT_ISSUED` | `GET /invoices/:id/pdf` on a draft: the PDF exists once the invoice is issued (customers get `404`, as drafts are hidden from them) |
+| 503 | `PAYMENT_PROVIDER_UNAVAILABLE` | `POST /invoices/:id/pay` while customer online pay is off (the provider is the mock or unset), or when the configured provider has no gateway yet. Comes after the access checks (404 / 403) and before the status check (409) |
 | 409 | `ORG_GST_STATE_REQUIRED` | An invoice cannot be priced (job completion, draft edit, issue) until an admin sets the organisation's GST state |
 | 422 | `SITE_STATE_UNRECOGNISED` | The job site address's state is not an Indian state or UT; `details` has `addressId` and `state` |
 | 422 | `IDEMPOTENCY_KEY_REUSED` | Same key with a different body |
 | 429 | `RATE_LIMITED` | Honour `Retry-After` (seconds) |
+
+## Customer online pay
+`GET /invoices/payment-options` (admin, ops and customers; technicians `403`) answers
+`{ "data": { "onlinePay": false } }` while `PAYMENT_PROVIDER` is unset, empty, `mock` or an unknown
+name, and `{ "data": { "onlinePay": true } }` when it names a real provider (`razorpay` or `stripe`,
+case-insensitive). The customer invoice page shows **Pay** only when `onlinePay` is true.
+`POST /invoices/:id/pay` (customers) checks, in order: the invoice is visible to the caller (another
+organisation or a draft `404`, another customer's contact `403`), online pay is on (else
+`503 PAYMENT_PROVIDER_UNAVAILABLE`), and the invoice is payable (`409 INVALID_TRANSITION`). No gateway is
+implemented yet, so with `razorpay` or `stripe` the charge itself still answers `503` with the same code.
+Office payments (`POST /invoices/:id/payments`: cash, UPI, card, bank transfer) are unaffected.
 
 ## Invoice balance, credit notes and refunds
 Every invoice response carries `settlement`: `netTotal` (total − credits), `netPaid` (payments −

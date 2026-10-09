@@ -27,5 +27,6 @@ Each stage is one slice of the product that can be signed in to and used. The de
 | 21 — Downloadable invoice PDF | Complete | [stage21.md](./stage21.md) |
 | 22 — Credit notes and refunds | Complete | [stage22.md](./stage22.md) |
 | 23 — SMTP email provider | Complete | [stage23.md](./stage23.md) |
+| 24 — Online pay hidden while the provider is the mock | Complete | [stage24.md](./stage24.md) |
 
 All twelve delivery phases are covered. The next stage starts when we pick it.
