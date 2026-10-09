@@ -69,9 +69,6 @@ function logLine(message: MailMessage) {
 
 export async function sendMail(message: MailMessage) {
   const provider = process.env.MAIL_PROVIDER ?? "log";
-  if (provider !== "smtp") {
-    sentMail.push(message);
-  }
   if (provider === "smtp") {
     const settings = smtpSettings();
     if ("missing" in settings) {
@@ -91,6 +88,7 @@ export async function sendMail(message: MailMessage) {
     sentMail.push(message);
     return;
   }
+  sentMail.push(message);
   if (provider === "file") {
     const file = process.env.MAIL_OUTBOX_FILE ?? ".mail/outbox.jsonl";
     mkdirSync(dirname(file), { recursive: true });
