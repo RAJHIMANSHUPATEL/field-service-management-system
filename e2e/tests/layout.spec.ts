@@ -119,3 +119,117 @@ test("technician screens at 375px still fit the phone", async ({ browser }) => {
   expect(tech.problems).toEqual([]);
   await tech.close();
 });
+
+type WeekLayout = {
+  doc: { scrollWidth: number; clientWidth: number };
+  inset: { scrollWidth: number; clientWidth: number };
+  week: { scrollWidth: number; clientWidth: number; overflowX: string; insideCard: boolean };
+  columns: number;
+  visits: number;
+  overflowingCards: string[];
+  clippedBadges: number;
+  headersVisible: number;
+  toolbar: { scrollWidth: number; clientWidth: number; childrenInside: boolean };
+  cardHeader: { scrollWidth: number; clientWidth: number; actionInside: boolean };
+};
+
+async function measureWeek(page: Page): Promise<WeekLayout> {
+  return page.evaluate(() => {
+    const d = document.documentElement;
+    const inset = document.querySelector<HTMLElement>("main[data-slot=sidebar-inset]")!;
+    const week = document.querySelector<HTMLElement>("[data-testid=schedule-week]")!;
+    const card = week.closest<HTMLElement>("[data-slot=card]")!;
+    const cardBox = card.getBoundingClientRect();
+    const weekBox = week.getBoundingClientRect();
+    const sections = [...week.querySelectorAll<HTMLElement>("section[aria-label]")];
+    const cards = sections.flatMap((section) => [...section.querySelectorAll<HTMLElement>("a")]);
+    const toolbar = card.querySelector<HTMLElement>("[data-slot=card-content] > div")!;
+    const toolbarBox = toolbar.getBoundingClientRect();
+    const header = card.querySelector<HTMLElement>("[data-slot=card-header]")!;
+    const action = header.querySelector<HTMLElement>("[data-slot=card-action]");
+    return {
+      doc: { scrollWidth: d.scrollWidth, clientWidth: d.clientWidth },
+      inset: { scrollWidth: inset.scrollWidth, clientWidth: inset.clientWidth },
+      week: {
+        scrollWidth: week.scrollWidth,
+        clientWidth: week.clientWidth,
+        overflowX: getComputedStyle(week).overflowX,
+        insideCard: weekBox.left >= cardBox.left - 1 && weekBox.right <= cardBox.right + 1,
+      },
+      columns: sections.length,
+      visits: cards.length,
+      overflowingCards: cards.filter((el) => el.scrollWidth > el.clientWidth + 1).map((el) => el.innerText.replace(/\s+/g, " ")),
+      clippedBadges: [...week.querySelectorAll<HTMLElement>("[data-slot=badge]")].filter((el) => el.scrollWidth > el.clientWidth + 1).length,
+      // A header counts as visible when it is inside both the week's scrollport and the window.
+      headersVisible: [...week.querySelectorAll<HTMLElement>("section[aria-label] > h3")].filter((el) => {
+        const box = el.getBoundingClientRect();
+        return box.width > 0 && box.top >= weekBox.top - 1 && box.bottom <= weekBox.bottom + 1 && box.bottom <= window.innerHeight;
+      }).length,
+      toolbar: {
+        scrollWidth: toolbar.scrollWidth,
+        clientWidth: toolbar.clientWidth,
+        childrenInside: [...toolbar.children].every((child) => child.getBoundingClientRect().right <= toolbarBox.right + 1),
+      },
+      cardHeader: {
+        scrollWidth: header.scrollWidth,
+        clientWidth: header.clientWidth,
+        actionInside: !action || action.getBoundingClientRect().right <= header.getBoundingClientRect().right + 1,
+      },
+    };
+  });
+}
+
+for (const viewport of [
+  { width: 1280, height: 800 },
+  { width: 1024, height: 768 },
+]) {
+  for (const [who, email] of [
+    ["office", adminEmail],
+    ["technician", techEmail],
+  ] as const) {
+    test(`the ${who} week schedule stays inside its card at ${viewport.width}px with the sidebar open`, async ({ browser }) => {
+      const session = await signIn(browser, email, viewport);
+      const { page } = session;
+      await page.goto("/schedule");
+      await page.waitForLoadState("networkidle");
+      await expect(page.getByTestId("schedule-week")).toBeVisible();
+      await expect(page.getByLabel("Technician")).toHaveCount(who === "office" ? 1 : 0);
+      const where = `${who} /schedule at ${viewport.width}px`;
+      expect(await page.locator("[data-slot=sidebar]").getAttribute("data-state"), `${where}: sidebar open`).toBe("expanded");
+
+      const check = async (layout: WeekLayout, step: string) => {
+        const at = `${where} (${step})`;
+        expect(layout.doc.scrollWidth, `${at}: the window scrolls sideways`).toBeLessThanOrEqual(layout.doc.clientWidth);
+        expect(layout.inset.scrollWidth, `${at}: content clipped by the inset`).toBeLessThanOrEqual(layout.inset.clientWidth);
+        expect(layout.columns, `${at}: seven days`).toBe(7);
+        expect(layout.week.insideCard, `${at}: the week stays inside its card`).toBe(true);
+        if (layout.week.scrollWidth > layout.week.clientWidth + 1) {
+          expect(layout.week.overflowX, `${at}: a wide week scrolls in its own container`).toBe("auto");
+        }
+        expect(layout.overflowingCards, `${at}: visit cards wider than their day`).toEqual([]);
+        expect(layout.clippedBadges, `${at}: status badges cut off`).toBe(0);
+        expect(layout.headersVisible, `${at}: day headers in view`).toBe(7);
+        expect(layout.toolbar.scrollWidth, `${at}: toolbar overflows`).toBeLessThanOrEqual(layout.toolbar.clientWidth);
+        expect(layout.toolbar.childrenInside, `${at}: toolbar control outside the card`).toBe(true);
+        expect(layout.cardHeader.scrollWidth, `${at}: card header overflows`).toBeLessThanOrEqual(layout.cardHeader.clientWidth);
+        expect(layout.cardHeader.actionInside, `${at}: Add time off outside the header`).toBe(true);
+      };
+
+      const layout = await measureWeek(page);
+      // The e2e seed (and the demo) always put visits in the current week.
+      expect(layout.visits, `${where}: visits in the current week`).toBeGreaterThan(0);
+      await check(layout, "initial");
+
+      // Scrolling the week (both ways) moves only the week: headers stay at its top, the window stays put.
+      const week = page.getByTestId("schedule-week");
+      await week.evaluate((el) => el.scrollTo({ left: el.scrollWidth, top: el.scrollHeight }));
+      expect(await page.evaluate(() => window.scrollX), `${where}: window scrolled sideways`).toBe(0);
+      const scrolled = await measureWeek(page);
+      await check(scrolled, "scrolled to the end");
+      const lastHeader = week.locator("section[aria-label] > h3").last();
+      await expect(lastHeader).toBeInViewport();
+      expect(session.problems).toEqual([]);
+      await session.close();
+    });
+  }
+}

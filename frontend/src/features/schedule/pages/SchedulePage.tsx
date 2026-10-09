@@ -66,7 +66,7 @@ export function SchedulePage() {
         ) : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={() => setWeekStart(new Date(weekStart.getTime() - 7 * DAY))}>
             Previous week
           </Button>
@@ -79,7 +79,7 @@ export function SchedulePage() {
           <Input
             type="date"
             aria-label="Go to week"
-            className="max-w-44"
+            className="w-44 max-w-full min-w-0"
             onChange={(event) => {
               if (event.target.value) {
                 setWeekStart(startOfWeek(new Date(`${event.target.value}T12:00:00`)));
@@ -89,7 +89,7 @@ export function SchedulePage() {
           {isPlanner ? (
             <select
               aria-label="Technician"
-              className={`${selectClassName} max-w-56`}
+              className={`${selectClassName} max-w-56 min-w-0`}
               value={technicianId}
               onChange={(event) => setTechnicianId(event.target.value)}
             >
@@ -105,40 +105,53 @@ export function SchedulePage() {
         {calendar.isPending ? <Skeleton className="h-40 w-full" /> : null}
         {calendar.isError ? <p className="text-sm text-destructive">Could not load the schedule.</p> : null}
         {calendar.data ? (
-          <div className="grid gap-3 md:grid-cols-7">
-            {days.map((day) => {
-              const visits = calendar.data.visits.filter((visit) => sameDay(new Date(visit.scheduledStart), day));
-              const off = calendar.data.timeOff.filter(
-                (row) => new Date(row.startsAt).getTime() < day.getTime() + DAY && new Date(row.endsAt).getTime() > day.getTime(),
-              );
-              return (
-                <section key={day.toISOString()} className="flex min-h-24 flex-col gap-2 rounded-lg border p-2" aria-label={day.toDateString()}>
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase">
-                    {day.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
-                  </h3>
-                  {off.map((row) => (
-                    <p key={row.id} className="rounded bg-muted px-2 py-1 text-xs">
-                      {row.technician.user.name} off{row.reason ? ` · ${row.reason}` : ""}
-                    </p>
-                  ))}
-                  {visits.map((visit) => (
-                    <Link
-                      key={visit.id}
-                      to={`/work-orders/${visit.workOrder.id}`}
-                      className={`${recordLinkClassName} flex flex-col gap-1 rounded border px-2 py-1 text-xs`}
-                    >
-                      <span className="font-medium">
-                        {clock(visit.scheduledStart)} · {visit.workOrder.asset.equipmentType}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {visit.workOrder.customer.name} · {visit.technician.user.name}
-                      </span>
-                      <Badge variant="secondary">{visitStatusLabel(visit.status)}</Badge>
-                    </Link>
-                  ))}
-                </section>
-              );
-            })}
+          // From md up the week is seven columns that may shrink to a readable minimum; below that the
+          // week scrolls inside this wrapper (never the window) and the day headers stick to its top.
+          <div
+            data-testid="schedule-week"
+            className="min-w-0 md:max-h-[calc(100svh-14rem)] md:min-h-80 md:overflow-auto md:overscroll-x-contain md:rounded-lg"
+          >
+            <div className="grid gap-3 md:min-w-[57rem] md:grid-cols-[repeat(7,minmax(0,1fr))] md:gap-2">
+              {days.map((day) => {
+                const visits = calendar.data.visits.filter((visit) => sameDay(new Date(visit.scheduledStart), day));
+                const off = calendar.data.timeOff.filter(
+                  (row) => new Date(row.startsAt).getTime() < day.getTime() + DAY && new Date(row.endsAt).getTime() > day.getTime(),
+                );
+                return (
+                  <section
+                    key={day.toISOString()}
+                    className="flex min-h-24 min-w-0 flex-col gap-2 rounded-lg border p-2 md:p-1.5"
+                    aria-label={day.toDateString()}
+                  >
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase md:sticky md:top-0 md:z-10 md:-mx-1.5 md:-mt-1.5 md:rounded-t-lg md:bg-card md:px-1.5 md:pt-1.5 md:pb-1">
+                      {day.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
+                    </h3>
+                    {off.map((row) => (
+                      <p key={row.id} className="rounded bg-muted px-2 py-1 text-xs [overflow-wrap:anywhere]">
+                        {row.technician.user.name} off{row.reason ? ` · ${row.reason}` : ""}
+                      </p>
+                    ))}
+                    {visits.map((visit) => (
+                      <Link
+                        key={visit.id}
+                        to={`/work-orders/${visit.workOrder.id}`}
+                        className={`${recordLinkClassName} flex min-w-0 flex-col gap-1 rounded border px-2 py-1 text-xs md:px-1.5`}
+                      >
+                        <span className="font-medium [overflow-wrap:anywhere]">
+                          {clock(visit.scheduledStart)} · {visit.workOrder.asset.equipmentType}
+                        </span>
+                        <span className="text-muted-foreground [overflow-wrap:anywhere]">
+                          {visit.workOrder.customer.name} · {visit.technician.user.name}
+                        </span>
+                        <Badge variant="secondary" className="shrink-0 px-2">
+                          {visitStatusLabel(visit.status)}
+                        </Badge>
+                      </Link>
+                    ))}
+                  </section>
+                );
+              })}
+            </div>
           </div>
         ) : null}
       </CardContent>
