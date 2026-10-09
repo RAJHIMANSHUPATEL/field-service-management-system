@@ -312,7 +312,7 @@ function UserMenu({ user }: { user: AuthUser }) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" />}>
+      <DropdownMenuTrigger render={<Button variant="ghost" className="min-w-0 shrink" />}>
         <Avatar size="sm">
           <AvatarFallback>{initials(user.name)}</AvatarFallback>
         </Avatar>
@@ -344,21 +344,24 @@ export function AppShell({ children }: { children?: ReactNode }) {
     <SidebarProvider>
       <AppSidebar user={user} />
       <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger />
-          <Separator orientation="vertical" className="h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
+        {/* One row that never widens the page: the breadcrumb and the user name shrink and truncate. */}
+        <header className="flex h-14 min-w-0 shrink-0 flex-nowrap items-center gap-2 border-b px-4">
+          <SidebarTrigger className="shrink-0" />
+          <Separator orientation="vertical" className="h-4 shrink-0" />
+          <Breadcrumb className="min-w-0 flex-1">
+            <BreadcrumbList className="flex-nowrap">
               {crumbs.map((crumb, index) => {
                 const last = index === crumbs.length - 1;
                 return (
                   <Fragment key={crumb.label}>
-                    {index > 0 ? <BreadcrumbSeparator /> : null}
-                    <BreadcrumbItem>
+                    {index > 0 ? <BreadcrumbSeparator className="shrink-0" /> : null}
+                    <BreadcrumbItem className={last ? "min-w-0" : "shrink-0"}>
                       {last || !crumb.to ? (
-                        <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                        <BreadcrumbPage className="truncate">{crumb.label}</BreadcrumbPage>
                       ) : (
-                        <BreadcrumbLink render={<Link to={crumb.to} />}>{crumb.label}</BreadcrumbLink>
+                        <BreadcrumbLink className="whitespace-nowrap" render={<Link to={crumb.to} />}>
+                          {crumb.label}
+                        </BreadcrumbLink>
                       )}
                     </BreadcrumbItem>
                   </Fragment>
@@ -369,7 +372,8 @@ export function AppShell({ children }: { children?: ReactNode }) {
           <NotificationBell />
           <UserMenu user={user} />
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4">
+        {/* min-w-0: a wide page cannot stretch the inset; wide tables scroll inside their own card. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-4 p-4">
           {children ?? <Outlet />}
         </div>
       </SidebarInset>
