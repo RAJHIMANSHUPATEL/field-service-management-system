@@ -67,9 +67,9 @@ export function InventoryPage() {
                 <TableRow>
                   <TableHead>Location</TableHead>
                   <TableHead>Part</TableHead>
-                  <TableHead className="text-right">On hand</TableHead>
-                  <TableHead className="text-right">Reserved</TableHead>
-                  <TableHead className="text-right">Available</TableHead>
+                  <TableHead nowrap className="text-right">On hand</TableHead>
+                  <TableHead nowrap className="text-right">Reserved</TableHead>
+                  <TableHead nowrap className="text-right">Available</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -79,9 +79,9 @@ export function InventoryPage() {
                     <TableCell>
                       {row.part.sku} · {row.part.name}
                     </TableCell>
-                    <TableCell className="text-right">{row.onHand}</TableCell>
-                    <TableCell className="text-right">{row.reserved}</TableCell>
-                    <TableCell className="text-right font-medium">{row.available}</TableCell>
+                    <TableCell nowrap className="text-right">{row.onHand}</TableCell>
+                    <TableCell nowrap className="text-right">{row.reserved}</TableCell>
+                    <TableCell nowrap className="text-right font-medium">{row.available}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -99,12 +99,12 @@ export function InventoryPage() {
             <Table aria-label="Stock movements">
               <TableHeader>
                 <TableRow>
-                  <TableHead>When</TableHead>
+                  <TableHead nowrap>When</TableHead>
                   <TableHead>Movement</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Part</TableHead>
-                  <TableHead className="text-right">On hand</TableHead>
-                  <TableHead className="text-right">Reserved</TableHead>
+                  <TableHead nowrap className="text-right">On hand</TableHead>
+                  <TableHead nowrap className="text-right">Reserved</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead>By</TableHead>
                 </TableRow>
@@ -112,12 +112,12 @@ export function InventoryPage() {
               <TableBody>
                 {movements.data.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell>{new Date(row.createdAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}</TableCell>
+                    <TableCell nowrap>{new Date(row.createdAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}</TableCell>
                     <TableCell>{movementLabels[row.kind]}</TableCell>
                     <TableCell>{row.warehouse.name}</TableCell>
-                    <TableCell>{row.part.sku}</TableCell>
-                    <TableCell className="text-right">{row.onHandDelta ? signed(row.onHandDelta) : "—"}</TableCell>
-                    <TableCell className="text-right">{row.reservedDelta ? signed(row.reservedDelta) : "—"}</TableCell>
+                    <TableCell nowrap>{row.part.sku}</TableCell>
+                    <TableCell nowrap className="text-right">{row.onHandDelta ? signed(row.onHandDelta) : "—"}</TableCell>
+                    <TableCell nowrap className="text-right">{row.reservedDelta ? signed(row.reservedDelta) : "—"}</TableCell>
                     <TableCell>{row.reason}</TableCell>
                     <TableCell>{row.actor.name}</TableCell>
                   </TableRow>

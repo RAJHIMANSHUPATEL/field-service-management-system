@@ -99,7 +99,7 @@ export function UsersPage() {
                         {invitationLabel[invitation.status]}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell nowrap className="text-right">
                       {invitation.status === "PENDING" ? (
                         <Button
                           type="button"

@@ -32,6 +32,7 @@ type Layout = {
   inset: { scrollWidth: number; clientWidth: number };
   header: { height: number; childrenOnOneRow: boolean };
   sidebar: string | null;
+  scrollingCardContents: number;
   wideTables: { scrollWidth: number; clientWidth: number; overflowX: string; fitsCard: boolean; scrollingCardContents: number }[];
 };
 
@@ -66,6 +67,9 @@ async function measure(page: Page): Promise<Layout> {
         childrenOnOneRow: children.every((rect) => rect.top >= box.top - 1 && rect.bottom <= box.bottom + 1),
       },
       sidebar: document.querySelector("[data-slot=sidebar]")?.getAttribute("data-state") ?? null,
+      scrollingCardContents: [...document.querySelectorAll<HTMLElement>("[data-slot=card-content]")].filter(
+        (el) => el.querySelector("[data-slot=table-container]") && ["auto", "scroll"].includes(getComputedStyle(el).overflowX),
+      ).length,
       wideTables,
     };
   });
@@ -90,9 +94,12 @@ for (const viewport of [
       expect(layout.inset.scrollWidth, `${where}: content clipped by the inset`).toBeLessThanOrEqual(layout.inset.clientWidth);
       expect(layout.header.height, `${where}: header height`).toBeLessThanOrEqual(57);
       expect(layout.header.childrenOnOneRow, `${where}: header on one row`).toBe(true);
+      // One horizontal scrollbar: never on a CardContent around a table.
+      expect(layout.scrollingCardContents, `${where}: CardContent with its own overflow-x`).toBe(0);
       for (const table of layout.wideTables) {
         expect(table.overflowX, `${where}: a wide table scrolls in its own container`).toBe("auto");
         expect(table.fitsCard, `${where}: a wide table stays inside its card`).toBe(true);
+        expect(table.scrollingCardContents, `${where}: a second scrollbar around the table`).toBe(0);
       }
     }
     expect(admin.problems).toEqual([]);

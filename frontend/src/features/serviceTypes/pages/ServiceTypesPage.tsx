@@ -66,8 +66,8 @@ export function ServiceTypesPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Service charge</TableHead>
-                  <TableHead className="text-right">Labour / h</TableHead>
+                  <TableHead nowrap className="text-right">Service charge</TableHead>
+                  <TableHead nowrap className="text-right">Labour / h</TableHead>
                   <TableHead>Active</TableHead>
                 </TableRow>
               </TableHeader>
@@ -76,8 +76,8 @@ export function ServiceTypesPage() {
                   <TableRow key={serviceType.id}>
                     <TableCell>{serviceType.name}</TableCell>
                     <TableCell>{serviceType.description ?? "—"}</TableCell>
-                    <TableCell className="text-right">{Number(serviceType.serviceCharge).toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{Number(serviceType.labourRatePerHour).toFixed(2)}</TableCell>
+                    <TableCell nowrap className="text-right">{Number(serviceType.serviceCharge).toFixed(2)}</TableCell>
+                    <TableCell nowrap className="text-right">{Number(serviceType.labourRatePerHour).toFixed(2)}</TableCell>
                     <TableCell>
                       <Badge variant={serviceType.isActive ? "secondary" : "outline"}>
                         {serviceType.isActive ? "Active" : "Inactive"}

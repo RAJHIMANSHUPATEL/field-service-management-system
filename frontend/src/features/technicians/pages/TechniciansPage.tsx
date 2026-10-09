@@ -80,9 +80,15 @@ export function TechniciansPage() {
                   <TableRow key={technician.id}>
                     <TableCell>{technician.user.name}</TableCell>
                     <TableCell>{technician.user.email}</TableCell>
-                    <TableCell>{technician.phone ?? "—"}</TableCell>
+                    <TableCell nowrap>{technician.phone ?? "—"}</TableCell>
                     <TableCell>
-                      <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(technician)}>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-auto min-h-7 min-w-40 justify-start py-1 text-left whitespace-normal"
+                        onClick={() => setEditing(technician)}
+                      >
                         {[
                           ...(technician.skills ?? []).map((item) => item.skill.name),
                           ...(technician.serviceAreas ?? []).map((item) => item.serviceArea.name),

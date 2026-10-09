@@ -86,7 +86,7 @@ export function WorkOrdersPage() {
                         {workOrder.asset.equipmentType} · {workOrder.asset.serialNumber}
                       </TableCell>
                       <TableCell>{workOrder.serviceType.name}</TableCell>
-                      <TableCell>{priorityLabel(workOrder.priority)}</TableCell>
+                      <TableCell nowrap>{priorityLabel(workOrder.priority)}</TableCell>
                       <TableCell>
                         <Badge variant={workOrder.status === "ACCEPTED" || workOrder.status === "IN_PROGRESS" ? "default" : "secondary"}>{statusLabel(workOrder.status)}</Badge>
                       </TableCell>

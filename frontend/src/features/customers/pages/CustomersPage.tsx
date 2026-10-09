@@ -79,7 +79,7 @@ export function CustomersPage() {
                         {customer.name}
                       </Link>
                     </TableCell>
-                    <TableCell>{customer.phone ?? "—"}</TableCell>
+                    <TableCell nowrap>{customer.phone ?? "—"}</TableCell>
                     <TableCell>{customer.email ?? "—"}</TableCell>
                   </TableRow>
                 ))}

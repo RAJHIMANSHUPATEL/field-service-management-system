@@ -78,10 +78,10 @@ export function InvoiceDetailPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Item</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
-                <TableHead className="text-right">Rate</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-right">Covered</TableHead>
+                <TableHead nowrap className="text-right">Qty</TableHead>
+                <TableHead nowrap className="text-right">Rate</TableHead>
+                <TableHead nowrap className="text-right">Amount</TableHead>
+                <TableHead nowrap className="text-right">Covered</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -91,10 +91,10 @@ export function InvoiceDetailPage() {
                     {line.description}
                     {line.sacCode ? <span className="text-xs text-muted-foreground"> · SAC {line.sacCode}</span> : null}
                   </TableCell>
-                  <TableCell className="text-right">{Number(line.quantity)}</TableCell>
-                  <TableCell className="text-right">{money(line.unitPrice)}</TableCell>
-                  <TableCell className="text-right">{money(line.amount)}</TableCell>
-                  <TableCell className="text-right">{Number(line.coveredAmount) > 0 ? `−${money(line.coveredAmount)}` : "—"}</TableCell>
+                  <TableCell nowrap className="text-right">{Number(line.quantity)}</TableCell>
+                  <TableCell nowrap className="text-right">{money(line.unitPrice)}</TableCell>
+                  <TableCell nowrap className="text-right">{money(line.amount)}</TableCell>
+                  <TableCell nowrap className="text-right">{Number(line.coveredAmount) > 0 ? `−${money(line.coveredAmount)}` : "—"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
