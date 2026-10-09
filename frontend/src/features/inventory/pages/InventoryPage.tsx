@@ -48,7 +48,7 @@ export function InventoryPage() {
           <CardTitle>Parts and stock</CardTitle>
           <CardDescription>On hand, reserved for visits, and available at each location.</CardDescription>
           {isPlanner ? (
-            <CardAction className="flex flex-wrap gap-2">
+            <CardAction>
               {(Object.keys(modeTitles) as Mode[]).map((key) => (
                 <Button key={key} type="button" variant="outline" onClick={() => setMode(key)}>
                   {modeTitles[key]}

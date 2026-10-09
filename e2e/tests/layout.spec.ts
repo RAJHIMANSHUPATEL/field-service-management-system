@@ -233,3 +233,109 @@ for (const viewport of [
     });
   }
 }
+
+// Card header actions sit beside the title when there is room and wrap below it, aligned to the
+// end, when there is not. A long title and an unbreakable link in the description must never push
+// a button past the card's padding (the inset's overflow-x-hidden would hide that from the window).
+const actionPages = [
+  ["Analytics", "/analytics"],
+  ["Parts and stock", "/inventory"],
+  ["Contracts and maintenance", "/contracts"],
+] as const;
+
+type ActionHeader = {
+  title: string;
+  outsidePadding: { text: string; right: number; paddingEdge: number; left: number; leftEdge: number }[];
+  clipped: string[];
+  broken: string[];
+  sameRowAsTitle: boolean;
+};
+
+async function measureActions(page: Page) {
+  return page.evaluate(() => {
+    const d = document.documentElement;
+    const headers = [...document.querySelectorAll<HTMLElement>("[data-slot=card-header]")].filter((el) =>
+      el.querySelector("[data-slot=card-action]"),
+    );
+    return {
+      doc: { scrollWidth: d.scrollWidth, clientWidth: d.clientWidth },
+      headers: headers.map((header): ActionHeader => {
+        const card = header.closest<HTMLElement>("[data-slot=card]")!.getBoundingClientRect();
+        const style = getComputedStyle(header);
+        const paddingEdge = card.right - parseFloat(style.paddingRight);
+        const leftEdge = card.left + parseFloat(style.paddingLeft);
+        const title = header.querySelector<HTMLElement>("[data-slot=card-title]")!;
+        const action = header.querySelector<HTMLElement>("[data-slot=card-action]")!;
+        const controls = [...action.querySelectorAll<HTMLElement>("button, a")];
+        const clipped = controls.filter((control) => {
+          const box = control.getBoundingClientRect();
+          for (let node = control.parentElement; node; node = node.parentElement) {
+            const s = getComputedStyle(node);
+            if (s.overflowX === "visible" && s.overflowY === "visible") continue;
+            const outer = node.getBoundingClientRect();
+            if (box.left < outer.left - 0.5 || box.right > outer.right + 0.5 || box.top < outer.top - 0.5 || box.bottom > outer.bottom + 0.5) return true;
+          }
+          return false;
+        });
+        return {
+          title: title.textContent ?? "",
+          outsidePadding: controls
+            .map((control) => ({ text: control.textContent?.trim() ?? "", ...control.getBoundingClientRect().toJSON(), paddingEdge, leftEdge }))
+            .filter((box) => box.right > paddingEdge + 0.5 || box.left < leftEdge - 0.5)
+            .map(({ text, right, left }) => ({ text, right, paddingEdge, left, leftEdge })),
+          clipped: clipped.map((control) => control.textContent?.trim() ?? ""),
+          // Each button stays whole: one line, its text not cut.
+          broken: controls.filter((control) => control.scrollWidth > control.clientWidth + 1).map((control) => control.textContent?.trim() ?? ""),
+          sameRowAsTitle: action.getBoundingClientRect().top < title.getBoundingClientRect().bottom,
+        };
+      }),
+    };
+  });
+}
+
+for (const viewport of [
+  { width: 1280, height: 800 },
+  { width: 1024, height: 768 },
+]) {
+  test(`card header actions stay inside their cards at ${viewport.width}px with the sidebar open`, async ({ browser }) => {
+    const admin = await signIn(browser, adminEmail, viewport);
+    const { page } = admin;
+    for (const [name, path] of actionPages) {
+      for (const variant of ["as rendered", "with a long title and an unbreakable link"] as const) {
+        await page.goto(path);
+        await page.waitForLoadState("networkidle");
+        await expect(page.locator("[data-slot=card-action] button").first()).toBeVisible();
+        expect(await page.locator("[data-slot=sidebar]").getAttribute("data-state")).toBe("expanded");
+        if (variant !== "as rendered") {
+          await page.evaluate(() => {
+            for (const header of document.querySelectorAll("[data-slot=card-header]")) {
+              if (!header.querySelector("[data-slot=card-action]")) continue;
+              const title = header.querySelector("[data-slot=card-title]");
+              const description = header.querySelector("[data-slot=card-description]");
+              if (title) title.textContent = "Technician performance, first-visit resolution and completion time for every service region";
+              if (description) {
+                description.textContent =
+                  "Escalations: https://facilities.srivenkateshwaracooperativehousingsocietyresidentswelfareassociation.example.com/helpdesk/plantroom/escalations every working day.";
+              }
+            }
+          });
+        }
+        const layout = await measureActions(page);
+        const where = `${name} at ${viewport.width}px (${variant})`;
+        expect(layout.headers.length, `${where}: card headers with actions`).toBeGreaterThan(0);
+        expect(layout.doc.scrollWidth, `${where}: the window scrolls sideways`).toBeLessThanOrEqual(layout.doc.clientWidth);
+        for (const header of layout.headers) {
+          const at = `${where} "${header.title.slice(0, 40)}"`;
+          expect(header.outsidePadding, `${at}: buttons past the card padding`).toEqual([]);
+          expect(header.clipped, `${at}: buttons clipped by an overflow-hidden ancestor`).toEqual([]);
+          expect(header.broken, `${at}: buttons cut or squeezed`).toEqual([]);
+          if (viewport.width === 1280 && variant === "as rendered") {
+            expect(header.sameRowAsTitle, `${at}: actions stacked under a short title on a wide desktop`).toBe(true);
+          }
+        }
+      }
+    }
+    expect(admin.problems).toEqual([]);
+    await admin.close();
+  });
+}

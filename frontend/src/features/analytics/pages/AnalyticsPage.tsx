@@ -36,7 +36,7 @@ export function AnalyticsPage() {
           Jobs count for the technician whose visit completed them, in the period. First-visit resolution is completed jobs with one
           on-site visit over completed jobs; service time is start to completion per visit; completion time is job created to job completed.
         </CardDescription>
-        <CardAction className="flex gap-1">
+        <CardAction className="gap-1">
           {[7, 30, 90].map((value) => (
             <Button key={value} size="sm" variant={days === value ? "default" : "outline"} onClick={() => setDays(value)}>
               {value} days
