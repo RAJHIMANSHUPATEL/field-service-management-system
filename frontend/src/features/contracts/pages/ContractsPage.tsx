@@ -111,7 +111,7 @@ export function ContractsPage() {
         <CardHeader>
           <CardTitle>Maintenance plans</CardTitle>
           <CardDescription>When a plan is due, the system opens a work order. Completing it schedules the next one.</CardDescription>
-          <CardAction className="flex flex-wrap gap-2">
+          <CardAction>
             <Button
               type="button"
               variant="outline"

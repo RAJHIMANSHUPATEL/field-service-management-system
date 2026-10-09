@@ -19,16 +19,27 @@ function Card({
   )
 }
 
-function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
+// The header is a wrapping row: the heading (title, description and anything else) takes the
+// free space and never shrinks below basis-64 while actions sit beside it; when they do not fit,
+// the actions drop onto their own line, aligned to the end, and wrap between buttons.
+function CardHeader({ className, children, ...props }: React.ComponentProps<"div">) {
+  const items = React.Children.toArray(children)
+  const actions = items.filter(isCardAction)
+  const heading = items.filter((item) => !isCardAction(item))
   return (
     <div
       data-slot="card-header"
       className={cn(
-        "group/card-header @container/card-header grid auto-rows-min items-start gap-1.5 rounded-t-xl px-(--card-spacing) has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto] has-[+[data-slot=card-content]]:border-b has-[+[data-slot=card-content]]:pb-(--card-spacing) has-[+[data-slot=card-footer]]:border-b has-[+[data-slot=card-footer]]:pb-(--card-spacing) [.border-b]:pb-(--card-spacing)",
+        "group/card-header @container/card-header flex flex-wrap items-start gap-x-4 gap-y-3 rounded-t-xl px-(--card-spacing) has-[+[data-slot=card-content]]:border-b has-[+[data-slot=card-content]]:pb-(--card-spacing) has-[+[data-slot=card-footer]]:border-b has-[+[data-slot=card-footer]]:pb-(--card-spacing) [.border-b]:pb-(--card-spacing)",
         className
       )}
       {...props}
-    />
+    >
+      <div data-slot="card-heading" className="flex min-w-0 flex-1 basis-64 flex-col gap-1.5 [overflow-wrap:anywhere]">
+        {heading}
+      </div>
+      {actions}
+    </div>
   )
 }
 
@@ -60,12 +71,16 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-action"
       className={cn(
-        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
+        "ml-auto flex max-w-full min-w-0 flex-wrap items-center justify-end gap-2 self-start",
         className
       )}
       {...props}
     />
   )
+}
+
+function isCardAction(node: React.ReactNode) {
+  return React.isValidElement(node) && node.type === CardAction
 }
 
 function CardContent({ className, ...props }: React.ComponentProps<"div">) {
