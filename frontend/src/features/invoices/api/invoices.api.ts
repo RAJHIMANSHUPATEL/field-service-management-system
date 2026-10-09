@@ -1,6 +1,6 @@
 import type { z } from "zod";
 import { api, apiBlob } from "@/lib/apiClient";
-import type { invoiceStatusSchema } from "../schemas/invoice.schema";
+import { paymentOptionsSchema, type invoiceStatusSchema } from "../schemas/invoice.schema";
 
 export type InvoiceStatus = z.infer<typeof invoiceStatusSchema>;
 
@@ -103,6 +103,8 @@ export type InvoiceSummary = Pick<Invoice, "id" | "number" | "status" | "total" 
 export const invoiceKeys = {
   all: ["invoices"] as const,
   detail: (id: string) => ["invoices", id] as const,
+  // Outside "invoices" so invoice mutations do not refetch it.
+  paymentOptions: ["invoice-payment-options"] as const,
 };
 
 export function formatMoney(amount: string, currency: string) {
@@ -115,6 +117,10 @@ export async function listInvoices() {
 
 export async function getInvoice(id: string) {
   return (await api<{ data: Invoice }>(`/api/v1/invoices/${id}`)).data;
+}
+
+export async function getPaymentOptions() {
+  return paymentOptionsSchema.parse((await api<{ data: unknown }>("/api/v1/invoices/payment-options")).data);
 }
 
 async function post(path: string, body?: unknown) {

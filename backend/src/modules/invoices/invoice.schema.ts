@@ -33,8 +33,12 @@ export const refundSchema = adjustmentSchema;
 
 export const voidInvoiceSchema = z.object({ reason: z.string().trim().min(1).max(500) });
 
+// GET /invoices/payment-options: what a customer may pay with (the controller parses its own answer).
+export const paymentOptionsSchema = z.object({ onlinePay: z.boolean() }).strict();
+
 export type ListInvoicesQuery = z.infer<typeof listInvoicesQuerySchema>;
 export type UpdateInvoiceInput = z.infer<typeof updateInvoiceSchema>;
 export type AddLineInput = z.infer<typeof addLineSchema>;
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
+export type PaymentOptions = z.infer<typeof paymentOptionsSchema>;
 export type AdjustmentInput = z.infer<typeof adjustmentSchema>;

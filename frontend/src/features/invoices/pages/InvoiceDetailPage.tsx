@@ -13,7 +13,7 @@ import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
 import { toastError } from "@/lib/toastError";
 import { downloadInvoicePdf, formatMoney, invoiceActions, invoiceStatusLabels, openServiceReport, type Adjustment, type Invoice } from "../api/invoices.api";
 import { AdjustmentDialog } from "../components/AdjustmentDialog";
-import { useInvoice, useInvoiceAction } from "../hooks/useInvoices";
+import { useInvoice, useInvoiceAction, usePaymentOptions } from "../hooks/useInvoices";
 import { canCredit, canDownloadInvoicePdf, canRefund } from "../schemas/invoice.schema";
 
 const coverageLabels: Record<Invoice["coverageSource"], string> = {
@@ -32,6 +32,9 @@ export function InvoiceDetailPage() {
   const [dialog, setDialog] = useState<"credit" | "refund" | null>(null);
   const issue = useInvoiceAction(invoiceId, () => invoiceActions.issue(invoiceId));
   const payOnline = useInvoiceAction(invoiceId, () => invoiceActions.payOnline(invoiceId));
+  // Pay appears only when the API offers online pay (off while the provider is the mock).
+  const paymentOptions = usePaymentOptions(isCustomer);
+  const onlinePay = paymentOptions.data?.onlinePay === true;
 
   if (invoice.isPending) {
     return <Skeleton className="h-40 w-full" />;
@@ -235,7 +238,7 @@ export function InvoiceDetailPage() {
               Refund
             </Button>
           ) : null}
-          {isCustomer && payable ? (
+          {isCustomer && payable && onlinePay ? (
             <Button
               type="button"
               disabled={payOnline.isPending}
@@ -248,6 +251,11 @@ export function InvoiceDetailPage() {
             >
               {payOnline.isPending ? "Paying..." : `Pay ${money(balance)}`}
             </Button>
+          ) : null}
+          {isCustomer && payable && paymentOptions.isSuccess && !onlinePay && Number(balance) > 0 ? (
+            <p className="text-sm text-muted-foreground" data-testid="invoice-pay-offline">
+              Pay {money(balance)} to the office by cash, UPI, card or bank transfer.
+            </p>
           ) : null}
         </CardFooter>
       </Card>

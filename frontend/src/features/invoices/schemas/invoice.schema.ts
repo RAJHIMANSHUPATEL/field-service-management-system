@@ -39,3 +39,8 @@ export function adjustmentFormSchema(limit: string, limitLabel: string) {
 }
 
 export type AdjustmentFormInput = z.infer<ReturnType<typeof adjustmentFormSchema>>;
+
+// GET /api/v1/invoices/payment-options. Customers see "Pay" only when onlinePay is true: the API
+// keeps it false while the only payment provider is the local mock.
+export const paymentOptionsSchema = z.object({ onlinePay: z.boolean() });
+export type PaymentOptions = z.infer<typeof paymentOptionsSchema>;

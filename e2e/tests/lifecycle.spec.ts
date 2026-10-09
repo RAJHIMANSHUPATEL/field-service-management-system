@@ -211,16 +211,27 @@ test("request, triage, assign, schedule, accept, visit, complete, invoice, pay",
   await expect(ops.page.getByText("Issued", { exact: true })).toBeVisible();
   const invoiceUrl = new URL(ops.page.url()).pathname;
 
-  // The customer opens the invoice from the request and pays online.
+  // The customer opens the invoice from the request. Online pay is off while the payment provider
+  // is the mock, so there is no Pay button: the customer pays the office, which records it.
   await customer.page.reload();
+  const optionsResponse = customer.page.waitForResponse((r) => r.url().endsWith("/invoices/payment-options"));
   await customer.page.getByRole("button", { name: "View invoice" }).click();
   await expect(customer.page).toHaveURL(new RegExp(`${invoiceUrl}$`));
-  await customer.page.getByRole("button", { name: "Pay ₹1,711.00" }).click();
-  await expect(customer.page.getByText("Paid", { exact: true }).first()).toBeVisible();
-  await customer.page.screenshot({ path: `${screensDir}/customer-invoice-paid.png`, fullPage: true });
+  expect(await (await optionsResponse).json()).toEqual({ data: { onlinePay: false } });
+  await expect(customer.page.getByTestId("invoice-pay-offline")).toHaveText("Pay ₹1,711.00 to the office by cash, UPI, card or bank transfer.");
+  await expect(customer.page.getByRole("button", { name: /^Pay/ })).toHaveCount(0);
+  await customer.page.screenshot({ path: `${screensDir}/customer-invoice-due.png`, fullPage: true });
   await ops.page.reload();
+  await ops.page.getByLabel("Amount").fill("1711.00");
+  await ops.page.getByLabel("Method").selectOption("UPI");
+  await ops.page.getByLabel("Reference").fill("UPI/401234567");
+  await ops.page.getByRole("button", { name: "Record payment" }).click();
   await expect(ops.page.getByText("Paid", { exact: true }).first()).toBeVisible();
-  await expect(ops.page.getByRole("list", { name: "Payments" })).toContainText("online");
+  await expect(ops.page.getByRole("list", { name: "Payments" })).toContainText("upi");
+  await customer.page.reload();
+  await expect(customer.page.getByText("Paid", { exact: true }).first()).toBeVisible();
+  await expect(customer.page.getByTestId("invoice-pay-offline")).toHaveCount(0);
+  await customer.page.screenshot({ path: `${screensDir}/customer-invoice-paid.png`, fullPage: true });
 
   // Ops credits part of the paid invoice (refund due), then records the refund.
   await ops.page.getByRole("button", { name: "Issue credit note" }).click();

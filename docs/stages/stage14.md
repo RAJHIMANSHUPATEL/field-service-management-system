@@ -29,7 +29,7 @@ Completes Phase 8.
 - **Payments.** `POST /invoices/:id/payments` (office: cash, UPI, card, bank transfer) accepts part payments.
   - A payment above the balance returns `409 PAYMENT_EXCEEDS_BALANCE` with the balance.
   - The invoice becomes `PAID` when the balance reaches zero.
-  - The customer pays the balance with `POST /invoices/:id/pay` through `lib/payments.ts`. Only the local `mock` provider exists; set `PAYMENT_PROVIDER` and implement `charge()` to switch to a real gateway.
+  - The customer pays the balance with `POST /invoices/:id/pay` through `lib/payments.ts`. Only the local `mock` provider exists; set `PAYMENT_PROVIDER` and implement `charge()` to switch to a real gateway. (Stage 24 hides customer online pay while the provider is the mock; see [stage24.md](./stage24.md).)
 - **Overdue.** `ISSUED` invoices past their due date become `OVERDUE` before every invoice read, on an hourly timer in the API process, and on `POST /invoices/mark-overdue`.
 - **Visibility.** Customers see their own invoices, but never drafts. Technicians do not see invoices.
 - **Contracts.** `ServiceContract` and `ContractAsset` with create, list, get and cancel at `/contracts` (minimal, so coverage can be tested). Phase 10 extends it with preventive maintenance.
@@ -48,7 +48,7 @@ Completes Phase 8.
   - Draft charge and discount, issue, record payment, void.
   - The customer Pay button; Service report buttons; service type prices.
 - e2e:
-  - The lifecycle now runs through invoice and pay: water heater out of warranty, 500 + 500 + 450 + 261 = ₹1,711, the customer pays online.
+  - The lifecycle now runs through invoice and pay: water heater out of warranty, 500 + 500 + 450 + 261 = ₹1,711, the customer pays online. (Since stage 24 the office records the payment, as online pay is off with the mock.)
   - `billing.spec.ts`: a job on an AMC-covered unit invoices only what is not covered (₹0 here, so it is issued as paid).
 - The seed adds demo prices and an out-of-warranty water heater.
 

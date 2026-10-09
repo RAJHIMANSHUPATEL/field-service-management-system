@@ -81,10 +81,15 @@ Counts from a run on 8 Oct 2026 (they move slightly with the anchor day):
 | Visits | ~200 including cancelled, unsuccessful, en route, arrived, in progress; ~210 visit changes (reschedules, reassignments, declines) |
 | Part requests | ~15, open and fulfilled |
 | Invoices | ~130: draft, issued, partially paid, overdue, paid and void, at 18% GST: CGST + SGST for Bengaluru (Karnataka, the GST state) and IGST for Mumbai, Pune and Hyderabad |
-| Payments | ~50 (UPI, bank transfer, card, cash, online) |
+| Payments | ~50 (UPI, bank transfer, card, cash, and a few online through the mock; see note below) |
 | AMC contracts / contract visits / maintenance plans | 9 (one cancelled) / ~43 / 23 |
 | Feedback | ~70 ratings, most with comments |
 | Notifications / audit events / photos | ~4,300 / ~4,450 / ~45 |
+
+Online payments: customer online pay is off while the payment provider is the mock, so a running
+demo shows no **Pay** button. The seed replays history in which a few customers paid online: it calls
+`allowMockOnlinePay(true)` from `lib/payments.ts` in its own process (nothing in the API or `.env` can),
+and those payments still go through `POST /invoices/:id/pay`, so the dataset is unchanged.
 
 This week's calendar is full (around eight visits a day), and dashboards and technician
 performance show non-zero numbers for the 7, 30 and 90 day windows.
