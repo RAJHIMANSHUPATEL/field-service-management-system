@@ -8170,6 +8170,58 @@
         }
       }
     },
+    "/api/v1/invoices/payment-options": {
+      "get": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "GET /api/v1/invoices/payment-options",
+        "description": "Roles: ADMIN, OPS, CUSTOMER.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success: `{ data, meta? }`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$schema": "https://json-schema.org/draft/2020-12/schema",
+                      "type": "object",
+                      "properties": {
+                        "onlinePay": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "onlinePay"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "meta": {}
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
     "/api/v1/invoices/{id}": {
       "get": {
         "tags": [
@@ -8653,7 +8705,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "Success: `{ data, meta? }`.",
             "content": {
               "application/json": {
@@ -8680,6 +8732,9 @@
             "$ref": "#/components/responses/Error"
           },
           "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
             "$ref": "#/components/responses/Error"
           }
         }

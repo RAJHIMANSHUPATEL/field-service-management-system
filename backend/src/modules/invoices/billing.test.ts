@@ -1,6 +1,7 @@
 import request from "supertest";
 import { extractText } from "unpdf";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
+import { allowMockOnlinePay, charge } from "../../lib/payments.js";
 import { prisma } from "../../lib/prisma.js";
 import { app } from "../../server.js";
 import { resetDatabase } from "../../test/resetDatabase.js";
@@ -16,6 +17,11 @@ const signature = {
 beforeEach(async () => {
   await resetDatabase();
   await seedStaff();
+});
+
+afterEach(() => {
+  delete process.env.PAYMENT_PROVIDER;
+  allowMockOnlinePay(false);
 });
 
 afterAll(async () => {
@@ -229,10 +235,13 @@ describe("billing", () => {
     });
     const paid = await request(app).post(api(`/invoices/${covered.invoiceId}/issue`)).set(auth(ops));
     expect(paid.body.data.status).toBe("ISSUED");
+    // Online pay is off with the mock provider, so the customer pays the office (UPI).
     const online = await request(app).post(api(`/invoices/${covered.invoiceId}/pay`)).set(auth(context.ownerToken));
-    expect(online.status).toBe(201);
-    expect(online.body.data).toMatchObject({ status: "PAID", amountPaid: "501.5" });
-    expect(online.body.data.payments[0]).toMatchObject({ method: "ONLINE", provider: "mock", amount: "501.5" });
+    expect(online.status).toBe(503);
+    const office = await request(app).post(api(`/invoices/${covered.invoiceId}/payments`)).set(auth(ops)).send({ amount: "501.50", method: "UPI", reference: "UPI/401234567" });
+    expect(office.status).toBe(201);
+    expect(office.body.data).toMatchObject({ status: "PAID", amountPaid: "501.5" });
+    expect(office.body.data.payments[0]).toMatchObject({ method: "UPI", provider: null, amount: "501.5" });
 
     // Warranty: the asset is under warranty at completion, so the job costs nothing.
     const warranty = await completedJob();
@@ -299,6 +308,117 @@ describe("billing", () => {
 });
 
 const taxOf = (invoice: Record<string, unknown>) => ({ cgst: invoice.cgst, sgst: invoice.sgst, igst: invoice.igst, taxTotal: invoice.taxTotal, total: invoice.total });
+
+describe("customer online pay", () => {
+  const options = (token: string) => request(app).get(api("/invoices/payment-options")).set(auth(token));
+  const pay = (invoiceId: string, token: string) => request(app).post(api(`/invoices/${invoiceId}/pay`)).set(auth(token));
+
+  it("reports onlinePay false while the provider is the mock or unset, to customers and the office", async () => {
+    const { context, ops, tara } = await billingSetup();
+    for (const provider of [undefined, "mock", "", "  "]) {
+      if (provider === undefined) delete process.env.PAYMENT_PROVIDER;
+      else process.env.PAYMENT_PROVIDER = provider;
+      for (const token of [context.ownerToken, ops, context.adminToken]) {
+        const response = await options(token);
+        expect(response.status).toBe(200); // not shadowed by GET /invoices/:id
+        expect(response.body).toEqual({ data: { onlinePay: false } });
+      }
+    }
+    // An unknown name is not a real provider either.
+    process.env.PAYMENT_PROVIDER = "paypal";
+    expect((await options(context.ownerToken)).body).toEqual({ data: { onlinePay: false } });
+    expect((await options(tara)).status).toBe(403);
+    expect((await request(app).get(api("/invoices/payment-options"))).status).toBe(401);
+  });
+
+  it("reports onlinePay true when a real provider is configured, whose missing gateway still answers 503", async () => {
+    const { context, ops, completedJob } = await billingSetup();
+    for (const provider of ["razorpay", "stripe", "Razorpay"]) {
+      process.env.PAYMENT_PROVIDER = provider;
+      expect((await options(context.ownerToken)).body).toEqual({ data: { onlinePay: true } });
+    }
+    process.env.PAYMENT_PROVIDER = "razorpay";
+    const job = await completedJob();
+    await request(app).post(api(`/invoices/${job.invoiceId}/issue`)).set(auth(ops));
+    const response = await pay(job.invoiceId, context.ownerToken);
+    expect(response.status).toBe(503);
+    expect(response.body.error).toEqual({ code: "PAYMENT_PROVIDER_UNAVAILABLE", message: 'Payment provider "razorpay" is not configured' });
+    expect(await prisma.payment.count()).toBe(0);
+  });
+
+  it("answers POST /pay with 503 while online pay is off, after the access checks, and the office still records payments", async () => {
+    const { context, ops, tara, completedJob } = await billingSetup();
+    const job = await completedJob();
+    process.env.PAYMENT_PROVIDER = "mock";
+
+    // A draft is hidden from the customer (404) before anything else.
+    expect((await pay(job.invoiceId, context.ownerToken)).status).toBe(404);
+    await request(app).post(api(`/invoices/${job.invoiceId}/issue`)).set(auth(ops));
+
+    const refused = await pay(job.invoiceId, context.ownerToken);
+    expect(refused.status).toBe(503);
+    expect(refused.body.error).toEqual({ code: "PAYMENT_PROVIDER_UNAVAILABLE", message: "Online payment is not available; please pay the office directly" });
+    delete process.env.PAYMENT_PROVIDER;
+    expect((await pay(job.invoiceId, context.ownerToken)).status).toBe(503);
+    const after = await request(app).get(api(`/invoices/${job.invoiceId}`)).set(auth(ops));
+    expect(after.body.data).toMatchObject({ status: "ISSUED", amountPaid: "0", payments: [] });
+
+    // Access checks come first: office and technicians 403, another organisation 404,
+    // another customer's contact 403, nobody signed in 401.
+    expect((await pay(job.invoiceId, ops)).status).toBe(403);
+    expect((await pay(job.invoiceId, tara)).status).toBe(403);
+    expect((await request(app).post(api(`/invoices/${job.invoiceId}/pay`))).status).toBe(401);
+    const passwordHash = await hashedPassword();
+    const outsiderOrg = await prisma.organization.create({ data: { name: "Other", gstState: "29" } });
+    await prisma.user.create({ data: { organizationId: outsiderOrg.id, email: "buyer@other.example", name: "Buyer", role: "CUSTOMER", passwordHash } });
+    const foreign = await pay(job.invoiceId, await login("buyer@other.example"));
+    expect(foreign.status).toBe(404);
+    expect(foreign.body.error.code).toBe("INVOICE_NOT_FOUND");
+    const neighbour = await request(app).post(api("/customers")).set(auth(context.adminToken)).send({ name: "Neighbour Co" });
+    await request(app)
+      .post(api(`/customers/${neighbour.body.data.id as string}/contacts`))
+      .set(auth(context.adminToken))
+      .send({ name: "Neighbour", email: "neighbour@example.com", password });
+    expect((await pay(job.invoiceId, await login("neighbour@example.com"))).status).toBe(403);
+
+    // The office records cash, UPI, card and bank transfer as before.
+    for (const method of ["CASH", "UPI", "CARD"] as const) {
+      const recorded = await request(app).post(api(`/invoices/${job.invoiceId}/payments`)).set(auth(ops)).send({ amount: "100.00", method });
+      expect(recorded.status).toBe(201);
+    }
+    const settled = await request(app).post(api(`/invoices/${job.invoiceId}/payments`)).set(auth(ops)).send({ amount: "1883.00", method: "BANK_TRANSFER" });
+    expect(settled.body.data).toMatchObject({ status: "PAID", amountPaid: "2183" });
+    expect(settled.body.data.payments.map((row: { method: string }) => row.method).sort()).toEqual(["BANK_TRANSFER", "CARD", "CASH", "UPI"]);
+    // Once paid, online pay is still 503 first (it is off), not 409.
+    expect((await pay(job.invoiceId, context.ownerToken)).status).toBe(503);
+  });
+
+  it("keeps the mock charge approving every charge, used by the demo replay", async () => {
+    // lib level: the mock approves and returns a reference; any other name is 503.
+    const approved = await charge({ invoiceId: "inv_1", amount: "2183.00", currency: "INR" });
+    expect(approved).toEqual({ provider: "mock", reference: expect.stringMatching(/^mock_[0-9a-f-]{36}$/), amount: "2183.00" });
+    process.env.PAYMENT_PROVIDER = "mock";
+    expect((await charge({ invoiceId: "inv_1", amount: "1.00", currency: "INR" })).provider).toBe("mock");
+    process.env.PAYMENT_PROVIDER = "stripe";
+    await expect(charge({ invoiceId: "inv_1", amount: "1.00", currency: "INR" })).rejects.toMatchObject({ code: "PAYMENT_PROVIDER_UNAVAILABLE", status: 503 });
+    delete process.env.PAYMENT_PROVIDER;
+
+    // Service level, through the in-process switch the demo seed uses: the customer pays the
+    // balance online with the mock, and the invoice reaches PAID.
+    const { context, ops, completedJob } = await billingSetup();
+    const job = await completedJob();
+    await request(app).post(api(`/invoices/${job.invoiceId}/issue`)).set(auth(ops));
+    allowMockOnlinePay(true);
+    expect((await options(context.ownerToken)).body).toEqual({ data: { onlinePay: true } });
+    const paid = await pay(job.invoiceId, context.ownerToken);
+    expect(paid.status).toBe(201);
+    expect(paid.body.data).toMatchObject({ status: "PAID", amountPaid: "2183" });
+    expect(paid.body.data.payments[0]).toMatchObject({ method: "ONLINE", provider: "mock", amount: "2183", reference: expect.stringMatching(/^mock_/) });
+    expect((await pay(job.invoiceId, context.ownerToken)).status).toBe(409);
+    allowMockOnlinePay(false);
+    expect((await options(context.ownerToken)).body).toEqual({ data: { onlinePay: false } });
+  });
+});
 
 describe("GST supply type", () => {
   it("charges CGST and SGST when the site is in the organisation's state", async () => {
