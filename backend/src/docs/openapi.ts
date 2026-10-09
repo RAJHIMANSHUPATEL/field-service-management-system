@@ -92,7 +92,7 @@ export function openapiDocument() {
             ? { description: `Success: a ${schemas.produces} file.`, content: { [schemas.produces]: { schema: { type: "string", format: "binary" } } } }
             : {
                 description: "Success: `{ data, meta? }`.",
-                content: { "application/json": { schema: { type: "object", properties: { data: {}, meta: {} } } } },
+                content: { "application/json": { schema: { type: "object", properties: { data: schemas.response ? jsonSchema(schemas.response) : {}, meta: {} } } } },
               }),
         },
         ...(schemas.body || schemas.query ? { 400: { $ref: "#/components/responses/Error" } } : {}),
@@ -101,6 +101,7 @@ export function openapiDocument() {
         ...(pathParams.length ? { 404: { $ref: "#/components/responses/Error" } } : {}),
         ...(isWrite || schemas.conflict ? { 409: { $ref: "#/components/responses/Error" } } : {}),
         429: { $ref: "#/components/responses/Error" },
+        ...(schemas.unavailable ? { 503: { $ref: "#/components/responses/Error" } } : {}),
       },
     };
   }

@@ -9,6 +9,8 @@ const readers = requireRole("ADMIN", "OPS", "CUSTOMER");
 
 invoiceRouter.get("/", requireAuth, readers, invoiceController.list);
 invoiceRouter.post("/mark-overdue", requireAuth, office, invoiceController.markOverdue);
+// Before "/:id", which would otherwise take "payment-options" as an invoice id.
+invoiceRouter.get("/payment-options", requireAuth, readers, invoiceController.paymentOptions);
 invoiceRouter.get("/:id", requireAuth, readers, invoiceController.get);
 invoiceRouter.get("/:id/pdf", requireAuth, readers, invoiceController.pdf);
 invoiceRouter.patch("/:id", requireAuth, office, invoiceController.update);

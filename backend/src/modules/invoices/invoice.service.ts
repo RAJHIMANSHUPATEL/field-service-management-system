@@ -1,7 +1,7 @@
 import { Prisma } from "../../generated/prisma/client.js";
 import type { AuthUser } from "../../types/authUser.js";
 import { AppError } from "../../lib/errors.js";
-import { charge } from "../../lib/payments.js";
+import { charge, onlinePayEnabled } from "../../lib/payments.js";
 import { pageMeta } from "../../lib/pagination.js";
 import { prisma } from "../../lib/prisma.js";
 import { gstStateByCode, resolveGstState } from "../../lib/gstStates.js";
@@ -368,11 +368,21 @@ export async function recordPayment(id: string, actor: AuthUser, input: RecordPa
   return getInvoice(invoice.id, actor);
 }
 
-// The customer pays the balance online through the payment provider (mocked locally).
+// What the customer may use to pay. Online pay stays off while the only provider is the mock.
+export function paymentOptions() {
+  return { data: { onlinePay: onlinePayEnabled() } };
+}
+
+// The customer pays the balance online through the payment provider. Checks run in this order:
+// the invoice must be visible (404), the caller a customer (403), online pay on (503
+// PAYMENT_PROVIDER_UNAVAILABLE), and the invoice payable (409).
 export async function payOnline(id: string, actor: AuthUser) {
   const invoice = await requireInvoice(id, actor);
   if (actor.role !== "CUSTOMER") {
     throw new AppError("FORBIDDEN", 403, "You do not have access to this resource");
+  }
+  if (!onlinePayEnabled()) {
+    throw new AppError("PAYMENT_PROVIDER_UNAVAILABLE", 503, "Online payment is not available; please pay the office directly");
   }
   assertCan("pay", invoice.status);
   const { balance } = settlementOf(invoice);

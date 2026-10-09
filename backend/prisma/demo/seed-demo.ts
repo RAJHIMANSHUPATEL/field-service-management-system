@@ -36,6 +36,11 @@ const { prisma } = await import("../../src/lib/prisma.js");
 const { sentMail } = await import("../../src/lib/mailer.js");
 const { setStorageClockOffset } = await import("../../src/lib/storage.js");
 const { accessTokenFor } = await import("../../src/modules/auth/auth.service.js");
+// Customer online pay is off while the provider is the mock. The demo replays history in which some
+// customers paid online, so it switches the mock on in-process (never via env or HTTP) and those
+// payments still go through POST /invoices/:id/pay like every other action.
+const { allowMockOnlinePay } = await import("../../src/lib/payments.js");
+allowMockOnlinePay(true);
 onClockChange(setStorageClockOffset);
 
 // ---------------------------------------------------------------- time

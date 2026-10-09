@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { addLineSchema, creditNoteSchema, listInvoicesQuerySchema, recordPaymentSchema, refundSchema, updateInvoiceSchema, voidInvoiceSchema } from "./invoice.schema.js";
+import { addLineSchema, creditNoteSchema, listInvoicesQuerySchema, paymentOptionsSchema, recordPaymentSchema, refundSchema, updateInvoiceSchema, voidInvoiceSchema } from "./invoice.schema.js";
 import { invoicePdf } from "./invoice.pdf.js";
 import * as invoiceService from "./invoice.service.js";
 
@@ -14,6 +14,11 @@ const id = (req: Request) => String(req.params.id);
 
 export async function list(req: Request, res: Response) {
   res.status(200).json(await invoiceService.listInvoices(actor(req), listInvoicesQuerySchema.parse(req.query)));
+}
+
+export async function paymentOptions(_req: Request, res: Response) {
+  const { data } = invoiceService.paymentOptions();
+  res.status(200).json({ data: paymentOptionsSchema.parse(data) });
 }
 
 export async function get(req: Request, res: Response) {
