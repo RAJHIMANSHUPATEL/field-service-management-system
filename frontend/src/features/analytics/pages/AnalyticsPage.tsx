@@ -11,15 +11,15 @@ const dash = (value: number | null, suffix = "") => (value === null ? "—" : `$
 function Cells({ row }: { row: Metrics }) {
   return (
     <>
-      <TableCell className="text-right">{row.jobsCompleted}</TableCell>
-      <TableCell className="text-right">{row.jobsPending}</TableCell>
-      <TableCell className="text-right">{dash(row.firstVisitResolutionPercent, "%")}</TableCell>
-      <TableCell className="text-right">{row.repeatVisitJobs}</TableCell>
-      <TableCell className="text-right">{dash(row.averageServiceMinutes, " min")}</TableCell>
-      <TableCell className="text-right">{dash(row.averageCompletionHours, " h")}</TableCell>
-      <TableCell className="text-right">{row.averageRating === null ? "—" : `${row.averageRating}/5 (${row.ratings})`}</TableCell>
-      <TableCell className="text-right">{row.cancelledVisits}</TableCell>
-      <TableCell className="text-right">{row.partsConsumed}</TableCell>
+      <TableCell nowrap className="text-right">{row.jobsCompleted}</TableCell>
+      <TableCell nowrap className="text-right">{row.jobsPending}</TableCell>
+      <TableCell nowrap className="text-right">{dash(row.firstVisitResolutionPercent, "%")}</TableCell>
+      <TableCell nowrap className="text-right">{row.repeatVisitJobs}</TableCell>
+      <TableCell nowrap className="text-right">{dash(row.averageServiceMinutes, " min")}</TableCell>
+      <TableCell nowrap className="text-right">{dash(row.averageCompletionHours, " h")}</TableCell>
+      <TableCell nowrap className="text-right">{row.averageRating === null ? "—" : `${row.averageRating}/5 (${row.ratings})`}</TableCell>
+      <TableCell nowrap className="text-right">{row.cancelledVisits}</TableCell>
+      <TableCell nowrap className="text-right">{row.partsConsumed}</TableCell>
     </>
   );
 }
@@ -44,22 +44,22 @@ export function AnalyticsPage() {
           ))}
         </CardAction>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
+      <CardContent>
         {performance.isPending ? <Skeleton className="h-24 w-full" /> : null}
         {performance.data ? (
           <Table aria-label="Technician performance">
             <TableHeader>
               <TableRow>
                 <TableHead>Technician</TableHead>
-                <TableHead className="text-right">Completed</TableHead>
-                <TableHead className="text-right">Pending</TableHead>
-                <TableHead className="text-right">First visit</TableHead>
-                <TableHead className="text-right">Repeat jobs</TableHead>
-                <TableHead className="text-right">Service time</TableHead>
-                <TableHead className="text-right">Completion</TableHead>
-                <TableHead className="text-right">Rating</TableHead>
-                <TableHead className="text-right">Cancelled</TableHead>
-                <TableHead className="text-right">Parts used</TableHead>
+                <TableHead nowrap className="text-right">Completed</TableHead>
+                <TableHead nowrap className="text-right">Pending</TableHead>
+                <TableHead nowrap className="text-right">First visit</TableHead>
+                <TableHead nowrap className="text-right">Repeat jobs</TableHead>
+                <TableHead nowrap className="text-right">Service time</TableHead>
+                <TableHead nowrap className="text-right">Completion</TableHead>
+                <TableHead nowrap className="text-right">Rating</TableHead>
+                <TableHead nowrap className="text-right">Cancelled</TableHead>
+                <TableHead nowrap className="text-right">Parts used</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

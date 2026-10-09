@@ -1,11 +1,13 @@
 import * as React from "react"
 import { cn } from "cn"
 
+// The container is the one horizontal scroller: it only scrolls when the table is still wider than
+// its card after descriptive cells wrap. Pages must not add another overflow-x-auto around it.
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className="relative w-full max-w-full min-w-0 overflow-x-auto"
     >
       <table
         data-slot="table"
@@ -62,12 +64,18 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   )
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+// Cells wrap by default (names, equipment, addresses, notes). `nowrap` keeps short values intact on
+// one line: money, quantities, dates, status badges and row actions (and their column headers).
+type NoWrap = { nowrap?: boolean }
+const nowrapClass = "whitespace-nowrap tabular-nums"
+
+function TableHead({ className, nowrap, ...props }: React.ComponentProps<"th"> & NoWrap) {
   return (
     <th
       data-slot="table-head"
       className={cn(
-        "h-9 px-2 text-left align-middle text-xs font-semibold tracking-wide whitespace-nowrap text-muted-foreground uppercase [&:has([role=checkbox])]:pr-0",
+        "h-9 px-2 text-left align-middle text-xs font-semibold tracking-wide text-muted-foreground uppercase [&:has([role=checkbox])]:pr-0",
+        nowrap && nowrapClass,
         className
       )}
       {...props}
@@ -75,12 +83,13 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   )
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
+function TableCell({ className, nowrap, ...props }: React.ComponentProps<"td"> & NoWrap) {
   return (
     <td
       data-slot="table-cell"
       className={cn(
-        "px-2 py-3 align-middle whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        "px-2 py-3 align-middle break-words text-foreground [&:has([role=checkbox])]:pr-0",
+        nowrap && nowrapClass,
         className
       )}
       {...props}

@@ -39,7 +39,7 @@ export function ContractsPage() {
             </Button>
           </CardAction>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent>
           {contracts.isPending ? <Skeleton className="h-24 w-full" /> : null}
           {contracts.data?.length === 0 ? <p className="text-sm text-muted-foreground">No contracts yet.</p> : null}
           {contracts.data && contracts.data.length > 0 ? (
@@ -51,25 +51,35 @@ export function ContractsPage() {
                   <TableHead>Equipment</TableHead>
                   <TableHead>Coverage</TableHead>
                   <TableHead>Visits</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead nowrap>Status</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {contracts.data.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell>
+                    <TableCell className="min-w-44">
                       <div className="font-medium">{row.name}</div>
                       <div className="text-xs text-muted-foreground">{row.customer.name}</div>
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {day(row.startsOn)} – {day(row.endsOn)}
+                    {/* Each date stays whole; the range may break after the dash. */}
+                    <TableCell className="tabular-nums">
+                      <span className="whitespace-nowrap">{day(row.startsOn)} –</span>{" "}
+                      <span className="whitespace-nowrap">{day(row.endsOn)}</span>
                     </TableCell>
-                    <TableCell>{row.assets.map((item) => `${item.asset.equipmentType} · ${item.asset.serialNumber}`).join(", ")}</TableCell>
-                    <TableCell className="text-xs">
+                    {/* The list wraps between items, and inside an item only before the serial (kept whole). */}
+                    <TableCell className="min-w-48">
+                      {row.assets.map((item, index) => (
+                        <span key={item.asset.serialNumber}>
+                          {index > 0 ? ", " : null}
+                          {item.asset.equipmentType} · <span className="whitespace-nowrap">{item.asset.serialNumber}</span>
+                        </span>
+                      ))}
+                    </TableCell>
+                    <TableCell className="min-w-36 text-xs">
                       Service {row.serviceChargeCoveredPercent}% · Labour {row.labourCoveredPercent}% · Parts {row.partsCoveredPercent}%
                     </TableCell>
-                    <TableCell data-testid={`contract-visits-${row.id}`}>{visitsLabel(row)}</TableCell>
+                    <TableCell className="min-w-28" data-testid={`contract-visits-${row.id}`}>{visitsLabel(row)}</TableCell>
                     <TableCell>
                       <Badge variant={row.status === "ACTIVE" ? "default" : "secondary"}>{row.status === "ACTIVE" ? "Active" : "Cancelled"}</Badge>
                     </TableCell>
@@ -120,7 +130,7 @@ export function ContractsPage() {
             </Button>
           </CardAction>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent>
           {plans.data?.length === 0 ? <p className="text-sm text-muted-foreground">No plans yet.</p> : null}
           {plans.data && plans.data.length > 0 ? (
             <Table aria-label="Maintenance plans">
@@ -128,10 +138,10 @@ export function ContractsPage() {
                 <TableRow>
                   <TableHead>Plan</TableHead>
                   <TableHead>Equipment</TableHead>
-                  <TableHead>Every</TableHead>
-                  <TableHead>Next due</TableHead>
-                  <TableHead>Latest job</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead nowrap>Every</TableHead>
+                  <TableHead nowrap>Next due</TableHead>
+                  <TableHead nowrap>Latest job</TableHead>
+                  <TableHead nowrap>Status</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -140,7 +150,7 @@ export function ContractsPage() {
                   const latest = row.workOrders[0];
                   return (
                     <TableRow key={row.id}>
-                      <TableCell>
+                      <TableCell className="min-w-56">
                         <div className="font-medium">{row.name}</div>
                         <div className="text-xs text-muted-foreground">
                           {row.customer.name}
@@ -150,9 +160,9 @@ export function ContractsPage() {
                       <TableCell>
                         {row.asset.equipmentType} · {row.asset.serialNumber}
                       </TableCell>
-                      <TableCell>{row.intervalDays} days</TableCell>
-                      <TableCell data-testid={`plan-next-${row.id}`}>{day(row.nextDueOn)}</TableCell>
-                      <TableCell>
+                      <TableCell nowrap>{row.intervalDays} days</TableCell>
+                      <TableCell nowrap data-testid={`plan-next-${row.id}`}>{day(row.nextDueOn)}</TableCell>
+                      <TableCell nowrap>
                         {latest ? (
                           <Link className={recordLinkClassName} to={`/work-orders/${latest.id}`}>
                             {latest.status === "COMPLETED" ? "Completed" : "Open"} · {day(latest.createdAt)}

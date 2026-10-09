@@ -105,7 +105,7 @@ export function CustomerDetailPage() {
                   <TableRow key={contact.id}>
                     <TableCell>{contact.name}</TableCell>
                     <TableCell>{contact.email}</TableCell>
-                    <TableCell>{contact.phone ?? "—"}</TableCell>
+                    <TableCell nowrap>{contact.phone ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant={contact.hasLogin ? "secondary" : "outline"}>
                         {contact.hasLogin ? "Has login" : "No login"}
@@ -206,7 +206,7 @@ export function CustomerDetailPage() {
                     <TableCell>{asset.equipmentType}</TableCell>
                     <TableCell>{asset.model}</TableCell>
                     <TableCell>{asset.serialNumber}</TableCell>
-                    <TableCell>{dateLabel(asset.warrantyExpiresAt)}</TableCell>
+                    <TableCell nowrap>{dateLabel(asset.warrantyExpiresAt)}</TableCell>
                     <TableCell>
                       <Badge variant={asset.status === "ACTIVE" ? "secondary" : "outline"}>
                         {statusLabel(asset.status)}

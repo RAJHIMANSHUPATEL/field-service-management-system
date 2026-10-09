@@ -27,11 +27,11 @@ export function InvoicesPage() {
           <Table aria-label="Invoices">
             <TableHeader>
               <TableRow>
-                <TableHead>Invoice</TableHead>
+                <TableHead nowrap>Invoice</TableHead>
                 {isCustomer ? null : <TableHead>Customer</TableHead>}
                 <TableHead>Equipment</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead>Due</TableHead>
+                <TableHead nowrap className="text-right">Total</TableHead>
+                <TableHead nowrap>Due</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -45,8 +45,8 @@ export function InvoicesPage() {
                   </TableCell>
                   {isCustomer ? null : <TableCell>{row.customer.name}</TableCell>}
                   <TableCell>{row.workOrder.asset.equipmentType}</TableCell>
-                  <TableCell className="text-right">{formatMoney(row.total, row.currency)}</TableCell>
-                  <TableCell>{row.dueAt ? new Date(row.dueAt).toLocaleDateString() : "—"}</TableCell>
+                  <TableCell nowrap className="text-right">{formatMoney(row.total, row.currency)}</TableCell>
+                  <TableCell nowrap>{row.dueAt ? new Date(row.dueAt).toLocaleDateString() : "—"}</TableCell>
                   <TableCell>
                     <Badge variant={row.status === "OVERDUE" ? "destructive" : row.status === "PAID" ? "default" : "secondary"}>
                       {invoiceStatusLabels[row.status]}

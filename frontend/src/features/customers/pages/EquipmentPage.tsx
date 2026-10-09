@@ -107,7 +107,7 @@ export function EquipmentPage() {
                     <TableCell>{asset.equipmentType}</TableCell>
                     <TableCell>{asset.model}</TableCell>
                     <TableCell>{asset.serialNumber}</TableCell>
-                    <TableCell>{dateLabel(asset.warrantyExpiresAt)}</TableCell>
+                    <TableCell nowrap>{dateLabel(asset.warrantyExpiresAt)}</TableCell>
                     <TableCell>
                       <Badge variant={asset.status === "ACTIVE" ? "secondary" : "outline"}>
                         {statusLabel(asset.status)}

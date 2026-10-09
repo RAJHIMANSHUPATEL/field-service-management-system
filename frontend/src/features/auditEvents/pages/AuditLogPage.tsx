@@ -23,7 +23,7 @@ export function AuditLogPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>When</TableHead>
+                <TableHead nowrap>When</TableHead>
                 <TableHead>Who</TableHead>
                 <TableHead>Action</TableHead>
                 <TableHead>Record</TableHead>
@@ -32,10 +32,10 @@ export function AuditLogPage() {
             <TableBody>
               {events.data.data.map((event) => (
                 <TableRow key={event.id}>
-                  <TableCell>{new Date(event.createdAt).toLocaleString()}</TableCell>
+                  <TableCell nowrap>{new Date(event.createdAt).toLocaleString()}</TableCell>
                   <TableCell>{event.actor?.name ?? "System"}</TableCell>
-                  <TableCell className="font-mono text-xs">{event.action}</TableCell>
-                  <TableCell className="font-mono text-xs">{event.entityId ?? "—"}</TableCell>
+                  <TableCell className="min-w-32 font-mono text-xs [overflow-wrap:anywhere]">{event.action}</TableCell>
+                  <TableCell className="min-w-32 font-mono text-xs [overflow-wrap:anywhere]">{event.entityId ?? "—"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

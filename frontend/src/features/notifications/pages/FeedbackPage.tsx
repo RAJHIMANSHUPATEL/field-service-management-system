@@ -19,7 +19,7 @@ export function FeedbackPage() {
             : "Ratings customers leave after completed jobs."}
         </CardDescription>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
+      <CardContent>
         {feedback.isPending ? <Skeleton className="h-24 w-full" /> : null}
         {feedback.data?.data.length === 0 ? <p className="text-sm text-muted-foreground">No feedback yet.</p> : null}
         {feedback.data && feedback.data.data.length > 0 ? (
@@ -45,7 +45,7 @@ export function FeedbackPage() {
                     <Stars rating={row.rating} />
                     <div className="text-xs text-muted-foreground">{row.satisfied ? "Satisfied" : "Not satisfied"}</div>
                   </TableCell>
-                  <TableCell className="max-w-80 whitespace-normal">{row.comment ?? "—"}</TableCell>
+                  <TableCell className="min-w-48 max-w-80">{row.comment ?? "—"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

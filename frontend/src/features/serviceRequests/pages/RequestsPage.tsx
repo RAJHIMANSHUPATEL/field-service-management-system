@@ -107,7 +107,7 @@ export function RequestsPage() {
                   </TableCell>
                   {canTriage ? <TableCell>{item.customer.name}</TableCell> : null}
                   <TableCell>{item.serviceType.name}</TableCell>
-                  <TableCell>
+                  <TableCell nowrap>
                     {dateLabel(item.preferredStart)} – {dateLabel(item.preferredEnd)}
                   </TableCell>
                   <TableCell>

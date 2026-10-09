@@ -43,7 +43,7 @@ export function AssetsPage() {
                   <TableCell>
                     {asset.equipmentType} · {asset.model}
                   </TableCell>
-                  <TableCell className="font-mono text-xs">{asset.serialNumber}</TableCell>
+                  <TableCell nowrap className="font-mono text-xs">{asset.serialNumber}</TableCell>
                   <TableCell>
                     {asset.customer ? (
                       <Link className={recordLinkClassName} to={`/customers/${asset.customer.id}`}>
@@ -53,7 +53,7 @@ export function AssetsPage() {
                       "—"
                     )}
                   </TableCell>
-                  <TableCell>{warranty(asset.warrantyExpiresAt)}</TableCell>
+                  <TableCell nowrap>{warranty(asset.warrantyExpiresAt)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

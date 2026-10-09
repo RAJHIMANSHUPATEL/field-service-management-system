@@ -19,7 +19,7 @@ function Rules() {
         <CardTitle>Rules</CardTitle>
         <CardDescription>Which events notify whom, and on which channels.</CardDescription>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
+      <CardContent>
         {rules.isPending ? <Skeleton className="h-24 w-full" /> : null}
         {rules.data ? (
           <Table aria-label="Notification rules">
@@ -108,49 +108,48 @@ export function NotificationsPage() {
           {deliveries.isPending ? <Skeleton className="h-24 w-full" /> : null}
           {deliveries.data?.length === 0 ? <p className="text-sm text-muted-foreground">No deliveries.</p> : null}
           {deliveries.data && deliveries.data.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table aria-label="Deliveries">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>When</TableHead>
-                    <TableHead>Event</TableHead>
-                    <TableHead>Recipient</TableHead>
-                    <TableHead>Channel</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead />
+            <Table aria-label="Deliveries">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>When</TableHead>
+                  <TableHead>Event</TableHead>
+                  <TableHead>Recipient</TableHead>
+                  <TableHead>Channel</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {deliveries.data.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell nowrap>{new Date(row.createdAt).toLocaleString()}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{row.subject}</div>
+                      <div className="text-xs text-muted-foreground">{row.body}</div>
+                    </TableCell>
+                    <TableCell>{row.recipient.name}</TableCell>
+                    <TableCell>{channelLabels[row.channel]}</TableCell>
+                    <TableCell>
+                      <Badge variant={row.status === "FAILED" ? "destructive" : row.status === "SENT" ? "default" : "secondary"}>
+                        {row.status === "SENT" ? "Sent" : row.status === "FAILED" ? "Failed" : "Pending"}
+                      </Badge>
+                      {/* The error text wraps, breaking long tokens, instead of widening the table. */}
+                      <div className="max-w-64 min-w-32 text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                        {row.attempts} attempt{row.attempts === 1 ? "" : "s"}
+                        {row.lastError ? ` · ${row.lastError}` : ""}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {row.status === "FAILED" ? (
+                        <Button size="sm" variant="outline" disabled={retry.isPending} onClick={() => retry.mutate(row.id)}>
+                          Retry
+                        </Button>
+                      ) : null}
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {deliveries.data.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell className="whitespace-nowrap">{new Date(row.createdAt).toLocaleString()}</TableCell>
-                      <TableCell>
-                        <div className="font-medium">{row.subject}</div>
-                        <div className="text-xs text-muted-foreground">{row.body}</div>
-                      </TableCell>
-                      <TableCell>{row.recipient.name}</TableCell>
-                      <TableCell>{channelLabels[row.channel]}</TableCell>
-                      <TableCell>
-                        <Badge variant={row.status === "FAILED" ? "destructive" : row.status === "SENT" ? "default" : "secondary"}>
-                          {row.status === "SENT" ? "Sent" : row.status === "FAILED" ? "Failed" : "Pending"}
-                        </Badge>
-                        <div className="text-xs text-muted-foreground">
-                          {row.attempts} attempt{row.attempts === 1 ? "" : "s"}
-                          {row.lastError ? ` · ${row.lastError}` : ""}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {row.status === "FAILED" ? (
-                          <Button size="sm" variant="outline" disabled={retry.isPending} onClick={() => retry.mutate(row.id)}>
-                            Retry
-                          </Button>
-                        ) : null}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                ))}
+              </TableBody>
+            </Table>
           ) : null}
         </CardContent>
       </Card>
