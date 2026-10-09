@@ -2,7 +2,7 @@ import request from "supertest";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "../../lib/prisma.js";
 import { drainNotifications } from "../../lib/queue.js";
-import { sentMail } from "../../lib/mailer.js";
+import { sentMail, setMailTransportFactory } from "../../lib/mailer.js";
 import { sentSms } from "../../lib/sms.js";
 import { app } from "../../server.js";
 import { resetDatabase } from "../../test/resetDatabase.js";
@@ -23,8 +23,16 @@ beforeEach(async () => {
   sentSms.length = 0;
 });
 
+const smtpKeys = ["MAIL_PROVIDER", "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS"] as const;
+const savedSmtp = Object.fromEntries(smtpKeys.map((key) => [key, process.env[key]]));
+
 afterEach(() => {
   delete process.env.SMS_PROVIDER;
+  for (const key of smtpKeys) {
+    if (savedSmtp[key] === undefined) delete process.env[key];
+    else process.env[key] = savedSmtp[key];
+  }
+  setMailTransportFactory(null);
 });
 
 afterAll(async () => {
@@ -100,6 +108,48 @@ describe("notifications along the job", () => {
     expect(again.status).toBe(409);
     expect(again.body.error.code).toBe("INVALID_TRANSITION");
     expect(job.workOrderId).toBeTruthy();
+  });
+
+  it("retries a failed SMTP send through the worker until it is accepted or marked FAILED", async () => {
+    // Fake transport only: no SMTP server is ever contacted.
+    Object.assign(process.env, { MAIL_PROVIDER: "smtp", SMTP_HOST: "smtp.example.com", SMTP_PORT: "587", SMTP_USER: "mailer@example.com", SMTP_PASS: "not-a-real-password" });
+    let failuresPerMessage = 2;
+    const attempts = new Map<string, number>();
+    setMailTransportFactory(() => ({
+      sendMail: async (mail) => {
+        const key = `${mail.subject}|${mail.to}|${mail.text}`;
+        const seen = (attempts.get(key) ?? 0) + 1;
+        attempts.set(key, seen);
+        if (seen <= failuresPerMessage) throw new Error("421 Service not available");
+        return { messageId: "fake" };
+      },
+    }));
+    const context = await setup();
+    const tara = await login("tara@example.com");
+    const decline = async (day: string, reason: string) => {
+      const job = await scheduledJob(context, "tara", `2026-11-${day}T09:00:00.000Z`, false);
+      expect((await request(app).post(api(`/work-orders/${job.workOrderId}/decline`)).set(auth(tara)).send({ reason })).status).toBe(200);
+      return (await events({ channel: "EMAIL", event: "assignment.declined" })).filter((row) => row.body.endsWith(reason));
+    };
+    const declineAttempts = () => [...attempts].filter(([key]) => key.startsWith("Technician declined a job|")).map(([, count]) => count);
+
+    const recovered = await decline("03", "Too far");
+    expect(recovered.length).toBeGreaterThan(0);
+    for (const row of recovered) {
+      expect(row).toMatchObject({ status: "SENT", attempts: 3, lastError: null }); // cleared once accepted
+    }
+    expect(declineAttempts()).toEqual(recovered.map(() => 3));
+    expect(sentMail.filter((mail) => mail.subject === "Technician declined a job")).toHaveLength(recovered.length);
+
+    failuresPerMessage = Number.POSITIVE_INFINITY;
+    attempts.clear();
+    const failed = await decline("04", "Van broke down");
+    expect(failed.length).toBe(recovered.length);
+    for (const row of failed) {
+      expect(row).toMatchObject({ status: "FAILED", attempts: 5, lastError: "421 Service not available", sentAt: null });
+    }
+    expect(declineAttempts()).toEqual(failed.map(() => 5));
+    expect(sentMail.filter((mail) => mail.subject === "Technician declined a job")).toHaveLength(recovered.length);
   });
 
   it("tells the office about declines, the old technician about reassignment, and both sides about changes", async () => {

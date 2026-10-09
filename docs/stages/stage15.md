@@ -26,4 +26,4 @@ Completes Phase 9.
 
 ## Open questions
 
-- Real email and SMS providers, and per-user notification preferences, are left for deployment.
+- Real email and SMS providers, and per-user notification preferences, are left for deployment. (Stage 23 added an SMTP email provider, `MAIL_PROVIDER=smtp`; see [deployment](../deployment.md#email).)
