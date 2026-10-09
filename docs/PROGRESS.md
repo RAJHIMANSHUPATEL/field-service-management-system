@@ -35,3 +35,4 @@ Read this file and `docs/stages/README.md` before starting any work. Never redo 
 | Billing | feat/invoice-pdf (stage 21: downloadable invoice PDF, GET /invoices/:id/pdf, 409 INVOICE_NOT_ISSUED) | d4a9e17 | All phases 0-12 complete; demo dataset available. Strict checks: /workspace/check-strict.sh |
 | Billing | feat/invoice-credits-refunds (stage 22: credit notes and refunds, one balance definition; ADR 0004 amended) | 7e74ccc | All phases 0-12 complete; demo dataset available. Strict checks: /workspace/check-strict.sh |
 | Mailer | feat/mailer-smtp (stage 23: SMTP email provider via nodemailer) | 7a0b4a3 | All phases 0-12 complete; demo dataset available. Strict checks: /workspace/check-strict.sh |
+| Billing | feat/online-pay-gate (stage 24: customer online pay hidden while the provider is the mock; GET /invoices/payment-options; ADR 0004 amended) | 49089d7 | All phases 0-12 complete; demo dataset available. Strict checks: /workspace/check-strict.sh |
