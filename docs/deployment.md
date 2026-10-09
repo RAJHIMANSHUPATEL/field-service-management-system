@@ -12,6 +12,23 @@
 5. Frontend: `cd frontend && npm ci && npm run build` and serve `dist/` behind the same origin, proxying `/api` to the backend.
 6. Behind a reverse proxy set `TRUST_PROXY=1` so rate limits see client addresses.
 
+## Email
+Mail goes through `backend/src/lib/mailer.ts`; callers only call `sendMail`. `MAIL_PROVIDER` picks
+the provider:
+- `log` (default) prints each message; `file` also appends it to `MAIL_OUTBOX_FILE`. Nothing leaves
+  the machine.
+- `smtp` sends through any SMTP server with nodemailer. Set `SMTP_HOST`, `SMTP_PORT` (a number),
+  `SMTP_USER` and `SMTP_PASS`; optionally `SMTP_SECURE` (`true`/`false`; the default is TLS from the
+  start on port 465 and STARTTLS otherwise) and `MAIL_FROM` (default `FieldOps <no-reply@example.com>`).
+  - If any of the four required variables is missing, messages are logged as with `log`, with one
+    warning naming the missing variables (never their values), and nothing throws.
+  - A failed send throws; the notification worker records `lastError` and retries (5 attempts, then
+    `FAILED`, retryable from **Notifications → Deliveries**).
+
+To switch: put the variables in `backend/.env` (or the secret manager), set `MAIL_PROVIDER=smtp` and
+restart the API (the worker runs in the same process). Switch back by setting `MAIL_PROVIDER=log`.
+Not used here: no SMTP account is configured or contacted by this project; tests use a fake transport.
+
 ## Operations
 - Health: `GET /health`. Docs: `GET /api/v1/openapi.json`.
 - Backups: `scripts/backup.sh [dir]` (pg_dump custom format, plus bucket copy when configured).
